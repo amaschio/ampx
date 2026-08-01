@@ -107,6 +107,115 @@ final class ClassicPlaylistLayoutDefaultsTests: XCTestCase {
     }
 }
 
+final class ClassicVisualizerLayoutDefaultsTests: XCTestCase {
+    @MainActor
+    func testVisualizerDefaultsHiddenWithDefaultSize() {
+        let keys = ["showVisualizer", "visualizerWidth", "visualizerHeight"]
+        var previous: [String: Any] = [:]
+        for key in keys {
+            if let value = UserDefaults.standard.object(forKey: key) {
+                previous[key] = value
+            }
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+        defer {
+            for key in keys {
+                if let value = previous[key] {
+                    UserDefaults.standard.set(value, forKey: key)
+                } else {
+                    UserDefaults.standard.removeObject(forKey: key)
+                }
+            }
+        }
+
+        let layout = WinampPanelLayoutState()
+        XCTAssertFalse(layout.showVisualizer)
+        XCTAssertEqual(layout.visualizerSize.width, WinampMetrics.defaultVisualizerWidth)
+        XCTAssertEqual(layout.visualizerSize.height, WinampMetrics.defaultVisualizerHeight)
+    }
+
+    @MainActor
+    func testVisualizerSizePersists() {
+        let keyW = "visualizerWidth"
+        let keyH = "visualizerHeight"
+        let previousW = UserDefaults.standard.object(forKey: keyW)
+        let previousH = UserDefaults.standard.object(forKey: keyH)
+        defer {
+            if let previousW {
+                UserDefaults.standard.set(previousW, forKey: keyW)
+            } else {
+                UserDefaults.standard.removeObject(forKey: keyW)
+            }
+            if let previousH {
+                UserDefaults.standard.set(previousH, forKey: keyH)
+            } else {
+                UserDefaults.standard.removeObject(forKey: keyH)
+            }
+        }
+
+        let layout = WinampPanelLayoutState()
+        layout.visualizerSize = CGSize(width: 640, height: 480)
+        let restored = WinampPanelLayoutState()
+        XCTAssertEqual(restored.visualizerSize.width, 640)
+        XCTAssertEqual(restored.visualizerSize.height, 480)
+    }
+
+    @MainActor
+    func testVisualizerVisibilityPersists() {
+        let key = "showVisualizer"
+        let previous = UserDefaults.standard.object(forKey: key)
+        defer {
+            if let previous {
+                UserDefaults.standard.set(previous, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+
+        UserDefaults.standard.removeObject(forKey: key)
+        let layout = WinampPanelLayoutState()
+        layout.showVisualizer = true
+        let restored = WinampPanelLayoutState()
+        XCTAssertTrue(restored.showVisualizer)
+    }
+
+    @MainActor
+    func testScaleVisualizerDimensions() {
+        let layout = WinampPanelLayoutState()
+        layout.visualizerSize = CGSize(width: 600, height: 450)
+        layout.scaleVisualizerDimensions(by: 2)
+        XCTAssertEqual(layout.visualizerSize.width, 1200)
+        XCTAssertEqual(layout.visualizerSize.height, 900)
+    }
+}
+
+final class WinampPanelPlacementTests: XCTestCase {
+    func testVisualizerInitialOriginIsRightOfMain() {
+        let main = CGRect(x: 100, y: 400, width: 275, height: 116)
+        let size = CGSize(width: 600, height: 450)
+        let origin = WinampPanelPlacement.initialOrigin(
+            panelID: .visualizer,
+            panelSize: size,
+            mainFrame: main,
+            stackBelowOrigin: nil
+        )
+        XCTAssertEqual(origin.x, 375)
+        XCTAssertEqual(origin.y, 66)
+    }
+
+    func testEqualizerInitialOriginStacksBelow() {
+        let main = CGRect(x: 100, y: 400, width: 275, height: 116)
+        let size = CGSize(width: 275, height: 116)
+        let origin = WinampPanelPlacement.initialOrigin(
+            panelID: .equalizer,
+            panelSize: size,
+            mainFrame: main,
+            stackBelowOrigin: CGPoint(x: 100, y: 284)
+        )
+        XCTAssertEqual(origin, CGPoint(x: 100, y: 168))
+    }
+}
+
 final class WinampUIScaleLevelMigrationTests: XCTestCase {
     func testNearestLevelMapsLegacy125PercentTo150() {
         // Former `.large = 1.25` — equidistant from 1.0 and 1.5; ties prefer larger.

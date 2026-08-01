@@ -14,6 +14,7 @@ struct WinampPanelID: Hashable {
 
     static let equalizer = WinampPanelID("equalizer")
     static let playlist = WinampPanelID("playlist")
+    static let visualizer = WinampPanelID("visualizer")
 }
 
 /// How a panel window is sized (Strategy pattern). Replaces the per-kind sizing `switch` that used

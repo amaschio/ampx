@@ -402,25 +402,72 @@ struct MetalVisualizationView: NSViewRepresentable {
     }
 }
 
+/// Hosts an `MTKView` that always fills its AppKit bounds. Needed because panel
+/// `NSHostingController`s use `sizingOptions = []`, which often leaves a bare
+/// `MTKView` at 0×0 inside SwiftUI layout.
+final class MilkdropMTKHostView: NSView {
+    let mtkView = MTKView()
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        self.wantsLayer = true
+        self.mtkView.autoresizingMask = [.width, .height]
+        self.mtkView.frame = self.bounds
+        self.addSubview(self.mtkView)
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layout() {
+        super.layout()
+        self.mtkView.frame = self.bounds
+        let scale = self.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        if self.bounds.width > 1, self.bounds.height > 1 {
+            self.mtkView.drawableSize = CGSize(
+                width: self.bounds.width * scale,
+                height: self.bounds.height * scale
+            )
+        }
+    }
+}
+
 struct MilkdropMetalVisualizationView: NSViewRepresentable {
     let preset: VisualizationPreset
+    var size: CGSize = .zero
 
     func makeCoordinator() -> Coordinator {
         Coordinator(preset: self.preset)
     }
 
-    func makeNSView(context: Context) -> MTKView {
-        let view = MTKView()
+    func makeNSView(context: Context) -> MilkdropMTKHostView {
+        let host = MilkdropMTKHostView(frame: CGRect(origin: .zero, size: self.size))
         MetalVisualizationViewFactory.configure(
-            view,
+            host.mtkView,
             device: context.coordinator.renderer.device,
             delegate: context.coordinator.renderer
         )
-        return view
+        host.mtkView.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
+        return host
     }
 
-    func updateNSView(_: MTKView, context: Context) {
+    func updateNSView(_ host: MilkdropMTKHostView, context: Context) {
         context.coordinator.updatePreset(self.preset)
+        if self.size.width > 1, self.size.height > 1, host.frame.size != self.size {
+            host.frame.size = self.size
+            host.needsLayout = true
+            host.layoutSubtreeIfNeeded()
+        }
+        host.mtkView.isPaused = false
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView _: MilkdropMTKHostView, context _: Context) -> CGSize? {
+        if self.size.width > 1, self.size.height > 1 {
+            return self.size
+        }
+        return proposal.replacingUnspecifiedDimensions(by: CGSize(width: 600, height: 400))
     }
 
     @MainActor

@@ -1,16 +1,26 @@
 import SwiftUI
 
-/// Layout state shared between the main window and detachable EQ / playlist panels.
+/// Layout state shared between the main window and detachable EQ / playlist / visualizer panels.
 @MainActor
 final class WinampPanelLayoutState: ObservableObject {
     private static let playlistHeightKey = "playlistHeight"
     private static let playlistWidthKey = "playlistWidth"
+    private static let showVisualizerKey = "showVisualizer"
+    private static let visualizerWidthKey = "visualizerWidth"
+    private static let visualizerHeightKey = "visualizerHeight"
 
     @Published var showEqualizer = true
     @Published var showPlaylist = true
+    @Published var showVisualizer: Bool {
+        didSet {
+            UserDefaults.standard.set(self.showVisualizer, forKey: Self.showVisualizerKey)
+        }
+    }
+
     @Published var isShadeMode = false
     @Published var playlistMinimized = false
     @Published var equalizerMinimized = false
+    @Published var visualizerMinimized = false
     @Published var playlistSize: CGSize {
         didSet {
             if oldValue.height != self.playlistSize.height {
@@ -22,6 +32,17 @@ final class WinampPanelLayoutState: ObservableObject {
         }
     }
 
+    @Published var visualizerSize: CGSize {
+        didSet {
+            if oldValue.height != self.visualizerSize.height {
+                UserDefaults.standard.set(self.visualizerSize.height, forKey: Self.visualizerHeightKey)
+            }
+            if oldValue.width != self.visualizerSize.width {
+                UserDefaults.standard.set(self.visualizerSize.width, forKey: Self.visualizerWidthKey)
+            }
+        }
+    }
+
     init() {
         let savedHeight = UserDefaults.standard.double(forKey: Self.playlistHeightKey)
         let height = savedHeight > 0 ? savedHeight : WinampMetrics.defaultPlaylistHeight
@@ -29,6 +50,14 @@ final class WinampPanelLayoutState: ObservableObject {
         // Default to classic 275 px grid (not the legacy modern 450 px panel).
         let width = savedWidth > 0 ? savedWidth : ClassicSkinMetrics.windowWidth
         self.playlistSize = CGSize(width: width, height: height)
+
+        self.showVisualizer = UserDefaults.standard.bool(forKey: Self.showVisualizerKey)
+
+        let savedVizHeight = UserDefaults.standard.double(forKey: Self.visualizerHeightKey)
+        let vizHeight = savedVizHeight > 0 ? savedVizHeight : WinampMetrics.defaultVisualizerHeight
+        let savedVizWidth = UserDefaults.standard.double(forKey: Self.visualizerWidthKey)
+        let vizWidth = savedVizWidth > 0 ? savedVizWidth : WinampMetrics.defaultVisualizerWidth
+        self.visualizerSize = CGSize(width: vizWidth, height: vizHeight)
     }
 
     /// Ensure the playlist is at least as wide as its docking anchor (the main window). The user
@@ -46,6 +75,15 @@ final class WinampPanelLayoutState: ObservableObject {
         self.playlistSize = CGSize(
             width: (self.playlistSize.width * factor).rounded(.toNearestOrAwayFromZero),
             height: (self.playlistSize.height * factor).rounded(.toNearestOrAwayFromZero)
+        )
+    }
+
+    /// Scale persisted visualizer dimensions with UI zoom (same policy as playlist).
+    func scaleVisualizerDimensions(by factor: CGFloat) {
+        guard factor > 0, abs(factor - 1) > 0.001 else { return }
+        self.visualizerSize = CGSize(
+            width: (self.visualizerSize.width * factor).rounded(.toNearestOrAwayFromZero),
+            height: (self.visualizerSize.height * factor).rounded(.toNearestOrAwayFromZero)
         )
     }
 
@@ -75,6 +113,20 @@ final class WinampPanelLayoutState: ObservableObject {
         Binding(
             get: { self.playlistMinimized },
             set: { self.playlistMinimized = $0 }
+        )
+    }
+
+    var visualizerSizeBinding: Binding<CGSize> {
+        Binding(
+            get: { self.visualizerSize },
+            set: { self.visualizerSize = $0 }
+        )
+    }
+
+    var visualizerMinimizedBinding: Binding<Bool> {
+        Binding(
+            get: { self.visualizerMinimized },
+            set: { self.visualizerMinimized = $0 }
         )
     }
 }

@@ -10,45 +10,44 @@ struct ContentView: View {
     @EnvironmentObject var playlistManager: PlaylistManager
     @EnvironmentObject var uiScale: WinampUIScale
     @StateObject private var panelLayout = WinampPanelLayoutState()
-    @State private var showVisualization = false
     @State private var lastAppliedUIScale: CGFloat = 0
     @AppStorage("showRemainingTime") private var showRemainingTime = false
 
-    var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            VStack(spacing: 0) {
-                if self.panelLayout.isShadeMode {
-                    ClassicShadeView(
-                        isShadeMode: self.$panelLayout.isShadeMode,
-                        showRemainingTime: self.$showRemainingTime,
-                        showVisualization: self.$showVisualization
-                    )
-                } else {
-                    ClassicMainPlayerView(
-                        showPlaylist: self.$panelLayout.showPlaylist,
-                        showEqualizer: self.$panelLayout.showEqualizer,
-                        isShadeMode: self.$panelLayout.isShadeMode,
-                        shuffleEnabled: Binding(
-                            get: { self.playlistManager.shuffleEnabled },
-                            set: { self.playlistManager.shuffleEnabled = $0 }
-                        ),
-                        repeatEnabled: Binding(
-                            get: { self.playlistManager.repeatEnabled },
-                            set: { self.playlistManager.repeatEnabled = $0 }
-                        ),
-                        showRemainingTime: self.$showRemainingTime,
-                        showVisualization: self.$showVisualization
-                    )
-                }
-            }
-            .frame(width: self.styledPanelWidth)
-            .environment(\.winampUIScale, self.uiScale.scale)
+    private var showVisualizerBinding: Binding<Bool> {
+        Binding(
+            get: { self.panelLayout.showVisualizer },
+            set: { self.panelLayout.showVisualizer = $0 }
+        )
+    }
 
-            if self.showVisualization {
-                MilkdropVisualizerView()
-                    .frame(width: 600, height: 450)
+    var body: some View {
+        VStack(spacing: 0) {
+            if self.panelLayout.isShadeMode {
+                ClassicShadeView(
+                    isShadeMode: self.$panelLayout.isShadeMode,
+                    showRemainingTime: self.$showRemainingTime,
+                    showVisualization: self.showVisualizerBinding
+                )
+            } else {
+                ClassicMainPlayerView(
+                    showPlaylist: self.$panelLayout.showPlaylist,
+                    showEqualizer: self.$panelLayout.showEqualizer,
+                    isShadeMode: self.$panelLayout.isShadeMode,
+                    shuffleEnabled: Binding(
+                        get: { self.playlistManager.shuffleEnabled },
+                        set: { self.playlistManager.shuffleEnabled = $0 }
+                    ),
+                    repeatEnabled: Binding(
+                        get: { self.playlistManager.repeatEnabled },
+                        set: { self.playlistManager.repeatEnabled = $0 }
+                    ),
+                    showRemainingTime: self.$showRemainingTime,
+                    showVisualization: self.showVisualizerBinding
+                )
             }
         }
+        .frame(width: self.styledPanelWidth)
+        .environment(\.winampUIScale, self.uiScale.scale)
         .fixedSize()
         .ignoresSafeArea(.all)
         .onAppear {
@@ -67,16 +66,13 @@ struct ContentView: View {
             guard self.shouldConfigureAsMainPlayerWindow(window) else { return }
             self.configureWindow(window)
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didMiniaturizeNotification)) { _ in
-            if self.showVisualization {
-                self.showVisualization = false
-            }
-        }
         .onChange(of: self.uiScale.level) { _ in
             let newScale = self.uiScale.scale
             let oldScale = self.lastAppliedUIScale > 0 ? self.lastAppliedUIScale : newScale
             if abs(oldScale - newScale) > 0.001 {
-                self.panelLayout.scalePlaylistDimensions(by: newScale / oldScale)
+                let factor = newScale / oldScale
+                self.panelLayout.scalePlaylistDimensions(by: factor)
+                self.panelLayout.scaleVisualizerDimensions(by: factor)
             }
             self.lastAppliedUIScale = newScale
             self.panelLayout.ensureMinimumPlaylistWidth(self.styledPanelWidth)
@@ -95,6 +91,9 @@ struct ContentView: View {
         .onChange(of: self.panelLayout.showPlaylist) { _ in
             self.syncPanelWindows()
         }
+        .onChange(of: self.panelLayout.showVisualizer) { _ in
+            self.syncPanelWindows()
+        }
         .onChange(of: self.panelLayout.playlistSize) { _ in
             WinampPanelWindowManager.shared.resizePlaylistPanel()
         }
@@ -103,6 +102,12 @@ struct ContentView: View {
         }
         .onChange(of: self.panelLayout.equalizerMinimized) { _ in
             WinampPanelWindowManager.shared.resizeEqualizerPanel()
+        }
+        .onChange(of: self.panelLayout.visualizerSize) { _ in
+            WinampPanelWindowManager.shared.resizeVisualizerPanel()
+        }
+        .onChange(of: self.panelLayout.visualizerMinimized) { _ in
+            WinampPanelWindowManager.shared.resizeVisualizerPanel()
         }
     }
 
