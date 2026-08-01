@@ -52,6 +52,24 @@ final class WinampDockGraphTests: XCTestCase {
         XCTAssertEqual(parents[.playlist], .main, "a panel snapped to the main window's right edge docks to it")
     }
 
+    func testVisualizerDocksRightOfMainWithEQPlaylistColumn() {
+        let eq = self.below(self.main)
+        let playlist = self.below(eq, height: 232)
+        let viz = self.rightOf(self.main, width: 600, height: 450)
+        let parents = WinampDockGraph.parents(
+            frames: [
+                .main: self.main,
+                .panel(.equalizer): eq,
+                .panel(.playlist): playlist,
+                .panel(.visualizer): viz,
+            ],
+            order: [.equalizer, .playlist, .visualizer]
+        )
+        XCTAssertEqual(parents[.equalizer], .main)
+        XCTAssertEqual(parents[.playlist], .panel(.equalizer))
+        XCTAssertEqual(parents[.visualizer], .main)
+    }
+
     func testHorizontalRowChainsLeftToRight() {
         // A horizontal row: main — EQ — playlist, each touching the previous window's right edge.
         // The playlist is far enough right that it only abuts the EQ, not the main window.

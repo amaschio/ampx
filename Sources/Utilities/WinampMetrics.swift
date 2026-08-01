@@ -1,8 +1,13 @@
 import CoreGraphics
 
-/// Classic Winamp layout constants (before UI scale multiplier).
+/// Shared layout constants. Prefer `ClassicSkinMetrics` for Classic chrome geometry (275 px grid).
+///
+/// `panelWidth` / `mainPlayerHeight` are legacy modern-UI defaults retained only as
+/// fallbacks for playlist/visualizer sizing migration — do not use them for new Classic UI.
 enum WinampMetrics {
+    /// Legacy modern panel width; Classic chrome uses `ClassicSkinMetrics.windowWidth` (275).
     static let panelWidth: CGFloat = 450
+    /// Legacy modern main height; Classic uses shade/main sprite metrics instead.
     static let mainPlayerHeight: CGFloat = 163
     static let titleBarHeight: CGFloat = 22
     static let defaultPlaylistHeight: CGFloat = 250

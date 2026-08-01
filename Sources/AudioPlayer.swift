@@ -76,10 +76,24 @@ class AudioPlayer: NSObject, ObservableObject {
     private let remoteCommandController = RemoteCommandController()
     private var timer: Timer?
     private nonisolated(unsafe) var shouldAutoAdvance = true
-    private nonisolated(unsafe) var isPlayingInternal = false
+    private let playStateLock = OSAllocatedUnfairLock()
+    private nonisolated(unsafe) var isPlayingInternalStorage = false
     private nonisolated(unsafe) var playbackGeneration = 0
     private nonisolated(unsafe) var loadGeneration = 0
     private let audioQueue = DispatchQueue(label: "com.winamp.audio", qos: .userInteractive)
+
+    private nonisolated var isPlayingInternal: Bool {
+        get {
+            self.playStateLock.lock()
+            defer { self.playStateLock.unlock() }
+            return self.isPlayingInternalStorage
+        }
+        set {
+            self.playStateLock.lock()
+            self.isPlayingInternalStorage = newValue
+            self.playStateLock.unlock()
+        }
+    }
 
     private nonisolated func runOnMainActor(_ action: @escaping @MainActor @Sendable () -> Void) {
         Task { @MainActor in
@@ -283,9 +297,25 @@ class AudioPlayer: NSObject, ObservableObject {
                 let sampleRate = formatDetails?.sampleRateHz ?? newFile.fileFormat.sampleRate
                 let channels = formatDetails?.channelCount ?? Int(newFile.fileFormat.channelCount)
                 let bitrate = formatDetails?.bitrateKbps ?? 128
-                let replayGain = ReplayGainReader.read(from: url)
 
                 self.audioFile = newFile
+
+                // ReplayGain metadata I/O must not block the serial audio queue.
+                Task { [weak self] in
+                    let replayGain = await ReplayGainReader.read(from: url)
+                    guard let self else { return }
+                    self.audioQueue.async { [weak self] in
+                        guard let self, generation == self.loadGeneration else { return }
+                        self.runOnMainActor(weak: self) { player in
+                            guard generation == player.loadGeneration else { return }
+                            player.currentReplayGain = replayGain
+                            player.recomputeNormalizationGain()
+                            if player.volumeNormalizationEnabled {
+                                player.applyPlayerVolume()
+                            }
+                        }
+                    }
+                }
 
                 self.runOnMainActor(weak: self) { player in
                     guard generation == player.loadGeneration else {
@@ -296,11 +326,6 @@ class AudioPlayer: NSObject, ObservableObject {
                     player.currentSampleRate = sampleRate
                     player.currentChannels = channels
                     player.currentBitrate = bitrate
-                    player.currentReplayGain = replayGain
-                    player.recomputeNormalizationGain()
-                    if player.volumeNormalizationEnabled {
-                        player.applyPlayerVolume()
-                    }
                     player.updateNowPlayingInfo()
                     if player.eqAutoEnabled {
                         player.applyAutoPreampCompensation()
@@ -522,8 +547,13 @@ class AudioPlayer: NSObject, ObservableObject {
             self.isPlayingInternal = false
 
             let sampleRate = file.fileFormat.sampleRate
-            let startFrame = AVAudioFramePosition(time * sampleRate)
-            guard startFrame < file.length else {
+            let durationSeconds = sampleRate > 0 ? Double(file.length) / sampleRate : 0
+            let clampedTime = max(0, min(time, max(durationSeconds - 0.001, 0)))
+            var startFrame = AVAudioFramePosition(clampedTime * sampleRate)
+            if file.length > 0 {
+                startFrame = min(startFrame, file.length - 1)
+            }
+            guard startFrame >= 0, startFrame < file.length else {
                 self.runOnMainActor(weak: self) { player in
                     player.isPlaying = false
                     player.stopTimer()
@@ -553,7 +583,7 @@ class AudioPlayer: NSObject, ObservableObject {
             }
 
             self.runOnMainActor(weak: self) { player in
-                player.currentTime = time
+                player.currentTime = clampedTime
                 player.isPlaying = wasPlaying
                 if wasPlaying {
                     player.startTimer()

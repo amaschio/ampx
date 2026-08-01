@@ -81,23 +81,19 @@ final class WinampSkinFilmstripTests: XCTestCase {
 final class ClassicPlaylistLayoutDefaultsTests: XCTestCase {
     @MainActor
     func testFreshPlaylistWidthDefaultsToClassicGrid() {
-        let key = "playlistWidth"
-        let previous = UserDefaults.standard.object(forKey: key)
-        defer {
-            if let previous {
-                UserDefaults.standard.set(previous, forKey: key)
-            } else {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-        UserDefaults.standard.removeObject(forKey: key)
-        let layout = WinampPanelLayoutState()
+        let suite = "classic-playlist-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let layout = WinampPanelLayoutState(defaults: defaults)
         XCTAssertEqual(layout.playlistSize.width, ClassicSkinMetrics.windowWidth)
     }
 
     @MainActor
     func testAlignShrinksLegacyModernDefaultWidth() {
-        let layout = WinampPanelLayoutState()
+        let suite = "classic-align-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let layout = WinampPanelLayoutState(defaults: defaults)
         layout.playlistSize = CGSize(width: WinampUIScale.basePanelWidth, height: 300)
         layout.alignPlaylistWidthToStyle(
             baseWidth: ClassicSkinMetrics.windowWidth,
@@ -110,25 +106,10 @@ final class ClassicPlaylistLayoutDefaultsTests: XCTestCase {
 final class ClassicVisualizerLayoutDefaultsTests: XCTestCase {
     @MainActor
     func testVisualizerDefaultsHiddenWithDefaultSize() {
-        let keys = ["showVisualizer", "visualizerWidth", "visualizerHeight"]
-        var previous: [String: Any] = [:]
-        for key in keys {
-            if let value = UserDefaults.standard.object(forKey: key) {
-                previous[key] = value
-            }
-            UserDefaults.standard.removeObject(forKey: key)
-        }
-        defer {
-            for key in keys {
-                if let value = previous[key] {
-                    UserDefaults.standard.set(value, forKey: key)
-                } else {
-                    UserDefaults.standard.removeObject(forKey: key)
-                }
-            }
-        }
-
-        let layout = WinampPanelLayoutState()
+        let suite = "classic-viz-default-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let layout = WinampPanelLayoutState(defaults: defaults)
         XCTAssertFalse(layout.showVisualizer)
         XCTAssertEqual(layout.visualizerSize.width, WinampMetrics.defaultVisualizerWidth)
         XCTAssertEqual(layout.visualizerSize.height, WinampMetrics.defaultVisualizerHeight)
@@ -136,52 +117,35 @@ final class ClassicVisualizerLayoutDefaultsTests: XCTestCase {
 
     @MainActor
     func testVisualizerSizePersists() {
-        let keyW = "visualizerWidth"
-        let keyH = "visualizerHeight"
-        let previousW = UserDefaults.standard.object(forKey: keyW)
-        let previousH = UserDefaults.standard.object(forKey: keyH)
-        defer {
-            if let previousW {
-                UserDefaults.standard.set(previousW, forKey: keyW)
-            } else {
-                UserDefaults.standard.removeObject(forKey: keyW)
-            }
-            if let previousH {
-                UserDefaults.standard.set(previousH, forKey: keyH)
-            } else {
-                UserDefaults.standard.removeObject(forKey: keyH)
-            }
-        }
+        let suite = "classic-viz-size-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
 
-        let layout = WinampPanelLayoutState()
+        let layout = WinampPanelLayoutState(defaults: defaults)
         layout.visualizerSize = CGSize(width: 640, height: 480)
-        let restored = WinampPanelLayoutState()
+        let restored = WinampPanelLayoutState(defaults: defaults)
         XCTAssertEqual(restored.visualizerSize.width, 640)
         XCTAssertEqual(restored.visualizerSize.height, 480)
     }
 
     @MainActor
     func testVisualizerVisibilityPersists() {
-        let key = "showVisualizer"
-        let previous = UserDefaults.standard.object(forKey: key)
-        defer {
-            if let previous {
-                UserDefaults.standard.set(previous, forKey: key)
-            } else {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
+        let suite = "classic-viz-vis-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
 
-        UserDefaults.standard.removeObject(forKey: key)
-        let layout = WinampPanelLayoutState()
+        let layout = WinampPanelLayoutState(defaults: defaults)
         layout.showVisualizer = true
-        let restored = WinampPanelLayoutState()
+        let restored = WinampPanelLayoutState(defaults: defaults)
         XCTAssertTrue(restored.showVisualizer)
     }
 
     @MainActor
     func testScaleVisualizerDimensions() {
-        let layout = WinampPanelLayoutState()
+        let suite = "classic-viz-scale-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let layout = WinampPanelLayoutState(defaults: defaults)
         layout.visualizerSize = CGSize(width: 600, height: 450)
         layout.scaleVisualizerDimensions(by: 2)
         XCTAssertEqual(layout.visualizerSize.width, 1200)

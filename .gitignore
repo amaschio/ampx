@@ -32,6 +32,19 @@ __pycache__/
 
 # Local UI screenshot scratch
 .ui-review/
+screenshots/
+*.app/
+Reamp.app/
+
+# Scratch / review artifacts at repo root
+architecture.html
+insight-eval-harness.html
+phase1-questions.html
+phase1-report.html
+Equalizer_interface.png
+Playlist-interface.png
+main_player.png
+swift_beta_ui.png
 
 # Generated test fixtures (see scripts/generate-fixtures.sh)
 Tests/Fixtures/

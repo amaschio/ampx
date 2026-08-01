@@ -42,21 +42,11 @@ struct ReplayGain: Equatable {
 }
 
 enum ReplayGainReader {
-    /// Reads ReplayGain tags from a file's metadata. Synchronous; call off the main thread.
-    static func read(from url: URL) -> ReplayGain {
-        let semaphore = DispatchSemaphore(value: 0)
-        let resultBox = ReplayGainResultBox()
-        Task {
-            let asset = AVURLAsset(url: url)
-            resultBox.value = await Self.readMetadata(from: asset)
-            semaphore.signal()
-        }
-        semaphore.wait()
-        return resultBox.value
-    }
-
-    private final class ReplayGainResultBox: @unchecked Sendable {
-        var value = ReplayGain()
+    /// Reads ReplayGain tags from a file's metadata. Prefer this over any sync wrapper —
+    /// metadata I/O must not block the audio engine queue.
+    static func read(from url: URL) async -> ReplayGain {
+        let asset = AVURLAsset(url: url)
+        return await Self.readMetadata(from: asset)
     }
 
     private static func readMetadata(from asset: AVURLAsset) async -> ReplayGain {

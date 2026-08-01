@@ -28,7 +28,7 @@ and *infrastructure*.
 |---|---|---|
 | 1. Modular audio pipeline | **C+ → B** | **`AudioGraph` + `AudioEffectUnit` chain landed (P1 ✅)**; EQ, NowPlaying, AUTO-preamp, and remote commands extracted from the god object. Further transport decomposition is optional. |
 | 2. Excellent + performant visualizations | **B+ → A−** | **P2 ✅**: all 11 presets now render distinctly (the `% 4` ceiling is gone), `VizUniforms` layout is assertion-guarded, and pipeline-compile failures are logged. Multi-pass plugin refactor (V1) deferred. |
-| 3. Fully automated testability | **C+ → B** | CI runs the suite (P0 ✅); **the Metal render path now has a GPU smoke harness (P3 ✅)** — all pipelines + every plugin/preset render-tested. SwiftUI views + window-drag still untested. |
+| 3. Fully automated testability | **C+ → B−** | Suite is strong and runs locally via `scripts/run-tests.sh`; **GitHub Actions CI was intentionally removed** (local-only). Metal GPU smoke harness (P3 ✅). SwiftUI views + window-drag still untested. |
 | 4. Profiling (CPU/mem/GPU) | **C → B−** | **`os_signpost` + GPU timing added (P0 ✅)**. MetricKit + memory instrumentation still open. |
 
 ---
@@ -151,9 +151,9 @@ mutable scratch that escapes into `AudioFeatures` is an aliasing hazard for low 
 
 ---
 
-## Goal 3 — Fully automated testability  🟡 (CI gap closed in P0)
+## Goal 3 — Fully automated testability  🟡 (local suite; no remote CI)
 
-**The unit-test foundation is good; the *automation* was the broken part.**
+**The unit-test foundation is good; remote CI is intentionally absent.**
 
 - ~177 tests across 38 files thoroughly cover the *pure* layers: FFT, auto-leveler, peak
   tracker, playout clock, ring buffer, parsers (M3U/metadata/EQF), playlist
@@ -164,11 +164,10 @@ mutable scratch that escapes into `AudioFeatures` is an aliasing hazard for low 
   [`MockAudioPlayer`](../Tests/WinampTests/MockAudioPlayer.swift), plus injectable
   `featureBus`, `engine`, and `VisualizationClock`.
 
-**Was-critical, now fixed (P0 ✅):** CI did **not** run the tests —
-[`.github/workflows/build.yml`](../.github/workflows/build.yml) only built the app, made
-a DMG, and cut a release. The suite only ran when someone remembered to run it locally.
-A `test` job now runs `scripts/run-tests.sh`, and `build` has `needs: test`, so failing
-tests block the release.
+**CI history:** A GitHub Actions workflow once built/released (and briefly gated on
+`scripts/run-tests.sh`). It was **removed on purpose** — local builds and
+`./scripts/run-tests.sh` are sufficient; there is no `.github/workflows/` today.
+Broken link note: do not expect [`../.github/workflows/build.yml`](../.github/workflows/build.yml).
 
 **Remaining testability debt:**
 
@@ -226,8 +225,8 @@ signposts cost ~nothing when no trace is recording and surface directly in Instr
 
 ### P0 — cheap, high-impact  ✅ Done (2026-06-16)
 
-1. ✅ **Add a test job to CI** (`xcodebuild test` via `scripts/run-tests.sh`) gating the
-   release. Unblocks goal 3's automation.
+1. ~~**Add a test job to CI**~~ → Done briefly, then **workflow removed by choice**. Use
+   `./scripts/run-tests.sh` locally. Unblocks goal 3's *local* automation only.
 2. ✅ **`os_signpost` instrumentation layer + GPU command-buffer timing**; retired the
    `print`-based probes. Unblocks goal 4.
 

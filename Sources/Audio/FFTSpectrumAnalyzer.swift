@@ -19,6 +19,7 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
     private var bandMappings: [(start: Int, end: Int)] = []
     private var lastSampleRate: Float = 0
     private let processingQueue = DispatchQueue(label: "com.winamp.fft", qos: .userInteractive)
+    private let tapStaging = TapPCMStaging()
 
     private var windowRing = [Float](repeating: 0, count: AudioFeatures.fftSize)
     private var ringWriteIndex = 0
@@ -66,7 +67,13 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
         guard format.sampleRate > 0 else { return }
 
         node.installTap(onBus: 0, bufferSize: AVAudioFrameCount(self.hopSize), format: format) { [weak self] buffer, _ in
-            self?.enqueue(buffer: buffer)
+            guard let self else { return }
+            // Realtime path: copy samples into preallocated staging only (no heap).
+            AudioFeatureBus.shared.waveformRing.append(pcm: buffer)
+            self.tapStaging.capture(buffer)
+            self.processingQueue.async { [weak self] in
+                self?.processCapturedTap()
+            }
         }
     }
 
@@ -74,58 +81,42 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
         node.removeTap(onBus: 0)
     }
 
-    private func enqueue(buffer: AVAudioPCMBuffer) {
-        guard let copy = copyBuffer(buffer) else { return }
-        self.processingQueue.async { [weak self] in
-            guard let self else { return }
-            // Per-buffer FFT analysis cost + cadence: visible in Instruments' os_signpost
-            // track under the "Audio" category.
-            let analysisSignpost = Instrumentation.audio.beginInterval("fftAnalyze")
-            defer { Instrumentation.audio.endInterval("fftAnalyze", analysisSignpost) }
-            AudioFeatureBus.shared.waveformRing.append(pcm: copy)
-            let waveform = self.extractWaveformSamples(from: copy, sampleCount: self.waveformChunkSize)
-            var frames: [[Float]] = []
-            let bands: [Float]
-            if let streamed = self.analyzeStreaming(copy, onHop: { hopBands in
-                frames.append(hopBands)
-                self.onSpectrumUpdate?(hopBands)
-            }) {
-                bands = streamed
-            } else {
-                bands = self.analyze(copy)
-                frames.append(bands)
-                self.onSpectrumUpdate?(bands)
-            }
-            let sampleRate = copy.format.sampleRate
-            let batchDuration = sampleRate > 0 ? Double(copy.frameLength) / sampleRate : 0
-            self.onSpectrumFrames?(frames, batchDuration)
-            self.onAnalysisUpdate?(bands, waveform.left, waveform.right)
-            self.onWaveformUpdate?(waveform.left, waveform.right)
+    private func processCapturedTap() {
+        guard let copy = self.tapStaging.makePCMBuffer() else { return }
+        // Per-buffer FFT analysis cost + cadence: visible in Instruments' os_signpost
+        // track under the "Audio" category.
+        let analysisSignpost = Instrumentation.audio.beginInterval("fftAnalyze")
+        defer { Instrumentation.audio.endInterval("fftAnalyze", analysisSignpost) }
+        let waveform = self.extractWaveformSamples(from: copy, sampleCount: self.waveformChunkSize)
+        var frames: [[Float]] = []
+        let bands: [Float]
+        if let streamed = self.analyzeStreaming(copy, onHop: { hopBands in
+            frames.append(hopBands)
+            self.onSpectrumUpdate?(hopBands)
+        }) {
+            bands = streamed
+        } else {
+            bands = self.analyze(copy)
+            frames.append(bands)
+            self.onSpectrumUpdate?(bands)
         }
+        let sampleRate = copy.format.sampleRate
+        let batchDuration = sampleRate > 0 ? Double(copy.frameLength) / sampleRate : 0
+        self.onSpectrumFrames?(frames, batchDuration)
+        self.onAnalysisUpdate?(bands, waveform.left, waveform.right)
+        self.onWaveformUpdate?(waveform.left, waveform.right)
     }
 
     /// Exercises the tap processing path without installing an AVAudioNode tap.
     func processBufferForTests(_ buffer: AVAudioPCMBuffer) {
-        self.enqueue(buffer: buffer)
-    }
-
-    private func copyBuffer(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
-        guard let copy = AVAudioPCMBuffer(
-            pcmFormat: buffer.format,
-            frameCapacity: buffer.frameCapacity
-        ) else {
-            return nil
+        AudioFeatureBus.shared.waveformRing.append(pcm: buffer)
+        self.tapStaging.capture(buffer)
+        let done = DispatchSemaphore(value: 0)
+        self.processingQueue.async {
+            self.processCapturedTap()
+            done.signal()
         }
-        copy.frameLength = buffer.frameLength
-        let channels = Int(buffer.format.channelCount)
-        guard let src = buffer.floatChannelData, let dst = copy.floatChannelData else {
-            return nil
-        }
-        let frames = Int(buffer.frameLength)
-        for channel in 0 ..< channels {
-            memcpy(dst[channel], src[channel], frames * MemoryLayout<Float>.size)
-        }
-        return copy
+        done.wait()
     }
 
     private func prepareBandMappings(sampleRate: Float) {

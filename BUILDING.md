@@ -4,8 +4,8 @@ This guide covers how to build and run the Winamp macOS application.
 
 ## Prerequisites
 
-- macOS 13.0 (Ventura) or later
-- Xcode 15.0 or later
+- macOS 26.5 (Tahoe) or later
+- Xcode 26 or later
 - Command Line Tools installed
 
 ### Installing Command Line Tools
@@ -133,8 +133,8 @@ The project uses ad-hoc signing by default (sign-to-run-locally). For distributi
 ## Troubleshooting Build Issues
 
 ### "No such module 'SwiftUI'"
-- Ensure you're building for macOS 13.0+
-- Check your Xcode version (15.0+)
+- Ensure you're building for macOS 26.5+
+- Check your Xcode version (26+)
 
 ### "Command CodeSign failed"
 - Set signing to "Sign to Run Locally"
@@ -219,26 +219,9 @@ SwiftUI views support live preview in Xcode:
 
 ## Continuous Integration
 
-For CI/CD pipelines (GitHub Actions, Jenkins, etc.):
-
-```bash
-# Install dependencies (if any)
-# (Currently none)
-
-# Build
-xcodebuild -project Winamp.xcodeproj \
-           -scheme Winamp \
-           -configuration Release \
-           -derivedDataPath ./build \
-           build
-
-# Run tests (when added)
-xcodebuild test \
-           -project Winamp.xcodeproj \
-           -scheme Winamp \
-           -destination 'platform=macOS'
-```
-
+There is **no** GitHub Actions (or other) CI workflow in this repo — local builds and
+`./scripts/run-tests.sh` are the intended verification path. If you add automation later,
+prefer that script over raw `xcodebuild test` so fixtures are generated first.
 ## Next Steps
 
 After building successfully:

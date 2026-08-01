@@ -9,7 +9,8 @@ final class PlaybackIntegrationTests: XCTestCase {
 
     override func setUpWithError() throws {
         self.player = AudioPlayer(installRemoteCommands: false)
-        self.manager = PlaylistManager(audioPlayer: self.player, restoreBookmarks: false, restorePlaylist: false)
+        self.manager = PlaylistManager(audioPlayer: self.player, restoreBookmarks: false, restorePlaylist: false,
+            alertPresenter: SilentPlaylistAlertPresenter())
         self.player.onTrackFinished = { [weak manager] in
             manager?.next()
         }

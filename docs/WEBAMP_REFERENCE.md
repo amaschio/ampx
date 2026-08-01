@@ -1,8 +1,14 @@
 # Webamp UI Fidelity Reference
 
+> **Snapshot note (2026-08).** This document mixes live Classic geometry notes with older
+> dual-UI / modern-player findings. Paths under `Sources/Views/Player/` may refer to deleted or
+> unused modern UI; the **current product UI is Classic-only** under `Sources/Views/Classic/`
+> (`ClassicMainPlayerView`, `ClassicShadeView`, `ClassicPlaylistView`, `ClassicEqualizerView`,
+> `ClassicMilkdropPanelView`). Prefer Classic sources when this file disagrees.
+
 This document captures findings from reviewing **[Webamp](https://github.com/captbaritone/webamp)** — the open-source Winamp 2.x recreation ([webamp.org](https://webamp.org/)) — as a layout and behavior reference for this native macOS fork.
 
-Webamp is **not** a runtime dependency. We use it as a spec for geometry, spacing, skin coordinates, and classic Winamp behavior. The app remains SwiftUI + AppKit with our own `WinampMetrics`, `WinampSkinSprites`, and procedural chrome.
+Webamp is **not** a runtime dependency. We use it as a spec for geometry, spacing, skin coordinates, and classic Winamp behavior. The app remains SwiftUI + AppKit with our own `WinampMetrics`, `WinampSkinSprites`, and Classic skin chrome.
 
 ---
 
@@ -212,13 +218,17 @@ Sources/Utilities/WinampMetrics.swift
 Sources/Utilities/WinampUIScale.swift
 Sources/WinampSkinSprites.swift
 Sources/WinampColors.swift
-Sources/Views/Player/MainPlayerView.swift
-Sources/Views/Player/ShadeView.swift
-Sources/Views/Player/PlayerWindowChrome.swift
-Sources/Views/Components/WinampClassicChrome.swift
-Sources/Views/Components/ModernSlider.swift
-Sources/EqualizerView.swift
-Sources/PlaylistView.swift
+Sources/Views/Classic/ClassicMainPlayerView.swift   # current main UI
+Sources/Views/Classic/ClassicShadeView.swift
+Sources/Views/Classic/ClassicPlaylistView.swift
+Sources/Views/Classic/ClassicEqualizerView.swift
+Sources/Views/Classic/ClassicMilkdropPanelView.swift
+Sources/Views/Classic/ClassicSkinTheme.swift
+# Historical / unused modern paths (may be deleted):
+# Sources/Views/Player/MainPlayerView.swift
+# Sources/Views/Player/ShadeView.swift
+# Sources/EqualizerView.swift
+# Sources/PlaylistView.swift
 scripts/shoot.sh                          # screenshot regression
 ```
 
@@ -240,24 +250,18 @@ For behavior checks (shade toggle, double-click title bar, playlist resize snapp
 
 ---
 
-## Non-UI ideas worth borrowing (not yet implemented)
+## Non-UI ideas worth borrowing
 
-Beyond layout/colors, Webamp's non-UI packages and logic suggest several features. Each was checked
-against the current fork (as of this review). **None are implemented yet** — this is a backlog, ordered
-by value/effort. Source paths are in the Webamp repo.
+Beyond layout/colors, Webamp's non-UI packages and logic suggest several features. Checked against
+the fork as of this review (updated 2026-08 where noted). Source paths are in the Webamp repo.
 
-### 1. `.eqf` equalizer-preset import/export — *recommended first*
+### 1. `.eqf` equalizer-preset import/export — ✅ Implemented
 
 - **What:** Winamp's `.eqf` (and `.q1`) files store EQ presets (preamp + 10 bands, each `1–64`).
   Webamp ships a standalone, documented, MIT parser: `packages/winamp-eqf/` (`parser`/`creator`).
-- **Gap:** the fork has an internal `EQPreset` model and `AudioPlayer.eqPresets()` /
-  `EQSettingsStore`, but **no `.eqf` file interop** — can't load the thousands of existing `.eqf`
-  presets or share with real Winamp.
-- **Why it fits:** the format is a tiny fixed binary layout (header string + 11 bytes/preset); maps
-  cleanly to the existing model. High "authentic Winamp" payoff, self-contained, low risk.
-- **Sketch:** add `Sources/Audio/EQFParser.swift` (parse/serialize `ArrayBuffer`↔`[EQPreset]`),
-  wire "Load Preset…/Save Preset…" into the PRESETS menu via `NSOpenPanel`/`NSSavePanel`.
-- **Value/effort:** High / Low.
+- **Status:** Implemented as `Sources/Audio/EQFParser.swift` plus `AudioPlayer.importEQFPresets()` /
+  `importEQF(from:)`. Classic EQ chrome exposes **Load EQF…** (`ClassicEqualizerView`).
+- **Why it fits:** tiny fixed binary layout; maps to the existing `EQPreset` / `EQSettingsStore` model.
 
 ### 2. Keyboard-shortcut parity
 
@@ -289,8 +293,10 @@ by value/effort. Source paths are in the Webamp repo.
 ### Already covered in this fork (no action needed)
 
 - **EQ presets** — `AudioPlayer.eqPresets()` + `EQSettingsStore` (built-in presets exist).
+- **`.eqf` / `.q1` import** — `EQFParser` + Classic **Load EQF…** (see §1 above).
 - **Media keys / Now Playing** — `AudioPlayer` uses `MPRemoteCommand` / `MPNowPlayingInfoCenter`.
-- **Visualizer** — native Metal engine (`Sources/Visualization/`, `Shaders/`) with the VISCOLOR ramp.
+- **Visualizer** — native Metal engine (`Sources/Visualization/`, `Shaders/`) with the VISCOLOR ramp;
+  MilkDrop as a managed Classic panel (`ClassicMilkdropPanelView`).
 
 ### Not relevant to a native app
 

@@ -28,8 +28,8 @@ A native macOS application that recreates the classic Winamp experience for play
 
 ## Requirements
 
-- macOS 13.0 (Ventura) or later
-- Xcode 15.0 or later
+- macOS 26.5 (Tahoe) or later
+- Xcode 26 or later
 
 ## Building
 

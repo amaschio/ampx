@@ -9,11 +9,13 @@ final class WinampPanelLayoutState: ObservableObject {
     private static let visualizerWidthKey = "visualizerWidth"
     private static let visualizerHeightKey = "visualizerHeight"
 
+    private let defaults: UserDefaults
+
     @Published var showEqualizer = true
     @Published var showPlaylist = true
     @Published var showVisualizer: Bool {
         didSet {
-            UserDefaults.standard.set(self.showVisualizer, forKey: Self.showVisualizerKey)
+            self.defaults.set(self.showVisualizer, forKey: Self.showVisualizerKey)
         }
     }
 
@@ -24,10 +26,10 @@ final class WinampPanelLayoutState: ObservableObject {
     @Published var playlistSize: CGSize {
         didSet {
             if oldValue.height != self.playlistSize.height {
-                UserDefaults.standard.set(self.playlistSize.height, forKey: Self.playlistHeightKey)
+                self.defaults.set(self.playlistSize.height, forKey: Self.playlistHeightKey)
             }
             if oldValue.width != self.playlistSize.width {
-                UserDefaults.standard.set(self.playlistSize.width, forKey: Self.playlistWidthKey)
+                self.defaults.set(self.playlistSize.width, forKey: Self.playlistWidthKey)
             }
         }
     }
@@ -35,27 +37,28 @@ final class WinampPanelLayoutState: ObservableObject {
     @Published var visualizerSize: CGSize {
         didSet {
             if oldValue.height != self.visualizerSize.height {
-                UserDefaults.standard.set(self.visualizerSize.height, forKey: Self.visualizerHeightKey)
+                self.defaults.set(self.visualizerSize.height, forKey: Self.visualizerHeightKey)
             }
             if oldValue.width != self.visualizerSize.width {
-                UserDefaults.standard.set(self.visualizerSize.width, forKey: Self.visualizerWidthKey)
+                self.defaults.set(self.visualizerSize.width, forKey: Self.visualizerWidthKey)
             }
         }
     }
 
-    init() {
-        let savedHeight = UserDefaults.standard.double(forKey: Self.playlistHeightKey)
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        let savedHeight = defaults.double(forKey: Self.playlistHeightKey)
         let height = savedHeight > 0 ? savedHeight : WinampMetrics.defaultPlaylistHeight
-        let savedWidth = UserDefaults.standard.double(forKey: Self.playlistWidthKey)
+        let savedWidth = defaults.double(forKey: Self.playlistWidthKey)
         // Default to classic 275 px grid (not the legacy modern 450 px panel).
         let width = savedWidth > 0 ? savedWidth : ClassicSkinMetrics.windowWidth
         self.playlistSize = CGSize(width: width, height: height)
 
-        self.showVisualizer = UserDefaults.standard.bool(forKey: Self.showVisualizerKey)
+        self.showVisualizer = defaults.bool(forKey: Self.showVisualizerKey)
 
-        let savedVizHeight = UserDefaults.standard.double(forKey: Self.visualizerHeightKey)
+        let savedVizHeight = defaults.double(forKey: Self.visualizerHeightKey)
         let vizHeight = savedVizHeight > 0 ? savedVizHeight : WinampMetrics.defaultVisualizerHeight
-        let savedVizWidth = UserDefaults.standard.double(forKey: Self.visualizerWidthKey)
+        let savedVizWidth = defaults.double(forKey: Self.visualizerWidthKey)
         let vizWidth = savedVizWidth > 0 ? savedVizWidth : WinampMetrics.defaultVisualizerWidth
         self.visualizerSize = CGSize(width: vizWidth, height: vizHeight)
     }

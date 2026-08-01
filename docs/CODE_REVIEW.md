@@ -1,5 +1,10 @@
 # Code Review — `feature/metal-visualization`
 
+> **Snapshot note (2026-08).** Findings below reflect the metal-visualization branch review and may
+> cite paths under `Sources/Views/Player/` (`MainPlayerView`, `ShadeView`, etc.) or other modern UI
+> that are deleted or unused. The **live product UI is Classic-only** in `Sources/Views/Classic/`.
+> Treat Player-path mentions as historical unless you confirm the file still exists.
+
 > Comprehensive review focused on **performance, audio quality, UI smoothness/flicker,
 > and testability**, with the current status of each finding.
 > Scope: the `feature/metal-visualization` branch (reworks most of the app vs `main`).

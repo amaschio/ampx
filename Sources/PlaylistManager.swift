@@ -46,19 +46,22 @@ class PlaylistManager: ObservableObject {
     private let bookmarkStore: SecurityScopedBookmarkStore
     private let fileService: PlaylistFileService
     private let stateStore: PlaylistStateStore
+    private let alertPresenter: PlaylistAlertPresenting
 
     init(
         audioPlayer: AudioPlaybackControlling = AudioPlayer.shared,
         restoreBookmarks: Bool = true,
         restorePlaylist: Bool = true,
         bookmarkStore: SecurityScopedBookmarkStore? = nil,
-        stateStore: PlaylistStateStore? = nil
+        stateStore: PlaylistStateStore? = nil,
+        alertPresenter: PlaylistAlertPresenting? = nil
     ) {
         self.audioPlayer = audioPlayer
         let store = bookmarkStore ?? SecurityScopedBookmarkStore()
         self.bookmarkStore = store
         self.fileService = PlaylistFileService(bookmarkStore: store)
         self.stateStore = stateStore ?? PlaylistStateStore()
+        self.alertPresenter = alertPresenter ?? AppKitPlaylistAlertPresenter()
         if restoreBookmarks {
             store.restore()
         }
@@ -174,12 +177,7 @@ class PlaylistManager: ObservableObject {
     }
 
     private func showFileActionError(title: String, message: String) {
-        let alert = NSAlert()
-        alert.messageText = title
-        alert.informativeText = message
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
+        self.alertPresenter.presentError(title: title, message: message)
     }
 
     func clearPlaylist() {

@@ -24,8 +24,8 @@ Target users are music collectors and audiophiles who remember Winamp fondly and
 | Audio engine | AVFoundation / AVAudioEngine |
 | DSP / EQ | AVAudioUnitEQ (10-band parametric) |
 | Visualizations | Metal |
-| Build system | Xcode 15+ primary; SPM as secondary |
-| Min deployment | macOS 26.5 (Tahoe) |
+| Build system | Xcode 26+ primary; `Package.swift` build-smoke secondary (no SPM tests) |
+| Min deployment | macOS 26.5+ (Tahoe); Xcode/`Package.swift` target **26.4** (SDK max) |
 | License | MIT |
 
 ---
@@ -37,25 +37,24 @@ Target users are music collectors and audiophiles who remember Winamp fondly and
 - **Top-level `Sources/`** — the app shell and primary models/views: `WinampApp` (`@main` + menus),
   `ContentView` (root view + AppKit window setup), `AudioPlayer` (AVAudioEngine + EQ + media keys),
   `PlaylistManager`, `Track`, and the parsers (`M3UParser`, `TrackMetadataParser`).
-- **`Audio/`** — DSP & analysis (FFT, EQ bands, feature bus, ring buffer, auto-leveler). Pure
-  signal/data code; **keep SwiftUI/AppKit out of it** so it stays testable and reusable.
-- **`Playlist/`** — persistence & file I/O (state store, M3U file service, security-scoped
-  bookmarks). UI talks to this only through `PlaylistManager`, not these types directly.
-- **`Views/Classic`** — the Winamp 2.x skin UI (main, shade, playlist, EQ) at Webamp’s
-  275 px geometry. New chrome **must match this Classic aesthetic** (see Architecture
+- **`Audio/`** — DSP & analysis (FFT, EQ bands, feature bus, ring buffer, auto-leveler, EQF). Pure
+  signal/data code.
+- **`Playlist/`** — persistence & file I/O (state store, M3U file service). UI talks to this only through `PlaylistManager`, not these types directly.
+- **`Views/Classic`** — the Winamp 2.x skin UI (main, shade, playlist, EQ, **MilkDrop panel**) at
+  Webamp’s 275 px geometry. New chrome **must match this Classic aesthetic** (see Architecture
   Principles). Shared skin helpers live in `WinampSkinSprites` / `ClassicSkinTheme`.
 - **`Views/Visualizer`, `Visualization/`, `Shaders/`** — the Metal-backed visualizer and `.metal`
   shaders. Heavy/optional; must degrade gracefully when the visualizer window is closed.
 - **`Utilities/`** — cross-cutting helpers (colors, metrics, UI scale, typography, FS helpers,
   title-bar drag overlay, marquee typography).
-- **`Development/`** — dev-only conveniences (e.g. session persistence). **Never required at
-  runtime**; guard so production paths don't depend on it.
-- **`AudioPlaybackControlling`** — the protocol abstracting the player so tests can inject a mock.
-  Prefer depending on this protocol over the concrete `AudioPlayer` in new code.
+- **`AudioPlaybackControlling`** — protocol abstracting the player so `PlaylistManager` (and tests)
+  can inject a mock. Classic UI uses the concrete `AudioPlayer` via `@EnvironmentObject`; prefer the
+  protocol at the playlist/test seam, not as a universal rule for every new view.
 
 Supporting dirs: `Tests/` (XCTest `WinampTests` + generated `Fixtures/`), `scripts/` (test runner,
 `uv` fixture generation, `shoot.sh` UI screenshots), `Resources/` (asset catalog, audio, fonts),
-`Winamp.xcodeproj/` (primary build), `Package.swift` (secondary SPM build, no asset catalog).
+`Winamp.xcodeproj/` (primary build), `Package.swift` (**build-smoke secondary** — executable target
+only, no asset catalog, **no SPM test target**; run tests via Xcode / `./scripts/run-tests.sh`).
 
 ---
 
@@ -69,11 +68,6 @@ The compact-player aesthetic is intentional. Do not introduce full-window redesi
 ## Coding Conventions
 
 - **Swift formatting:** follow the [Swift API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/).
-
-### Git commits
-
-- **Never add `Co-authored-by:` trailers** (or variants like `Co-Authored-By:`) to commit messages — not for Cursor, Claude, Copilot, or any other AI tool. Commits should list only the human author.
-- **Never pass `--trailer`** on `git commit` (e.g. `--trailer "Co-authored-by: Cursor <cursoragent@cursor.com>"`). Use plain `git commit -m` or `git commit -F` only.
 
 ---
 

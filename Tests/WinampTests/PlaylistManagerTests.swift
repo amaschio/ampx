@@ -9,7 +9,12 @@ final class PlaylistManagerTests: XCTestCase {
     override func setUp() {
         super.setUp()
         self.mockPlayer = MockAudioPlayer()
-        self.manager = PlaylistManager(audioPlayer: self.mockPlayer, restoreBookmarks: false, restorePlaylist: false)
+        self.manager = PlaylistManager(
+            audioPlayer: self.mockPlayer,
+            restoreBookmarks: false,
+            restorePlaylist: false,
+            alertPresenter: SilentPlaylistAlertPresenter()
+        )
     }
 
     private func makeTracks(_ count: Int) -> [Track] {
@@ -231,8 +236,8 @@ final class PlaylistManagerTests: XCTestCase {
             audioPlayer: mockPlayer,
             restoreBookmarks: false,
             restorePlaylist: false,
-            stateStore: stateStore
-        )
+            stateStore: stateStore,
+            alertPresenter: SilentPlaylistAlertPresenter())
 
         manager.tracks = self.makeTracks(3)
         manager.currentIndex = 2
@@ -274,8 +279,8 @@ final class PlaylistManagerTests: XCTestCase {
             restoreBookmarks: true,
             restorePlaylist: true,
             bookmarkStore: restoredBookmarkStore,
-            stateStore: stateStore
-        )
+            stateStore: stateStore,
+            alertPresenter: SilentPlaylistAlertPresenter())
 
         waitForMainQueue()
 
@@ -291,8 +296,8 @@ final class PlaylistManagerTests: XCTestCase {
         let manager = PlaylistManager(
             audioPlayer: mockPlayer,
             restoreBookmarks: false,
-            restorePlaylist: false
-        )
+            restorePlaylist: false,
+            alertPresenter: SilentPlaylistAlertPresenter())
         XCTAssertTrue(manager.shouldPlayStartupSoundOnLaunch)
     }
 
@@ -322,8 +327,8 @@ final class PlaylistManagerTests: XCTestCase {
             restoreBookmarks: true,
             restorePlaylist: true,
             bookmarkStore: SecurityScopedBookmarkStore(userDefaults: userDefaults),
-            stateStore: stateStore
-        )
+            stateStore: stateStore,
+            alertPresenter: SilentPlaylistAlertPresenter())
 
         waitForMainQueue()
         XCTAssertFalse(manager.shouldPlayStartupSoundOnLaunch)
@@ -355,8 +360,8 @@ final class PlaylistManagerTests: XCTestCase {
             restoreBookmarks: true,
             restorePlaylist: true,
             bookmarkStore: SecurityScopedBookmarkStore(userDefaults: userDefaults),
-            stateStore: stateStore
-        )
+            stateStore: stateStore,
+            alertPresenter: SilentPlaylistAlertPresenter())
 
         waitForMainQueue(after: 0.5)
 
@@ -385,8 +390,8 @@ final class PlaylistManagerTests: XCTestCase {
             restoreBookmarks: true,
             restorePlaylist: true,
             bookmarkStore: SecurityScopedBookmarkStore(userDefaults: userDefaults),
-            stateStore: stateStore
-        )
+            stateStore: stateStore,
+            alertPresenter: SilentPlaylistAlertPresenter())
 
         waitForMainQueue(after: 0.5)
 
@@ -421,8 +426,8 @@ final class PlaylistManagerTests: XCTestCase {
             restoreBookmarks: true,
             restorePlaylist: true,
             bookmarkStore: SecurityScopedBookmarkStore(userDefaults: userDefaults),
-            stateStore: stateStore
-        )
+            stateStore: stateStore,
+            alertPresenter: SilentPlaylistAlertPresenter())
 
         waitForMainQueue(after: 0.5)
 

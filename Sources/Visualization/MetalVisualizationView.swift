@@ -66,9 +66,11 @@ final class MetalVisualizationRenderer: NSObject, MTKViewDelegate {
     func mtkView(_: MTKView, drawableSizeWillChange _: CGSize) {}
 
     func draw(in view: MTKView) {
-        // Triple-buffer back-pressure: block until the GPU finishes a frame so we never overwrite
-        // a buffer the GPU is still reading. The matching signal fires in the completion handler.
-        self.inFlightSemaphore.wait()
+        // Triple-buffer back-pressure: skip the frame if the GPU is still busy so we never
+        // stall the main thread (shared with AppKit/SwiftUI chrome).
+        if self.inFlightSemaphore.wait(timeout: .now()) != .success {
+            return
+        }
 
         // Per-frame CPU encoding cost: visible in Instruments' os_signpost track. Started
         // after the back-pressure wait so the interval reflects encoding work, not GPU stalls.

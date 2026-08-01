@@ -59,4 +59,35 @@ enum WinampDockGraph {
     ) -> Set<WinampPanelID> {
         Set(order.filter { parents[$0] == nil })
     }
+
+    /// Panels whose dock ancestry includes `ancestor` (the panel itself is not returned).
+    static func descendants(
+        of ancestor: WinampPanelID,
+        parents: [WinampPanelID: WinampDockNode]
+    ) -> [WinampPanelID] {
+        parents.keys.filter { id in
+            self.isDescendant(id, of: ancestor, parents: parents)
+        }
+    }
+
+    private static func isDescendant(
+        _ id: WinampPanelID,
+        of ancestor: WinampPanelID,
+        parents: [WinampPanelID: WinampDockNode]
+    ) -> Bool {
+        var current: WinampPanelID? = id
+        var steps = 0
+        while let node = current, steps < parents.count + 1 {
+            switch parents[node] {
+            case let .panel(parent) where parent == ancestor:
+                return true
+            case let .panel(parent):
+                current = parent
+                steps += 1
+            case .main, nil:
+                return false
+            }
+        }
+        return false
+    }
 }

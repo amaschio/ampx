@@ -6,7 +6,7 @@ import SwiftUI
 /// Drag behavior matches [Webamp's
 /// `WindowManager`](https://github.com/captbaritone/webamp/blob/master/packages/webamp/js/components/WindowManager.tsx):
 /// a custom mouse-drag loop moves all graph-connected windows together when dragging
-/// the main player; dragging panel title bars moves only that window.
+/// the main player; dragging a panel title bar moves that panel and its docked descendants.
 @MainActor
 final class WinampPanelWindowManager {
     static let shared = WinampPanelWindowManager()
@@ -361,8 +361,8 @@ final class WinampPanelWindowManager {
 
     /// Begin a title-bar drag, following Webamp's window-manager model: detach all docked child
     /// links so AppKit doesn't auto-move panels we reposition manually, then drag the **moving set**
-    /// as a group. The main window brings its whole connected cluster; a panel moves alone. Dock
-    /// links are rebuilt from the final geometry on mouse-up.
+    /// as a group. The main window brings its whole connected cluster; a panel brings its docked
+    /// sub-tree. Dock links are rebuilt from the final geometry on mouse-up.
     func startDrag(leading window: NSWindow, event _: NSEvent) {
         self.endDrag()
 
@@ -455,11 +455,24 @@ final class WinampPanelWindowManager {
 
     // MARK: - Drag
 
-    /// Windows that move together when `lead` is dragged. Per Webamp: the main window carries its
-    /// whole geometry-connected cluster; any panel moves by itself.
+    /// Windows that move together when `lead` is dragged. The main window carries its whole
+    /// geometry-connected cluster; a panel carries itself plus docked descendants.
     private func movingSet(for lead: NSWindow) -> [NSWindow] {
-        guard lead === self.mainWindow else { return [lead] }
-        return WinampWindowSnap.traceConnected(from: lead, among: self.managedWindowsIncludingMain())
+        if lead === self.mainWindow {
+            return WinampWindowSnap.traceConnected(from: lead, among: self.managedWindowsIncludingMain())
+        }
+        guard let leadID = self.panelID(for: lead) else { return [lead] }
+        let parents = self.currentDockParents()
+        var moving: [NSWindow] = [lead]
+        for childID in WinampDockGraph.descendants(of: leadID, parents: parents) {
+            guard let child = self.windows[childID], child.isVisible else { continue }
+            moving.append(child)
+        }
+        return moving
+    }
+
+    private func panelID(for window: NSWindow) -> WinampPanelID? {
+        self.panelIDs.first { self.windows[$0] === window }
     }
 
     private func handleDragMoved() {
@@ -675,18 +688,11 @@ final class WinampPanelWindowManager {
             )
             let hosting = NSHostingController(rootView: decoratedView)
             hosting.view.wantsLayer = true
-            // The manager owns window sizing for EQ/playlist (see `applyContentSize` /
-            // `resizePlaylistPanel`). Without empty sizing options, the hosting controller also
-            // resizes the window when SwiftUI content changes — anchored origin-fixed, so it grows
-            // the wrong way and fights our frame set, flickering.
-            //
-            // The visualizer embeds an `MTKView`; empty sizing options leave that representable at
-            // 0×0 inside the panel. Prefer intrinsic sizing there and keep window frames explicit.
-            if id == .visualizer {
-                hosting.sizingOptions = [.intrinsicContentSize]
-            } else {
-                hosting.sizingOptions = []
-            }
+            // The manager owns window sizing (see `applyContentSize` / panel resize helpers).
+            // Empty sizing options prevent the hosting controller from fighting our frames.
+            // MilkDrop uses `MilkdropMTKHostView` so the MTKView fills the panel without
+            // intrinsic-content auto-resize.
+            hosting.sizingOptions = []
 
             window = WinampPanelWindow(
                 contentRect: .zero,
@@ -772,20 +778,21 @@ final class WinampPanelWindowManager {
             let sameColumn = WinampWindowSnap.near(window.frame.minX, mainX)
             let sideOfMain = WinampWindowSnap.near(window.frame.minX, mainWindow.frame.maxX)
                 || WinampWindowSnap.near(window.frame.maxX, mainWindow.frame.minX)
-            let force = panelID == forcing
-
-            if sideOfMain, !sameColumn, !force {
-                // Keep horizontally docked panels out of the vertical pack.
-                continue
-            }
-            // Forced panel always joins; others only if already in the main X column.
-            if !force, !sameColumn {
+            guard WinampPanelColumnPack.shouldIncludeInVerticalPack(
+                panelID: panelID,
+                forcing: forcing,
+                sameColumn: sameColumn,
+                sideOfMain: sideOfMain
+            ) else {
                 continue
             }
 
             let height = window.frame.height
-            // Keep EQ (fixed classic width) locked to the main column width; playlist may be wider.
-            let width = panelID == .playlist ? window.frame.width : mainWindow.frame.width
+            let width = WinampPanelColumnPack.packedWidth(
+                panelID: panelID,
+                currentWidth: window.frame.width,
+                mainWidth: mainWindow.frame.width
+            )
             let frame = CGRect(
                 x: mainX,
                 y: cursorY - height,
@@ -837,6 +844,11 @@ final class WinampPanelWindowManager {
         }
         window.parent?.removeChildWindow(window)
         window.orderOut(nil)
+        if id == .visualizer {
+            // Drop the hosting tree so MilkDrop's MTKView stops rendering while hidden.
+            window.contentViewController = nil
+            self.hostingControllers[id] = nil
+        }
         // Re-pack remaining column members in case child-window links weren't set (gap close missed).
         self.packMainVerticalColumn(forcing: nil)
     }
