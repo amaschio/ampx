@@ -231,7 +231,14 @@ struct ClassicMainTitleBar: View {
     }
 
     static func activeWindow() -> NSWindow? {
-        NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: \.isVisible)
+        if let main = WinampPanelWindowManager.shared.mainPlayerWindow {
+            return main
+        }
+        return NSApp.windows.first { window in
+            window.isVisible
+                && !(window is NSPanel)
+                && !WinampPanelWindowManager.shared.isPanelWindow(window)
+        }
     }
 }
 

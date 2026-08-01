@@ -10,6 +10,7 @@ struct ClassicShadeView: View {
     @Environment(\.winampUIScale) private var uiScale
     @Binding var isShadeMode: Bool
     @Binding var showRemainingTime: Bool
+    @Binding var showVisualization: Bool
 
     private var s: CGFloat {
         self.uiScale
@@ -30,12 +31,18 @@ struct ClassicShadeView: View {
                 .frame(width: 105 * self.s, height: 14 * self.s)
                 .offset(x: 16 * self.s, y: 0)
 
-            Button {} label: {
+            Menu {
+                Button(self.showVisualization ? "Hide Visualizer" : "Show Visualizer") {
+                    self.showVisualization.toggle()
+                }
+            } label: {
                 Color.clear
                     .frame(width: 9 * self.s, height: 9 * self.s)
                     .contentShape(Rectangle())
             }
+            .menuStyle(.button)
             .buttonStyle(.plain)
+            .menuIndicator(.hidden)
             .offset(x: 6 * self.s, y: 3 * self.s)
 
             ClassicBitmapMarquee(

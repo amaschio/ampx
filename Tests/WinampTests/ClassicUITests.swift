@@ -106,3 +106,21 @@ final class ClassicPlaylistLayoutDefaultsTests: XCTestCase {
         XCTAssertEqual(layout.playlistSize.width, ClassicSkinMetrics.windowWidth)
     }
 }
+
+final class WinampUIScaleLevelMigrationTests: XCTestCase {
+    func testNearestLevelMapsLegacy125PercentTo150() {
+        // Former `.large = 1.25` — equidistant from 1.0 and 1.5; ties prefer larger.
+        XCTAssertEqual(WinampUIScale.nearestLevel(to: 1.25), .extraLarge)
+    }
+
+    func testNearestLevelPreservesExactLevels() {
+        XCTAssertEqual(WinampUIScale.nearestLevel(to: 1.0), .standard)
+        XCTAssertEqual(WinampUIScale.nearestLevel(to: 1.5), .extraLarge)
+        XCTAssertEqual(WinampUIScale.nearestLevel(to: 2.0), .huge)
+    }
+
+    func testNearestLevelClampsBelowAndAboveRange() {
+        XCTAssertEqual(WinampUIScale.nearestLevel(to: 0.5), .standard)
+        XCTAssertEqual(WinampUIScale.nearestLevel(to: 3.0), .huge)
+    }
+}

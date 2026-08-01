@@ -131,6 +131,12 @@ final class WinampPanelWindowManager {
         self.syncPanels()
     }
 
+    /// The SwiftUI `WindowGroup` main player — prefer this over `NSApp.keyWindow` for chrome
+    /// that must act on the main window even when a docked panel is key.
+    var mainPlayerWindow: NSWindow? {
+        self.mainWindow
+    }
+
     func isPanelWindow(_ window: NSWindow) -> Bool {
         self.windows.values.contains(where: { $0 === window })
     }

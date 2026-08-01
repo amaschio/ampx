@@ -442,7 +442,7 @@ class PlaylistManager: ObservableObject {
                 // Keep paths that only failed permission so a later launch can retry; drop
                 // confirmed-missing files from the saved list.
                 if !accessDeniedPaths.isEmpty {
-                    let loadedPaths = restoredTracks.compactMap { $0.url?.path }
+                    let loadedPaths = restoredTracks.compactMap { $0.url?.standardizedFileURL.path }
                     self.stateStore.saveState(
                         PersistedPlaylistState(
                             trackPaths: loadedPaths + accessDeniedPaths,

@@ -20,7 +20,8 @@ struct ContentView: View {
                 if self.panelLayout.isShadeMode {
                     ClassicShadeView(
                         isShadeMode: self.$panelLayout.isShadeMode,
-                        showRemainingTime: self.$showRemainingTime
+                        showRemainingTime: self.$showRemainingTime,
+                        showVisualization: self.$showVisualization
                     )
                 } else {
                     ClassicMainPlayerView(

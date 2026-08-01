@@ -42,13 +42,17 @@ struct ClassicVisualizerView: View {
         )
         .background(Color.black)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) {
-            self.onDoubleTap?()
-        }
-        .onTapGesture {
-            let newMode = self.visualizationMode.advanced()
-            self.visualizationModeRaw = newMode.storageValue
-        }
+        // Exclusive so a double-tap opens the visualizer without also advancing the mode.
+        .gesture(
+            TapGesture(count: 2)
+                .onEnded { _ in
+                    self.onDoubleTap?()
+                }
+                .exclusively(before: TapGesture().onEnded { _ in
+                    let newMode = self.visualizationMode.advanced()
+                    self.visualizationModeRaw = newMode.storageValue
+                })
+        )
     }
 }
 
