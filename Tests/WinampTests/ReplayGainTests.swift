@@ -1,5 +1,5 @@
-import XCTest
 @testable import Winamp
+import XCTest
 
 final class ReplayGainTests: XCTestCase {
     func testEmptyGainReturnsUnity() {

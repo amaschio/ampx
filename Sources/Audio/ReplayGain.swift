@@ -6,7 +6,7 @@ import Foundation
 /// Values follow the ReplayGain spec: gains are in dB relative to an 89 dB SPL reference,
 /// peaks are normalized sample amplitudes (1.0 == full scale). Tags appear as Vorbis comments
 /// (FLAC/Ogg) or ID3v2 `TXXX` frames (MP3) and are surfaced by AVFoundation as metadata items.
-struct ReplayGain: Sendable, Equatable {
+struct ReplayGain: Equatable {
     var trackGainDB: Float?
     var albumGainDB: Float?
     var trackPeak: Float?

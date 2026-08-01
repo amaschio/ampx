@@ -3,7 +3,8 @@ import SwiftUI
 
 /// Manages separate floating NSWindows for the equalizer and playlist.
 ///
-/// Drag behavior matches [Webamp's `WindowManager`](https://github.com/captbaritone/webamp/blob/master/packages/webamp/js/components/WindowManager.tsx):
+/// Drag behavior matches [Webamp's
+/// `WindowManager`](https://github.com/captbaritone/webamp/blob/master/packages/webamp/js/components/WindowManager.tsx):
 /// a custom mouse-drag loop moves all graph-connected windows together when dragging
 /// the main player; dragging EQ/playlist title bars moves only that window.
 @MainActor
@@ -38,7 +39,9 @@ final class WinampPanelWindowManager {
     /// window positions are the source of truth; this is what survives relaunch.
     private let positionStore = WinampPanelPositionStore()
 
-    private var panelIDs: [WinampPanelID] { self.registry.map(\.id) }
+    private var panelIDs: [WinampPanelID] {
+        self.registry.map(\.id)
+    }
 
     private func descriptor(for id: WinampPanelID) -> WinampPanelDescriptor? {
         self.registry.first { $0.id == id }
@@ -64,8 +67,22 @@ final class WinampPanelWindowManager {
             WinampPanelDescriptor(
                 id: .equalizer,
                 isVisible: { [weak self] in self?.layoutState?.isEqualizerDocked ?? false },
-                makeRoot: { AnyView(EqualizerView().winampOuterFrame()) },
-                sizing: .fixedToContent
+                makeRoot: { [weak self] in
+                    guard let layoutState = self?.layoutState else { return AnyView(EmptyView()) }
+                    return AnyView(EqualizerPanelRoot(layoutState: layoutState))
+                },
+                sizing: .explicit { [weak self] in
+                    guard let layoutState = self?.layoutState else { return .zero }
+                    let scale = self?.uiScale?.scale ?? 1
+                    let width = ClassicSkinMetrics.scaled(ClassicSkinMetrics.windowWidth, by: scale)
+                    let height = ClassicSkinMetrics.scaled(
+                        layoutState.equalizerMinimized
+                            ? ClassicSkinMetrics.titleBarHeight
+                            : ClassicSkinMetrics.windowHeight,
+                        by: scale
+                    )
+                    return CGSize(width: width, height: height)
+                }
             ),
             WinampPanelDescriptor(
                 id: .playlist,
@@ -76,8 +93,19 @@ final class WinampPanelWindowManager {
                 },
                 sizing: .explicit { [weak self] in
                     guard let layoutState = self?.layoutState else { return .zero }
-                    let height = layoutState.playlistMinimized ? 50 : layoutState.playlistSize.height
-                    return CGSize(width: layoutState.playlistSize.width, height: height)
+                    let scale = self?.uiScale?.scale ?? 1
+                    let minimizedHeight = ClassicSkinMetrics.scaled(
+                        ClassicSkinMetrics.playlistShadeHeight,
+                        by: scale
+                    )
+                    let height = layoutState.playlistMinimized
+                        ? minimizedHeight
+                        : layoutState.playlistSize.height.rounded(.toNearestOrAwayFromZero)
+                    let width = max(
+                        layoutState.playlistSize.width,
+                        ClassicSkinMetrics.scaled(ClassicSkinMetrics.windowWidth, by: scale)
+                    ).rounded(.toNearestOrAwayFromZero)
+                    return CGSize(width: width, height: height)
                 }
             ),
         ]
@@ -97,6 +125,7 @@ final class WinampPanelWindowManager {
         self.audioPlayer = audioPlayer
         self.playlistManager = playlistManager
         self.uiScale = uiScale
+        WinampWindowSnap.syncSnapDistance(withScale: uiScale.scale)
 
         self.installResizeObserversIfNeeded()
         self.syncPanels()
@@ -110,11 +139,23 @@ final class WinampPanelWindowManager {
         self.windows[.playlist] === window
     }
 
+    func isEqualizerWindow(_ window: NSWindow) -> Bool {
+        self.windows[.equalizer] === window
+    }
+
+    /// Double-click on a title bar: shade/unshade panels, but when the main window is already
+    /// shaded, ignore the click — Winamp restores via the middle (unshade) title-bar icon only.
+    func handleTitleBarDoubleClick(for window: NSWindow) {
+        guard let layoutState else { return }
+        if window === self.mainWindow, layoutState.isShadeMode {
+            return
+        }
+        self.toggleWindowshade(for: window)
+    }
+
     /// Toggle the classic windowshade ("roll up to the title bar") for the given window.
     ///
-    /// Matches Winamp's double-click-title behavior. The main window (`isShadeMode`) and playlist
-    /// (`playlistMinimized`) each carry a windowshade state in `layoutState`; the EQ has none in
-    /// this app, so it is intentionally a no-op rather than miniaturizing to the Dock.
+    /// Matches Winamp's double-click-title behavior for main, playlist, and equalizer.
     func toggleWindowshade(for window: NSWindow) {
         guard let layoutState else { return }
         if self.isPlaylistWindow(window) {
@@ -124,8 +165,12 @@ final class WinampPanelWindowManager {
             // — the window keeps its old frame until some other event forces a relayout. Resize
             // now so the windowshade tracks the click, matching the SwiftUI chevron path.
             self.resizePlaylistPanel()
+        } else if self.isEqualizerWindow(window) {
+            layoutState.equalizerMinimized.toggle()
+            self.resizeEqualizerPanel()
         } else if window === self.mainWindow {
             layoutState.isShadeMode.toggle()
+            self.fitMainWindowToContent()
         }
     }
 
@@ -165,6 +210,74 @@ final class WinampPanelWindowManager {
             context.duration = 0
             window.setFrame(frame, display: true)
         }
+        self.persistPositions()
+    }
+
+    /// Resize the equalizer panel after a windowshade toggle (same top-edge anchoring as playlist).
+    func resizeEqualizerPanel() {
+        guard let window = self.windows[.equalizer], window.isVisible,
+              let descriptor = self.descriptor(for: .equalizer) else { return }
+
+        let contentSize = self.targetContentSize(for: descriptor)
+        let frameSize = window.frameRect(forContentRect: CGRect(origin: .zero, size: contentSize)).size
+
+        let topY: CGFloat
+        let originX: CGFloat
+        if !self.isFloatingNow(.equalizer), let anchor = self.dockAnchorWindow(for: .equalizer) {
+            topY = anchor.frame.minY
+            originX = anchor.frame.minX
+        } else {
+            topY = window.frame.maxY
+            originX = window.frame.minX
+        }
+        let frame = CGRect(x: originX, y: topY - frameSize.height, width: frameSize.width, height: frameSize.height)
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            window.setFrame(frame, display: true)
+        }
+        self.persistPositions()
+        self.stackDockedPanels()
+    }
+
+    /// Shrink/expand the main player window to the classic full or shade height, keeping the top edge fixed.
+    func fitMainWindowToContent() {
+        guard let mainWindow, let layoutState else { return }
+        let scale = self.uiScale?.scale ?? 1
+        let height = ClassicSkinMetrics.scaled(
+            layoutState.isShadeMode ? ClassicSkinMetrics.shadeHeight : ClassicSkinMetrics.windowHeight,
+            by: scale
+        )
+        let width = ClassicSkinMetrics.scaled(ClassicSkinMetrics.windowWidth, by: scale)
+        let contentSize = NSSize(width: width, height: height)
+        let frameSize = mainWindow.frameRect(forContentRect: CGRect(origin: .zero, size: contentSize)).size
+        let old = mainWindow.frame
+        let frame = CGRect(
+            x: old.minX,
+            y: old.maxY - frameSize.height,
+            width: frameSize.width,
+            height: frameSize.height
+        )
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            mainWindow.setFrame(frame, display: true)
+        }
+        self.stackDockedPanels()
+    }
+
+    /// Resize every visible panel for a Zoom menu change, then re-pack the main vertical column so
+    /// EQ/playlist stay flush (persisted offsets are absolute pixels and go stale across scales).
+    func applyUIScale() {
+        let scale = self.uiScale?.scale ?? 1
+        WinampWindowSnap.syncSnapDistance(withScale: scale)
+        self.fitMainWindowToContent()
+        for descriptor in self.registry {
+            guard self.windows[descriptor.id]?.isVisible == true else { continue }
+            self.applyContentSize(for: descriptor)
+        }
+        self.packMainVerticalColumn(forcing: nil)
+        self.flushDockedWindows()
+        self.syncChildWindowLinks()
         self.persistPositions()
     }
 
@@ -312,7 +425,9 @@ final class WinampPanelWindowManager {
 
     private func dragLabel(for window: NSWindow) -> String {
         if window === self.mainWindow { return "main" }
-        for id in self.panelIDs where self.windows[id] === window { return id.rawValue }
+        for id in self.panelIDs where self.windows[id] === window {
+            return id.rawValue
+        }
         return "?"
     }
 
@@ -395,7 +510,7 @@ final class WinampPanelWindowManager {
             let gapLeft = abs(panelFrame.maxX - parentFrame.minX)
             let minGap = min(gapBelow, gapAbove, gapRight, gapLeft)
 
-            let origin: NSPoint = if minGap == gapBelow {
+            let origin = if minGap == gapBelow {
                 NSPoint(x: parentFrame.minX, y: parentFrame.minY - size.height)
             } else if minGap == gapAbove {
                 NSPoint(x: parentFrame.minX, y: parentFrame.maxY)
@@ -465,10 +580,12 @@ final class WinampPanelWindowManager {
 
         let id = descriptor.id
         let window: NSWindow
+        let isNew: Bool
 
         if let existing = self.windows[id], self.hostingControllers[id] != nil {
             window = existing
-            // Keep the live view tree — bindings on `layoutState` propagate size changes.
+            isNew = false
+            // Keep the live view tree — bindings on `layoutState` / `uiScale` propagate changes.
         } else {
             let decoratedView = AnyView(
                 descriptor.makeRoot()
@@ -485,9 +602,9 @@ final class WinampPanelWindowManager {
             // anchored origin-fixed, so it grows the wrong way and fights our frame set, flickering.
             hosting.sizingOptions = []
 
-            window = NSWindow(
+            window = WinampPanelWindow(
                 contentRect: .zero,
-                styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
+                styleMask: [.borderless, .miniaturizable],
                 backing: .buffered,
                 defer: true
             )
@@ -497,14 +614,24 @@ final class WinampPanelWindowManager {
 
             self.windows[id] = window
             self.hostingControllers[id] = hosting
-            self.applyContentSize(for: descriptor)
-            self.placePanelInitially(id)
-            window.orderFront(nil)
-            return
+            isNew = true
         }
 
         self.applyContentSize(for: descriptor)
         window.orderFront(nil)
+
+        if isNew {
+            self.placePanelInitially(id)
+            // If the restored offset overlaps the live column (common after hide/show gap-close
+            // or a Zoom change), pack into the classic main→EQ→PL stack instead.
+            if self.panelFrameOverlapsVisibleCluster(id) {
+                self.packMainVerticalColumn(forcing: id)
+            }
+        } else {
+            // Re-show via EQ/PL toggles: join the main vertical column so panels don't reappear
+            // on top of siblings that slid into the closed gap.
+            self.packMainVerticalColumn(forcing: id)
+        }
     }
 
     /// Position a freshly created panel: at its persisted offset from the main window if known,
@@ -517,6 +644,72 @@ final class WinampPanelWindowManager {
             let origin = NSPoint(x: bottom.frame.minX, y: bottom.frame.minY - window.frame.height)
             self.setFrameOriginWithoutAnimation(window, origin: origin)
         }
+    }
+
+    /// Pack EQ then playlist flush under the main window (classic default column).
+    ///
+    /// `forcing` joins that panel even if it currently sits outside the column (EQ/PL toggle).
+    /// Other visible panels already aligned to the main window's X are re-packed so inserting
+    /// one pushes the rest down and Zoom size changes don't leave gaps.
+    private func packMainVerticalColumn(forcing: WinampPanelID?) {
+        guard let mainWindow, self.activeDrag == nil else { return }
+
+        let mainX = mainWindow.frame.minX
+        var cursorY = mainWindow.frame.minY
+        var packed = false
+
+        // Move without AppKit child-window auto-follow fighting the layout.
+        self.detachAllChildLinks()
+
+        for panelID in self.panelIDs {
+            guard let window = self.windows[panelID], window.isVisible else { continue }
+
+            let sameColumn = WinampWindowSnap.near(window.frame.minX, mainX)
+            let sideOfMain = WinampWindowSnap.near(window.frame.minX, mainWindow.frame.maxX)
+                || WinampWindowSnap.near(window.frame.maxX, mainWindow.frame.minX)
+            let force = panelID == forcing
+
+            if sideOfMain, !sameColumn, !force {
+                // Keep horizontally docked panels out of the vertical pack.
+                continue
+            }
+            // Forced panel always joins; others only if already in the main X column.
+            if !force, !sameColumn {
+                continue
+            }
+
+            let height = window.frame.height
+            // Keep EQ (fixed classic width) locked to the main column width; playlist may be wider.
+            let width = panelID == .playlist ? window.frame.width : mainWindow.frame.width
+            let frame = CGRect(
+                x: mainX,
+                y: cursorY - height,
+                width: width,
+                height: height
+            )
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0
+                window.setFrame(frame, display: true)
+            }
+            cursorY = frame.minY
+            packed = true
+        }
+
+        if packed {
+            self.syncChildWindowLinks()
+            self.persistPositions()
+        }
+    }
+
+    private func panelFrameOverlapsVisibleCluster(_ id: WinampPanelID) -> Bool {
+        guard let frame = self.windows[id]?.frame else { return false }
+        for other in self.managedWindowsIncludingMain() {
+            guard other !== self.windows[id] else { continue }
+            if frame.intersects(other.frame.insetBy(dx: 1, dy: 1)) {
+                return true
+            }
+        }
+        return false
     }
 
     private func lowestVisibleManagedWindow(excluding: WinampPanelID) -> NSWindow? {
@@ -539,16 +732,33 @@ final class WinampPanelWindowManager {
         }
         window.parent?.removeChildWindow(window)
         window.orderOut(nil)
+        // Re-pack remaining column members in case child-window links weren't set (gap close missed).
+        self.packMainVerticalColumn(forcing: nil)
     }
 
     private func applyContentSize(for descriptor: WinampPanelDescriptor) {
         guard let window = self.windows[descriptor.id] else { return }
-        self.setContentSizeWithoutAnimation(window, size: self.targetContentSize(for: descriptor))
+        let contentSize = self.targetContentSize(for: descriptor)
+        let frameSize = window.frameRect(forContentRect: CGRect(origin: .zero, size: contentSize)).size
+        let old = window.frame
+        // Keep the top edge fixed — `setContentSize` grows upward from the bottom-left origin and
+        // drives docked panels into their parents when Zoom increases.
+        let frame = CGRect(
+            x: old.minX,
+            y: old.maxY - frameSize.height,
+            width: frameSize.width,
+            height: frameSize.height
+        )
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            window.setFrame(frame, display: true)
+        }
     }
 
     /// The content size a panel should have, per its sizing policy.
     private func targetContentSize(for descriptor: WinampPanelDescriptor) -> NSSize {
-        let panelWidth = self.uiScale?.panelWidth ?? WinampMetrics.panelWidth
+        let scale = self.uiScale?.scale ?? 1
+        let panelWidth = ClassicSkinMetrics.scaled(ClassicSkinMetrics.windowWidth, by: scale)
         switch descriptor.sizing {
         case .fixedToContent:
             guard let hosting = self.hostingControllers[descriptor.id] else {
@@ -556,17 +766,13 @@ final class WinampPanelWindowManager {
             }
             hosting.view.layoutSubtreeIfNeeded()
             let fitting = hosting.sizeThatFits(in: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude))
-            return NSSize(width: panelWidth, height: max(fitting.height, 50))
+            return NSSize(width: panelWidth, height: max(fitting.height.rounded(.toNearestOrAwayFromZero), 50))
         case let .explicit(provider):
             let desired = provider()
-            return NSSize(width: max(desired.width, panelWidth), height: desired.height)
-        }
-    }
-
-    private func setContentSizeWithoutAnimation(_ window: NSWindow, size: NSSize) {
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0
-            window.setContentSize(size)
+            return NSSize(
+                width: max(desired.width, panelWidth).rounded(.toNearestOrAwayFromZero),
+                height: desired.height.rounded(.toNearestOrAwayFromZero)
+            )
         }
     }
 
@@ -613,6 +819,9 @@ final class WinampPanelWindowManager {
         }
 
         if resized === self.mainWindow {
+            // Banner show/hide and Zoom both change the main frame — re-pack the column so EQ/PL
+            // stay flush under the new bottom edge instead of overlapping or leaving a gap.
+            self.packMainVerticalColumn(forcing: nil)
             self.stackDockedPanels()
         }
     }
@@ -661,15 +870,44 @@ private enum DragTrace {
 /// observation of `layoutState`. Holding it as an `@ObservedObject` here makes the panel re-render
 /// its body when `playlistMinimized` / `playlistSize` change — so a windowshade toggle reflows the
 /// SwiftUI content immediately instead of waiting for an unrelated relayout to force it.
+///
+/// `WinampUIScale` is re-injected into the environment key on every zoom change so sprite geometry
+/// tracks the menu Zoom level (the hosting controller keeps a long-lived root view).
 private struct PlaylistPanelRoot: View {
     @ObservedObject var layoutState: WinampPanelLayoutState
+    @EnvironmentObject var uiScale: WinampUIScale
 
     var body: some View {
-        PlaylistView(
+        ClassicPlaylistView(
             playlistSize: self.layoutState.playlistSizeBinding,
-            isMinimized: self.layoutState.playlistMinimizedBinding
+            isMinimized: self.layoutState.playlistMinimizedBinding,
+            showPlaylist: Binding(
+                get: { self.layoutState.showPlaylist },
+                set: { self.layoutState.showPlaylist = $0 }
+            )
         )
-        .winampOuterFrame(flexibleVertical: true)
+        .environment(\.winampUIScale, self.uiScale.scale)
+        .fixedSize()
     }
 }
 
+/// Observing root for the detached equalizer window.
+private struct EqualizerPanelRoot: View {
+    @ObservedObject var layoutState: WinampPanelLayoutState
+    @EnvironmentObject var uiScale: WinampUIScale
+
+    var body: some View {
+        ClassicEqualizerView(
+            showEqualizer: Binding(
+                get: { self.layoutState.showEqualizer },
+                set: { self.layoutState.showEqualizer = $0 }
+            ),
+            isMinimized: Binding(
+                get: { self.layoutState.equalizerMinimized },
+                set: { self.layoutState.equalizerMinimized = $0 }
+            )
+        )
+        .environment(\.winampUIScale, self.uiScale.scale)
+        .fixedSize()
+    }
+}

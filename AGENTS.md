@@ -1,9 +1,9 @@
-# AGENTS.md
-
-> Guidance for AI coding agents (Claude Code, GitHub Copilot, Cursor, etc.) working on this codebase.
-> Read this file before making any changes. It describes the project intent, architecture, known technical debt, coding conventions, and the roadmap this fork is pursuing.
-
 ---
+description: 
+alwaysApply: true
+---
+
+# AGENTS.md
 
 ## Project Overview
 
@@ -25,7 +25,7 @@ Target users are music collectors and audiophiles who remember Winamp fondly and
 | DSP / EQ | AVAudioUnitEQ (10-band parametric) |
 | Visualizations | Metal |
 | Build system | Xcode 15+ primary; SPM as secondary |
-| Min deployment | macOS 13.0 (Ventura) |
+| Min deployment | macOS 26.5 (Tahoe) |
 | License | MIT |
 
 ---
@@ -41,12 +41,13 @@ Target users are music collectors and audiophiles who remember Winamp fondly and
   signal/data code; **keep SwiftUI/AppKit out of it** so it stays testable and reusable.
 - **`Playlist/`** — persistence & file I/O (state store, M3U file service, security-scoped
   bookmarks). UI talks to this only through `PlaylistManager`, not these types directly.
-- **`Views/Player`, `Views/Components`** — the retro player chrome. New UI here **must match the
-  classic Winamp 2.x aesthetic** (see Architecture Principles). `Views/Components` is the home for
-  reusable chrome primitives (bevels, sliders, 7-segment display, search field).
+- **`Views/Classic`** — the Winamp 2.x skin UI (main, shade, playlist, EQ) at Webamp’s
+  275 px geometry. New chrome **must match this Classic aesthetic** (see Architecture
+  Principles). Shared skin helpers live in `WinampSkinSprites` / `ClassicSkinTheme`.
 - **`Views/Visualizer`, `Visualization/`, `Shaders/`** — the Metal-backed visualizer and `.metal`
   shaders. Heavy/optional; must degrade gracefully when the visualizer window is closed.
-- **`Utilities/`** — cross-cutting helpers (colors, metrics, UI scale, typography, FS helpers).
+- **`Utilities/`** — cross-cutting helpers (colors, metrics, UI scale, typography, FS helpers,
+  title-bar drag overlay, marquee typography).
 - **`Development/`** — dev-only conveniences (e.g. session persistence). **Never required at
   runtime**; guard so production paths don't depend on it.
 - **`AudioPlaybackControlling`** — the protocol abstracting the player so tests can inject a mock.
@@ -68,7 +69,6 @@ The compact-player aesthetic is intentional. Do not introduce full-window redesi
 ## Coding Conventions
 
 - **Swift formatting:** follow the [Swift API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/).
-- **Comments:** explain *why*, not *what*. Code should be self-documenting; comments clarify intent, not mechanics.
 
 ### Git commits
 
@@ -128,9 +128,9 @@ Run these before committing if the tools are installed; do not hand-fight their 
 
 ### Python (`scripts/`)
 
-Fixture generation and any other Python in this repo run through **[uv](https://docs.astral.sh/uv/)** — not bare `python` / `pip`.
+Fixture generation and any other Python in this repo run through **[uv](https://docs.astral.sh/uv/)**.
 
-- **Agents:** always use `uv` from `scripts/` (e.g. `cd scripts && uv run …`). Do not invoke `python3`, `pip install`, or create ad-hoc virtualenvs.
+- **Agents:** always use `uv` from `scripts/` (e.g. `cd scripts && uv run …`).
 - **Entry point:** `./scripts/generate-fixtures.sh` runs `uv sync` then `uv run generate-fixtures`.
 - **Add dependencies** in `scripts/pyproject.toml` and lock with `uv lock` (commit `scripts/uv.lock`).
 
@@ -140,13 +140,3 @@ uv sync
 uv run generate-fixtures
 uv run python -c "import winamp_fixtures"   # ad-hoc checks
 ```
-
-### Common pitfalls
-- SPM (`swift build`) will **not** include the asset catalog — use Xcode for anything touching `Resources/`.
-- If you get `Sandbox: deny file-read-data`, that is expected for files outside user selection — the app uses entitlements for user-selected file access only.
-
----
-
-## Upstream Attribution
-
-This project is forked from [`mbrukman/winamp-macos`](https://github.com/mbrukman/winamp-macos), originally by Matt Greenwood, MIT licensed. The upstream project was itself a tribute to the original Winamp by Nullsoft. 

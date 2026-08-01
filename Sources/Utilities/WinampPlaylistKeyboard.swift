@@ -1,9 +1,9 @@
 import Foundation
 
-/// Routes playlist arrow-key navigation from `AppDelegate` into the visible `PlaylistView`.
+/// Routes playlist arrow-key navigation from `AppDelegate` into the visible playlist panel.
 @MainActor
 enum WinampPlaylistKeyboard {
-    private static weak var handler: Handling?
+    private weak static var handler: Handling?
 
     static func register(_ handler: Handling) {
         self.handler = handler

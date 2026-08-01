@@ -1,5 +1,5 @@
-import XCTest
 @testable import Winamp
+import XCTest
 
 final class EQFParserTests: XCTestCase {
     /// Build a minimal valid .eqf with a single preset for testing.
@@ -21,7 +21,7 @@ final class EQFParserTests: XCTestCase {
 
     func testParsesSinglePresetNameAndCount() throws {
         // Stored byte 64 - value: value 32 -> stored 32 (~0 dB midpoint).
-        let data = makeEQF(name: "MyPreset", bandBytes: Array(repeating: 32, count: 10), preampByte: 32)
+        let data = self.makeEQF(name: "MyPreset", bandBytes: Array(repeating: 32, count: 10), preampByte: 32)
         let presets = try EQFParser.parse(data)
         XCTAssertEqual(presets.count, 1)
         XCTAssertEqual(presets[0].name, "MyPreset")
@@ -30,11 +30,11 @@ final class EQFParserTests: XCTestCase {
 
     func testValueExtremesMapToFullRange() throws {
         // value 64 (max boost) -> stored 0; value 1 (min) -> stored 63.
-        let maxData = makeEQF(name: "Max", bandBytes: Array(repeating: 0, count: 10), preampByte: 0)
+        let maxData = self.makeEQF(name: "Max", bandBytes: Array(repeating: 0, count: 10), preampByte: 0)
         let maxPreset = try EQFParser.parse(maxData)[0]
         XCTAssertEqual(maxPreset.bandGainsDB[0], 12, accuracy: 0.01)
 
-        let minData = makeEQF(name: "Min", bandBytes: Array(repeating: 63, count: 10), preampByte: 63)
+        let minData = self.makeEQF(name: "Min", bandBytes: Array(repeating: 63, count: 10), preampByte: 63)
         let minPreset = try EQFParser.parse(minData)[0]
         XCTAssertEqual(minPreset.bandGainsDB[0], -12, accuracy: 0.01)
     }

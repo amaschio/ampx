@@ -3,7 +3,7 @@ import os
 
 private let bookmarkLogger = Logger(subsystem: "com.winamp.macos", category: "SecurityScopedBookmarks")
 
-private struct ResolvedBookmark: Sendable {
+private struct ResolvedBookmark {
     let url: URL
     let isStale: Bool
     let usesSecurityScope: Bool

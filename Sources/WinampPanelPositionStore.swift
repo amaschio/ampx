@@ -44,7 +44,7 @@ final class WinampPanelPositionStore {
     }
 
     private static func load(from defaults: UserDefaults) -> [WinampPanelID: CGSize] {
-        guard let encoded = defaults.dictionary(forKey: Self.key) as? [String: [CGFloat]] else {
+        guard let encoded = defaults.dictionary(forKey: key) as? [String: [CGFloat]] else {
             return [:]
         }
         var result: [WinampPanelID: CGSize] = [:]

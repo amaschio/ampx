@@ -91,7 +91,7 @@ final class WaveformRingBuffer: @unchecked Sendable {
         case right
     }
 
-  private func sample(offsetFromEnd endOffset: Int, channel: Channel) -> Float {
+    private func sample(offsetFromEnd endOffset: Int, channel: Channel) -> Float {
         let index = (self.writeIndex - 1 - endOffset) & Self.mask
         switch channel {
         case .left:

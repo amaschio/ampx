@@ -27,7 +27,7 @@ struct WinampApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
-        .defaultSize(width: 450, height: 180)
+        .defaultSize(width: 275, height: 116)
         .commands {
             CommandGroup(replacing: .newItem) {}
             CommandMenu("Playback") {
@@ -46,7 +46,7 @@ struct WinampApp: App {
                 Button("Add Folder...") { self.playlistManager.showFolderPicker() }
                     .keyboardShortcut("l", modifiers: [.command, .shift])
             }
-            CommandMenu("View") {
+            CommandMenu("Zoom") {
                 ForEach(WinampUIScaleLevel.allCases) { level in
                     Button(level.label) {
                         self.uiScale.setLevel(level)
@@ -67,7 +67,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private weak var audioPlayer: AudioPlayer?
     private var keyboardEventMonitor: Any?
-    private var clickEventMonitor: Any?
 
     func bind(audioPlayer: AudioPlayer) {
         self.audioPlayer = audioPlayer
@@ -77,36 +76,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Window chrome is applied in ContentView.setupWindow().
         guard !Self.isRunningUnderTest else { return }
         self.installKeyboardShortcuts()
-        self.installSearchDismissOnClickOutside()
-    }
-
-    private func installSearchDismissOnClickOutside() {
-        self.clickEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
-            guard let window = event.window, window.isKeyWindow,
-                  let contentView = window.contentView else { return event }
-
-            let locationInContent = contentView.convert(event.locationInWindow, from: nil)
-            let hitView = contentView.hitTest(locationInContent)
-            WinampPlaylistSearchFocus.handleClick(at: hitView)
-            return event
-        }
     }
 
     private func installKeyboardShortcuts() {
         self.keyboardEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let window = NSApp.keyWindow, window.isKeyWindow else { return event }
 
-            if event.keyCode == 53,
-               event.modifierFlags.intersection([.command, .option, .control]).isEmpty {
-                if WinampPlaylistSearchFocus.isActive {
-                    WinampPlaylistSearchFocus.dismissActive()
-                    return nil
-                }
-            }
-
             let noModifiers = event.modifierFlags.intersection([.command, .option, .control]).isEmpty
-            if noModifiers, WinampPlaylistKeyboard.isActive, !WinampPlaylistSearchFocus.isActive,
-               let window = NSApp.keyWindow,
+            if noModifiers, WinampPlaylistKeyboard.isActive,
                WinampPanelWindowManager.shared.isPlaylistWindow(window)
             {
                 switch event.keyCode {
@@ -130,13 +107,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return event
             }
 
-            if let responder = window.firstResponder {
-                if let textField = responder as? NSTextField, !textField.stringValue.isEmpty {
-                    return event
-                }
-                if responder is NSTextView {
-                    return event
-                }
+            // Space bar play/pause — ignore when typing in a text field.
+            if let firstResponder = window.firstResponder,
+               firstResponder is NSTextView || firstResponder is NSTextField
+            {
+                return event
             }
 
             self?.audioPlayer?.togglePlayPause()
@@ -145,14 +120,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_: Notification) {
-        guard !Self.isRunningUnderTest else { return }
         if let monitor = self.keyboardEventMonitor {
             NSEvent.removeMonitor(monitor)
-            self.keyboardEventMonitor = nil
-        }
-        if let monitor = self.clickEventMonitor {
-            NSEvent.removeMonitor(monitor)
-            self.clickEventMonitor = nil
         }
     }
 }

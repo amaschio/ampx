@@ -5,21 +5,6 @@ import os
 
 private let playlistLogger = Logger(subsystem: "com.winamp.macos", category: "Playlist")
 
-struct PlaylistRestoreSummary: Equatable {
-    let loadedCount: Int
-    let skippedCount: Int
-    let skippedPaths: [String]
-
-    var userMessage: String {
-        let noun = self.skippedCount == 1 ? "track" : "tracks"
-        if self.loadedCount == 0 {
-            return "None of the \(self.skippedCount) saved \(noun) could be restored. Re-add your music files to rebuild the playlist."
-        }
-        let loadedNoun = self.loadedCount == 1 ? "track" : "tracks"
-        return "\(self.skippedCount) \(noun) could not be restored (missing file or permission). \(self.loadedCount) \(loadedNoun) loaded."
-    }
-}
-
 @MainActor
 class PlaylistManager: ObservableObject {
     static let shared = PlaylistManager()
@@ -48,7 +33,6 @@ class PlaylistManager: ObservableObject {
         }
     }
 
-    @Published private(set) var lastRestoreSummary: PlaylistRestoreSummary?
     @Published private(set) var lastSaveErrorMessage: String?
 
     private var playRequestGeneration = 0
@@ -416,17 +400,18 @@ class PlaylistManager: ObservableObject {
 
         Task.detached(priority: .userInitiated) { [bookmarkStore] in
             var restoredTracks: [Track] = []
-            var skippedPaths: [String] = []
+            var accessDeniedPaths: [String] = []
+            var missingPaths: [String] = []
 
             for path in paths {
                 let url = URL(fileURLWithPath: path)
                 guard bookmarkStore.ensureAccess(for: url) else {
-                    skippedPaths.append(path)
+                    accessDeniedPaths.append(path)
                     playlistLogger.warning("Skipped restore (no access): \(path, privacy: .public)")
                     continue
                 }
                 guard FileManager.default.fileExists(atPath: url.path) else {
-                    skippedPaths.append(path)
+                    missingPaths.append(path)
                     playlistLogger.warning("Skipped restore (missing file): \(path, privacy: .public)")
                     continue
                 }
@@ -437,19 +422,15 @@ class PlaylistManager: ObservableObject {
                 guard let self else { return }
                 defer { self.isRestoringState = false }
 
-                if skippedPaths.isEmpty {
-                    self.lastRestoreSummary = nil
-                } else {
-                    self.lastRestoreSummary = PlaylistRestoreSummary(
-                        loadedCount: restoredTracks.count,
-                        skippedCount: skippedPaths.count,
-                        skippedPaths: skippedPaths
-                    )
-                }
-
                 if restoredTracks.isEmpty {
+                    // Do not persist an empty playlist — a transient permission failure would
+                    // otherwise wipe the saved track list on the next launch.
                     self.currentIndex = -1
-                    self.persistState()
+                    if !accessDeniedPaths.isEmpty {
+                        playlistLogger.error(
+                            "Playlist restore loaded 0/\(paths.count) tracks (\(accessDeniedPaths.count) permission, \(missingPaths.count) missing)"
+                        )
+                    }
                     return
                 }
 
@@ -457,16 +438,27 @@ class PlaylistManager: ObservableObject {
                 self.repeatEnabled = savedRepeat
                 self.currentIndex = min(max(savedIndex, 0), restoredTracks.count - 1)
                 self.shuffleEnabled = savedShuffle
-                self.persistState()
+
+                // Keep paths that only failed permission so a later launch can retry; drop
+                // confirmed-missing files from the saved list.
+                if !accessDeniedPaths.isEmpty {
+                    let loadedPaths = restoredTracks.compactMap { $0.url?.path }
+                    self.stateStore.saveState(
+                        PersistedPlaylistState(
+                            trackPaths: loadedPaths + accessDeniedPaths,
+                            currentIndex: self.currentIndex,
+                            shuffleEnabled: self.shuffleEnabled,
+                            repeatEnabled: self.repeatEnabled
+                        )
+                    )
+                } else {
+                    self.persistState()
+                }
 
                 let track = restoredTracks[self.currentIndex]
                 self.audioPlayer.loadTrack(track, completion: nil)
             }
         }
-    }
-
-    func acknowledgeRestoreSummary() {
-        self.lastRestoreSummary = nil
     }
 
     func acknowledgeSaveError() {
@@ -500,7 +492,9 @@ class PlaylistManager: ObservableObject {
             self.lastSaveErrorMessage = nil
         } catch {
             playlistLogger.error("Failed to save M3U playlist: \(error.localizedDescription, privacy: .public)")
-            self.lastSaveErrorMessage = "Could not save playlist. Check the folder permissions and try again."
+            let message = "Could not save playlist. Check the folder permissions and try again."
+            self.lastSaveErrorMessage = message
+            self.showFileActionError(title: "Could Not Save Playlist", message: message)
         }
     }
 

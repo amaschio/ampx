@@ -1,6 +1,6 @@
 import Foundation
 
-struct PlaylistFileService: Sendable {
+struct PlaylistFileService {
     let bookmarkStore: SecurityScopedBookmarkStore
 
     func loadM3UPlaylist(from url: URL) async -> [Track]? {

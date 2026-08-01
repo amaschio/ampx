@@ -4,7 +4,7 @@ import os
 private let spectrumDebugLogger = Logger(subsystem: "com.winamp.macos", category: "SpectrumDebug")
 
 /// Throttled spectrum diagnostics for Console.app (`SpectrumDebug` category).
-enum SpectrumAnalyzerDebugProbe: Sendable {
+enum SpectrumAnalyzerDebugProbe {
     #if DEBUG
     nonisolated(unsafe) static var isEnabled = true
     #else
@@ -14,7 +14,7 @@ enum SpectrumAnalyzerDebugProbe: Sendable {
     #endif
 
     private static let lock = NSLock()
-    nonisolated(unsafe) private static var lastLogTime: CFAbsoluteTime = 0
+    private nonisolated(unsafe) static var lastLogTime: CFAbsoluteTime = 0
     private static let minimumInterval: CFAbsoluteTime = 1.0
 
     static func log(stage: String, bands: [Float], context: @autoclosure () -> String = "") {

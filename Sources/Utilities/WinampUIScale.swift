@@ -2,16 +2,16 @@ import SwiftUI
 
 enum WinampUIScaleLevel: CGFloat, CaseIterable, Identifiable {
     case standard = 1.0
-    case large = 1.25
     case extraLarge = 1.5
     case huge = 2.0
 
-    var id: CGFloat { rawValue }
+    var id: CGFloat {
+        rawValue
+    }
 
     var label: String {
         switch self {
         case .standard: "100%"
-        case .large: "125%"
         case .extraLarge: "150%"
         case .huge: "200%"
         }
@@ -27,10 +27,17 @@ final class WinampUIScale: ObservableObject {
 
     @Published private(set) var level: WinampUIScaleLevel
 
-    var scale: CGFloat { level.rawValue }
-    var panelWidth: CGFloat { Self.basePanelWidth * scale }
+    var scale: CGFloat {
+        self.level.rawValue
+    }
 
-    func size(_ points: CGFloat) -> CGFloat { points * scale }
+    var panelWidth: CGFloat {
+        Self.basePanelWidth * self.scale
+    }
+
+    func size(_ points: CGFloat) -> CGFloat {
+        points * self.scale
+    }
 
     private init() {
         let saved = UserDefaults.standard.double(forKey: Self.userDefaultsKey)

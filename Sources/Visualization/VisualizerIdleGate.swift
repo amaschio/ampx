@@ -8,7 +8,7 @@ import QuartzCore
 /// afterglow finishes fading on screen before the last frame freezes), reports that the
 /// loop can be paused. It is pure and frame-rate independent so it can be unit-tested
 /// without a GPU.
-struct VisualizerIdleGate: Sendable {
+struct VisualizerIdleGate {
     /// How long activity must stay below threshold before pausing. Sized to outlast the
     /// spectrum persistence afterglow (~0.8 s) so the frozen frame is already cleared.
     private let holdDuration: CFTimeInterval

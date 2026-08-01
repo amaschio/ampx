@@ -11,7 +11,8 @@ final class MetalVisualizationRenderer: NSObject, MTKViewDelegate {
     private var frameClock: RenderFrameClock
     private var idleGate = VisualizerIdleGate()
     private let inFlightSemaphore = DispatchSemaphore(
-        value: MetalPipelineProvider.maxBuffersInFlight)
+        value: MetalPipelineProvider.maxBuffersInFlight
+    )
 
     /// Energy below this (on the 0…1 smoothed bars) counts as visually silent.
     private static let idleActivityThreshold: Float = 0.002
@@ -100,11 +101,10 @@ final class MetalVisualizationRenderer: NSObject, MTKViewDelegate {
         let (now, elapsed, rawDelta) = self.frameClock.tick()
         let deltaTime = Float(rawDelta)
 
-        let waveformSampleCount: Int
-        if case .miniOscilloscope = self.plugin.kind {
-            waveformSampleCount = AudioFeatures.scopeWaveformSampleCount
+        let waveformSampleCount: Int = if case .miniOscilloscope = self.plugin.kind {
+            AudioFeatures.scopeWaveformSampleCount
         } else {
-            waveformSampleCount = AudioFeatures.waveformSampleCount
+            AudioFeatures.waveformSampleCount
         }
 
         let raw = self.featureBus.snapshot(at: now, waveformSampleCount: waveformSampleCount)
@@ -160,8 +160,9 @@ final class MetalVisualizationRenderer: NSObject, MTKViewDelegate {
             )
         } else {
             if let renderPassDescriptor = view.currentRenderPassDescriptor,
-                let encoder = commandBuffer.makeRenderCommandEncoder(
-                    descriptor: renderPassDescriptor)
+               let encoder = commandBuffer.makeRenderCommandEncoder(
+                   descriptor: renderPassDescriptor
+               )
             {
                 self.plugin.draw(
                     encoder: encoder,
@@ -197,9 +198,9 @@ final class MetalVisualizationRenderer: NSObject, MTKViewDelegate {
         self.pipelineProvider.ensureOffscreenTextures(width: width, height: height)
 
         guard let scratch = self.pipelineProvider.scratchTexture,
-            let history = self.pipelineProvider.historyTexture,
-            let composite = self.pipelineProvider.compositeTexture,
-            let compositePipeline = self.pipelineProvider.spectrumCompositePipeline
+              let history = self.pipelineProvider.historyTexture,
+              let composite = self.pipelineProvider.compositeTexture,
+              let compositePipeline = self.pipelineProvider.spectrumCompositePipeline
         else {
             return
         }
@@ -227,7 +228,8 @@ final class MetalVisualizationRenderer: NSObject, MTKViewDelegate {
         compositePass.colorAttachments[0].loadAction = .clear
         compositePass.colorAttachments[0].storeAction = .store
         compositePass.colorAttachments[0].clearColor = MTLClearColor(
-            red: 0, green: 0, blue: 0, alpha: 1)
+            red: 0, green: 0, blue: 0, alpha: 1
+        )
 
         guard
             let compositeEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: compositePass)
@@ -237,7 +239,8 @@ final class MetalVisualizationRenderer: NSObject, MTKViewDelegate {
         compositeEncoder.setFragmentTexture(history, index: 1)
         var historyDecay = pow(0.91, deltaTime * 60)
         compositeEncoder.setFragmentBytes(
-            &historyDecay, length: MemoryLayout<Float>.stride, index: 0)
+            &historyDecay, length: MemoryLayout<Float>.stride, index: 0
+        )
         compositeEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         compositeEncoder.endEncoding()
 
@@ -264,7 +267,7 @@ final class MetalVisualizationRenderer: NSObject, MTKViewDelegate {
         presentPass.colorAttachments[0].storeAction = .store
 
         guard let copyPipeline = self.pipelineProvider.copyPipeline,
-            let presentEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: presentPass)
+              let presentEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: presentPass)
         else {
             return
         }
@@ -282,8 +285,8 @@ final class MetalVisualizationRenderer: NSObject, MTKViewDelegate {
         time: CFTimeInterval
     ) {
         guard let renderPassDescriptor = view.currentRenderPassDescriptor,
-            let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor),
-            let analyzer = self.plugin as? MiniAnalyzerMetalPlugin
+              let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor),
+              let analyzer = self.plugin as? MiniAnalyzerMetalPlugin
         else {
             return
         }

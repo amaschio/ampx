@@ -29,6 +29,7 @@ enum VisualizationMode: Int, CaseIterable {
 struct ClassicVisualizerView: View {
     @EnvironmentObject private var audioPlayer: AudioPlayer
     @AppStorage("visualizationMode") private var visualizationModeRaw: Int = 0
+    var onDoubleTap: (() -> Void)?
 
     private var visualizationMode: VisualizationMode {
         VisualizationMode.from(storageValue: self.visualizationModeRaw)
@@ -41,6 +42,9 @@ struct ClassicVisualizerView: View {
         )
         .background(Color.black)
         .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            self.onDoubleTap?()
+        }
         .onTapGesture {
             let newMode = self.visualizationMode.advanced()
             self.visualizationModeRaw = newMode.storageValue

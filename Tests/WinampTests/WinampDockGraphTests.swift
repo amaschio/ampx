@@ -1,5 +1,5 @@
-import XCTest
 @testable import Winamp
+import XCTest
 
 /// Tests for the geometry-primary docking core: the pure 2D parent derivation (`WinampDockGraph`)
 /// and the offset persistence (`WinampPanelPositionStore`). These replace the former

@@ -1,6 +1,5 @@
-import XCTest
-
 @testable import Winamp
+import XCTest
 
 final class VolumeModelTests: XCTestCase {
     func testTaperEndpoints() {
@@ -46,7 +45,8 @@ final class VolumeModelTests: XCTestCase {
 
     func testAppliedGainWithNormalizationDisabledIgnoresReplayGain() {
         let replayGain = ReplayGain(
-            trackGainDB: -6, albumGainDB: nil, trackPeak: nil, albumPeak: nil)
+            trackGainDB: -6, albumGainDB: nil, trackPeak: nil, albumPeak: nil
+        )
         XCTAssertEqual(
             VolumeModel.appliedGain(
                 position: 0.5,
@@ -61,7 +61,8 @@ final class VolumeModelTests: XCTestCase {
 
     func testAppliedGainWithNormalizationEnabledAppliesReplayGain() {
         let replayGain = ReplayGain(
-            trackGainDB: -6, albumGainDB: nil, trackPeak: nil, albumPeak: nil)
+            trackGainDB: -6, albumGainDB: nil, trackPeak: nil, albumPeak: nil
+        )
         let expected = VolumeModel.taper(0.5) * replayGain.normalizationGain(preferAlbum: false)
         XCTAssertEqual(
             VolumeModel.appliedGain(

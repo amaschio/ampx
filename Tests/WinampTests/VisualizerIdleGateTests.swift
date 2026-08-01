@@ -1,6 +1,5 @@
-import XCTest
-
 @testable import Winamp
+import XCTest
 
 final class VisualizerIdleGateTests: XCTestCase {
     func testStaysAwakeWhileActive() {

@@ -34,7 +34,7 @@ final class PlaylistManagerTests: XCTestCase {
         XCTAssertEqual(self.mockPlayer.loadTrackCalls.count, 0)
     }
 
-    func testRemoveTrackFromDiskMovesFileToTrashAndRemovesPlaylistEntry() throws {
+    func testRemoveTrackFromDiskMovesFileToTrashAndRemovesPlaylistEntry() {
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("trash-\(UUID().uuidString).mp3")
         FileManager.default.createFile(atPath: fileURL.path, contents: Data([0x00, 0x01]))
@@ -329,7 +329,7 @@ final class PlaylistManagerTests: XCTestCase {
         XCTAssertFalse(manager.shouldPlayStartupSoundOnLaunch)
     }
 
-    func testRestoreReportsSummaryWhenTracksAreMissing() throws {
+    func testRestoreDropsMissingFilesButKeepsPresentTracks() throws {
         let suiteName = "winamp-restore-missing-\(UUID().uuidString)"
         let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { userDefaults.removePersistentDomain(forName: suiteName) }
@@ -361,11 +361,41 @@ final class PlaylistManagerTests: XCTestCase {
         waitForMainQueue(after: 0.5)
 
         XCTAssertEqual(manager.tracks.count, 1)
-        XCTAssertEqual(manager.lastRestoreSummary?.loadedCount, 1)
-        XCTAssertEqual(manager.lastRestoreSummary?.skippedCount, 1)
+        XCTAssertEqual(manager.tracks.first?.url?.path, fileURL.path)
+        // Missing path is dropped from persistence once a partial restore succeeds.
+        XCTAssertEqual(stateStore.loadState()?.trackPaths, [fileURL.path])
     }
 
-    func testRestoreSummaryNilWhenAllTracksLoad() throws {
+    func testRestoreDoesNotWipePersistedPathsWhenNothingLoads() throws {
+        let suiteName = "winamp-restore-empty-\(UUID().uuidString)"
+        let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { userDefaults.removePersistentDomain(forName: suiteName) }
+
+        let stateStore = PlaylistStateStore(userDefaults: userDefaults)
+        let missing = "/tmp/does-not-exist-\(UUID().uuidString).mp3"
+        stateStore.saveState(PersistedPlaylistState(
+            trackPaths: [missing],
+            currentIndex: 0,
+            shuffleEnabled: false,
+            repeatEnabled: false
+        ))
+
+        let manager = PlaylistManager(
+            audioPlayer: mockPlayer,
+            restoreBookmarks: true,
+            restorePlaylist: true,
+            bookmarkStore: SecurityScopedBookmarkStore(userDefaults: userDefaults),
+            stateStore: stateStore
+        )
+
+        waitForMainQueue(after: 0.5)
+
+        XCTAssertTrue(manager.tracks.isEmpty)
+        // Failed restore must leave the saved list alone for a later retry.
+        XCTAssertEqual(stateStore.loadState()?.trackPaths, [missing])
+    }
+
+    func testRestoreLoadsAllPresentTracks() throws {
         let suiteName = "winamp-restore-complete-\(UUID().uuidString)"
         let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { userDefaults.removePersistentDomain(forName: suiteName) }
@@ -397,7 +427,7 @@ final class PlaylistManagerTests: XCTestCase {
         waitForMainQueue(after: 0.5)
 
         XCTAssertEqual(manager.tracks.count, 1)
-        XCTAssertNil(manager.lastRestoreSummary)
+        XCTAssertEqual(stateStore.loadState()?.trackPaths, [fileURL.path])
     }
 
     func testSaveM3UPlaylistSetsErrorMessageWhenWriteFails() {

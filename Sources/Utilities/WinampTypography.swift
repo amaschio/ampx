@@ -9,7 +9,8 @@ enum WinampTypography {
     static func registerBundledFonts() {
         for resource in ["JetBrainsMono-Regular", "JetBrainsMono-Bold"] {
             guard let url = Bundle.main.url(forResource: resource, withExtension: "ttf", subdirectory: "Fonts")
-                ?? Bundle.main.url(forResource: resource, withExtension: "ttf") else {
+                ?? Bundle.main.url(forResource: resource, withExtension: "ttf")
+            else {
                 continue
             }
             CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
@@ -22,19 +23,19 @@ enum WinampTypography {
 
     static func font(size: CGFloat, weight: Font.Weight = .regular) -> Font {
         let bold = weight == .bold || weight == .semibold || weight == .heavy
-        if isAvailable {
-            let name = bold ? boldName : regularName
+        if self.isAvailable {
+            let name = bold ? self.boldName : self.regularName
             if NSFont(name: name, size: size) != nil {
                 return .custom(name, size: size)
             }
-            return .custom(regularName, size: size).weight(weight)
+            return .custom(self.regularName, size: size).weight(weight)
         }
         return .system(size: size, weight: weight, design: .monospaced)
     }
 
     static func nsFont(size: CGFloat, weight: Font.Weight = .regular) -> NSFont {
         let bold = weight == .bold || weight == .semibold || weight == .heavy
-        let name = bold ? boldName : regularName
+        let name = bold ? self.boldName : self.regularName
         if let custom = NSFont(name: name, size: size) {
             return custom
         }

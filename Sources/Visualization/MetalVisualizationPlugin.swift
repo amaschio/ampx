@@ -69,14 +69,37 @@ final class MetalPipelineProvider {
     private var offscreenWidth = 0
     private var offscreenHeight = 0
 
-    var device: MTLDevice { self.engine.device }
-    var commandQueue: MTLCommandQueue { self.engine.commandQueue }
-    var spectrumPipeline: MTLRenderPipelineState? { self.engine.spectrumPipeline }
-    var spectrumPeakPipeline: MTLRenderPipelineState? { self.engine.spectrumPeakPipeline }
-    var spectrumCompositePipeline: MTLRenderPipelineState? { self.engine.spectrumCompositePipeline }
-    var oscilloscopePipeline: MTLRenderPipelineState? { self.engine.oscilloscopePipeline }
-    var fullscreenPipeline: MTLRenderPipelineState? { self.engine.fullscreenPipeline }
-    var copyPipeline: MTLRenderPipelineState? { self.engine.copyPipeline }
+    var device: MTLDevice {
+        self.engine.device
+    }
+
+    var commandQueue: MTLCommandQueue {
+        self.engine.commandQueue
+    }
+
+    var spectrumPipeline: MTLRenderPipelineState? {
+        self.engine.spectrumPipeline
+    }
+
+    var spectrumPeakPipeline: MTLRenderPipelineState? {
+        self.engine.spectrumPeakPipeline
+    }
+
+    var spectrumCompositePipeline: MTLRenderPipelineState? {
+        self.engine.spectrumCompositePipeline
+    }
+
+    var oscilloscopePipeline: MTLRenderPipelineState? {
+        self.engine.oscilloscopePipeline
+    }
+
+    var fullscreenPipeline: MTLRenderPipelineState? {
+        self.engine.fullscreenPipeline
+    }
+
+    var copyPipeline: MTLRenderPipelineState? {
+        self.engine.copyPipeline
+    }
 
     init(engine: MetalVisualizationEngine = .shared) {
         self.engine = engine

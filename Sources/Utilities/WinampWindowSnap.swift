@@ -2,7 +2,13 @@ import AppKit
 
 /// Winamp 2 / Webamp window snap graph (ported from webamp's `snapUtils.ts` + `resizeUtils.ts`).
 enum WinampWindowSnap {
-    static let snapDistance: CGFloat = 15
+    /// Edge magnetism radius. Scaled with UI Zoom so docking stays easy at 150%/200%.
+    nonisolated(unsafe) static var snapDistance: CGFloat = 15
+
+    @MainActor
+    static func syncSnapDistance(withScale scale: CGFloat) {
+        self.snapDistance = 15 * max(scale, 1)
+    }
 
     struct Box {
         let minX: CGFloat
@@ -10,8 +16,13 @@ enum WinampWindowSnap {
         let width: CGFloat
         let height: CGFloat
 
-        var maxX: CGFloat { minX + width }
-        var maxY: CGFloat { minY + height }
+        var maxX: CGFloat {
+            self.minX + self.width
+        }
+
+        var maxY: CGFloat {
+            self.minY + self.height
+        }
 
         init(frame: CGRect) {
             self.minX = frame.minX

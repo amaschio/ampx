@@ -1,7 +1,6 @@
 import AVFoundation
-import XCTest
-
 @testable import Winamp
+import XCTest
 
 final class WaveformRingBufferTests: XCTestCase {
     func testAppendAndReadResampledConstantSignal() {

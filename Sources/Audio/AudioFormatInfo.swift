@@ -2,14 +2,14 @@ import AVFoundation
 import Foundation
 
 enum AudioFormatInfo {
-    struct Details: Sendable {
+    struct Details {
         let bitrateKbps: Int
         let sampleRateHz: Double
         let channelCount: Int
     }
 
     static func read(from url: URL, duration: TimeInterval? = nil) -> Details? {
-        readFromAudioFile(url: url, duration: duration)
+        self.readFromAudioFile(url: url, duration: duration)
     }
 
     static func sampleRateDisplayKHz(_ sampleRateHz: Double) -> String {
@@ -24,7 +24,7 @@ enum AudioFormatInfo {
         }
     }
 
-    struct ChannelIndicator: Equatable, Sendable {
+    struct ChannelIndicator: Equatable {
         let text: String
         let isActive: Bool
     }

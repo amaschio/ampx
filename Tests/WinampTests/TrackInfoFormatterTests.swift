@@ -2,7 +2,7 @@
 import XCTest
 
 final class TrackInfoFormatterTests: XCTestCase {
-    func testSummaryIncludesPathAndDuration() throws {
+    func testSummaryIncludesPathAndDuration() {
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("info-\(UUID().uuidString).mp3")
         FileManager.default.createFile(atPath: fileURL.path, contents: Data([0x00]))

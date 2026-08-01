@@ -1,7 +1,7 @@
 import Foundation
 
 /// Adaptive display range so quiet material still produces visible motion.
-struct SpectrumAutoLeveler: Sendable {
+struct SpectrumAutoLeveler {
     private static let minimumRange: Float = 0.02
     private static let ceilingDecayPerSecond: Float = 1.8
     private static let floorRisePerSecond: Float = 0.35

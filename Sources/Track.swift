@@ -1,7 +1,7 @@
 import AVFoundation
 import Foundation
 
-struct Track: Identifiable, Equatable, Sendable {
+struct Track: Identifiable, Equatable {
     let id = UUID()
     let url: URL?
     let title: String
@@ -50,7 +50,7 @@ struct Track: Identifiable, Equatable, Sendable {
 }
 
 enum TrackMetadataLoader {
-    struct Metadata: Sendable {
+    struct Metadata {
         let title: String
         let artist: String
         let duration: TimeInterval
@@ -63,7 +63,7 @@ enum TrackMetadataLoader {
         var trackArtist = "Unknown Artist"
         var hasID3Tags = false
 
-        let commonMetadata = (try? await asset.load(.commonMetadata)) ?? []
+        let commonMetadata = await (try? asset.load(.commonMetadata)) ?? []
         for item in commonMetadata {
             guard let key = item.commonKey?.rawValue else { continue }
             switch key {

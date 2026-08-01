@@ -9,7 +9,9 @@ protocol VisualizationClock: Sendable {
 
 /// Default clock backed by `CACurrentMediaTime()` (a monotonic, display-link-aligned timebase).
 struct MediaTimeClock: VisualizationClock {
-    func now() -> CFTimeInterval { CACurrentMediaTime() }
+    func now() -> CFTimeInterval {
+        CACurrentMediaTime()
+    }
 }
 
 /// Per-frame elapsed/delta timekeeping for the render loop, driven by an injectable

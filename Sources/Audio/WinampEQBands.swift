@@ -20,7 +20,9 @@ enum WinampEQBands {
     /// points and the summed response tracks the curve the UI draws.
     static let bandwidthsOctaves: [Float] = {
         let freqs = centerFrequenciesHz
-        func octaveGap(_ a: Float, _ b: Float) -> Float { abs(log2(b / a)) }
+        func octaveGap(_ a: Float, _ b: Float) -> Float {
+            abs(log2(b / a))
+        }
         return freqs.indices.map { index in
             let leftGap = index > 0 ? octaveGap(freqs[index - 1], freqs[index]) : nil
             let rightGap = index < freqs.count - 1 ? octaveGap(freqs[index], freqs[index + 1]) : nil
@@ -34,7 +36,7 @@ enum WinampEQBands {
     /// Horizontal position (0…1) of each band within the 10-band slider row (even spacing, like Winamp).
     static func bandCenterX(bandIndex: Int, width: CGFloat) -> CGFloat {
         let index = CGFloat(bandIndex)
-        return (index + 0.5) / CGFloat(bandCount) * width
+        return (index + 0.5) / CGFloat(self.bandCount) * width
     }
 
     /// Build curve sample points: left edge, each band center, right edge.
@@ -55,8 +57,8 @@ enum WinampEQBands {
         let preampY = yForGain(preampValue)
         var points: [CGPoint] = [CGPoint(x: 0, y: preampY)]
 
-        for index in 0 ..< min(bandValues.count, bandCount) {
-            let x = bandCenterX(bandIndex: index, width: width)
+        for index in 0 ..< min(bandValues.count, self.bandCount) {
+            let x = self.bandCenterX(bandIndex: index, width: width)
             let combinedGain = max(-maxGainDB, min(maxGainDB, (bandValues[index] + preampValue) * maxGainDB)) / maxGainDB
             points.append(CGPoint(x: x, y: yForGain(combinedGain)))
         }

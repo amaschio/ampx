@@ -3,53 +3,30 @@ import SwiftUI
 
 struct ContentView: View {
     private static var positionedWindows = Set<ObjectIdentifier>()
+    /// The SwiftUI `WindowGroup` player window — never restyle About / open panels as Winamp chrome.
+    private static var configuredMainWindowID: ObjectIdentifier?
 
     @EnvironmentObject var audioPlayer: AudioPlayer
     @EnvironmentObject var playlistManager: PlaylistManager
     @EnvironmentObject var uiScale: WinampUIScale
     @StateObject private var panelLayout = WinampPanelLayoutState()
     @State private var showVisualization = false
-    @AppStorage(DisplayMode.storageKey) private var songDisplayModeStorage = DisplayMode.scrolling.rawValue
+    @State private var lastAppliedUIScale: CGFloat = 0
     @AppStorage("showRemainingTime") private var showRemainingTime = false
-
-    private var songDisplayMode: Binding<DisplayMode> {
-        Binding(
-            get: { DisplayMode(rawValue: self.songDisplayModeStorage) ?? .scrolling },
-            set: { self.songDisplayModeStorage = $0.rawValue }
-        )
-    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             VStack(spacing: 0) {
-                if let summary = playlistManager.lastRestoreSummary {
-                    PlaylistRestoreNoticeBanner(
-                        message: summary.userMessage,
-                        isCritical: summary.loadedCount == 0,
-                        onDismiss: { self.playlistManager.acknowledgeRestoreSummary() }
-                    )
-                }
-
-                if let saveError = playlistManager.lastSaveErrorMessage {
-                    PlaylistRestoreNoticeBanner(
-                        message: saveError,
-                        isCritical: true,
-                        onDismiss: { self.playlistManager.acknowledgeSaveError() }
-                    )
-                }
-
                 if self.panelLayout.isShadeMode {
-                    ShadeView(
+                    ClassicShadeView(
                         isShadeMode: self.$panelLayout.isShadeMode,
-                        songDisplayMode: self.songDisplayMode,
                         showRemainingTime: self.$showRemainingTime
                     )
                 } else {
-                    MainPlayerView(
+                    ClassicMainPlayerView(
                         showPlaylist: self.$panelLayout.showPlaylist,
                         showEqualizer: self.$panelLayout.showEqualizer,
                         isShadeMode: self.$panelLayout.isShadeMode,
-                        showVisualization: self.$showVisualization,
                         shuffleEnabled: Binding(
                             get: { self.playlistManager.shuffleEnabled },
                             set: { self.playlistManager.shuffleEnabled = $0 }
@@ -58,12 +35,12 @@ struct ContentView: View {
                             get: { self.playlistManager.repeatEnabled },
                             set: { self.playlistManager.repeatEnabled = $0 }
                         ),
-                        songDisplayMode: self.songDisplayMode,
-                        showRemainingTime: self.$showRemainingTime
+                        showRemainingTime: self.$showRemainingTime,
+                        showVisualization: self.$showVisualization
                     )
                 }
             }
-            .frame(width: self.uiScale.panelWidth)
+            .frame(width: self.styledPanelWidth)
             .environment(\.winampUIScale, self.uiScale.scale)
 
             if self.showVisualization {
@@ -71,18 +48,22 @@ struct ContentView: View {
                     .frame(width: 600, height: 450)
             }
         }
-        .winampOuterFrame()
+        .fixedSize()
         .ignoresSafeArea(.all)
         .onAppear {
             self.bindPlaybackCoordination()
             self.setupWindow()
             self.loadStartupSound()
-            self.panelLayout.ensureMinimumPlaylistWidth(self.uiScale.panelWidth)
+            self.lastAppliedUIScale = self.uiScale.scale
+            self.panelLayout.alignPlaylistWidthToStyle(
+                baseWidth: self.styledPanelWidth,
+                allowShrinkFromLegacyDefault: true
+            )
             self.syncPanelWindows()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
             guard let window = notification.object as? NSWindow else { return }
-            guard !WinampPanelWindowManager.shared.isPanelWindow(window) else { return }
+            guard self.shouldConfigureAsMainPlayerWindow(window) else { return }
             self.configureWindow(window)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didMiniaturizeNotification)) { _ in
@@ -91,11 +72,20 @@ struct ContentView: View {
             }
         }
         .onChange(of: self.uiScale.level) { _ in
-            self.panelLayout.ensureMinimumPlaylistWidth(self.uiScale.panelWidth)
+            let newScale = self.uiScale.scale
+            let oldScale = self.lastAppliedUIScale > 0 ? self.lastAppliedUIScale : newScale
+            if abs(oldScale - newScale) > 0.001 {
+                self.panelLayout.scalePlaylistDimensions(by: newScale / oldScale)
+            }
+            self.lastAppliedUIScale = newScale
+            self.panelLayout.ensureMinimumPlaylistWidth(self.styledPanelWidth)
+            // Panels live in separate hosting controllers — resize + re-pack after Zoom.
+            WinampPanelWindowManager.shared.applyUIScale()
             self.syncPanelWindows()
         }
         .onChange(of: self.panelLayout.isShadeMode) { newValue in
             self.applyShadeMode(newValue)
+            WinampPanelWindowManager.shared.fitMainWindowToContent()
             self.syncPanelWindows()
         }
         .onChange(of: self.panelLayout.showEqualizer) { _ in
@@ -110,23 +100,43 @@ struct ContentView: View {
         .onChange(of: self.panelLayout.playlistMinimized) { _ in
             WinampPanelWindowManager.shared.resizePlaylistPanel()
         }
-    }
-
-    private func applyShadeMode(_ enabled: Bool) {
-        guard let window = self.mainPlayerWindow() else { return }
-        if enabled {
-            window.level = .floating
-            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        } else {
-            window.level = .normal
-            window.collectionBehavior = []
+        .onChange(of: self.panelLayout.equalizerMinimized) { _ in
+            WinampPanelWindowManager.shared.resizeEqualizerPanel()
         }
     }
 
+    private var styledPanelWidth: CGFloat {
+        ClassicSkinMetrics.scaled(ClassicSkinMetrics.windowWidth, by: self.uiScale.scale)
+    }
+
+    private func applyShadeMode(_: Bool) {
+        // Classic windowshade only changes content height — keep a normal window level so the
+        // strip stays in the standard layer (floating made it look detached / hard to target).
+        guard let window = self.mainPlayerWindow() else { return }
+        window.level = .normal
+        window.collectionBehavior = []
+    }
+
     private func mainPlayerWindow() -> NSWindow? {
-        NSApplication.shared.windows.first { window in
-            window.isVisible && !WinampPanelWindowManager.shared.isPanelWindow(window)
-        } ?? NSApplication.shared.windows.first
+        if let id = Self.configuredMainWindowID,
+           let window = NSApplication.shared.windows.first(where: { ObjectIdentifier($0) == id })
+        {
+            return window
+        }
+        return NSApplication.shared.windows.first { window in
+            self.shouldConfigureAsMainPlayerWindow(window) && window.isVisible
+        }
+    }
+
+    /// Only the SwiftUI `WindowGroup` player may receive Winamp borderless chrome. System About /
+    /// open panels are `NSPanel`s (or other titled windows) and must keep their native close button.
+    private func shouldConfigureAsMainPlayerWindow(_ window: NSWindow) -> Bool {
+        if WinampPanelWindowManager.shared.isPanelWindow(window) { return false }
+        if window is NSPanel { return false }
+        if let known = Self.configuredMainWindowID {
+            return ObjectIdentifier(window) == known
+        }
+        return true
     }
 
     private func syncPanelWindows() {
@@ -181,9 +191,12 @@ struct ContentView: View {
     }
 
     private func configureWindow(_ window: NSWindow) {
-        guard !WinampPanelWindowManager.shared.isPanelWindow(window) else { return }
+        guard self.shouldConfigureAsMainPlayerWindow(window) else { return }
 
-        WinampWindowConfigurator.apply(to: window, resizable: false)
+        // `.resizable` keeps the borderless SwiftUI window able to become key; actual
+        // resizing stays locked by `.windowResizability(.contentSize)`.
+        WinampWindowConfigurator.apply(to: window, resizable: true)
+        Self.configuredMainWindowID = ObjectIdentifier(window)
 
         let windowID = ObjectIdentifier(window)
         guard !Self.positionedWindows.contains(windowID) else { return }
@@ -198,44 +211,5 @@ struct ContentView: View {
 
             window.setFrameOrigin(NSPoint(x: x, y: y))
         }
-    }
-}
-
-struct PlaylistRestoreNoticeBanner: View {
-    let message: String
-    let isCritical: Bool
-    let onDismiss: () -> Void
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 6) {
-            Image(systemName: self.isCritical ? "exclamationmark.triangle.fill" : "exclamationmark.circle.fill")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundColor(self.isCritical ? .orange : .yellow)
-                .padding(.top, 1)
-
-            Text(self.message)
-                .font(.system(size: 9, design: .monospaced))
-                .foregroundColor(WinampColors.displayText)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Spacer(minLength: 4)
-
-            Button(action: self.onDismiss) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundColor(WinampColors.displayText.opacity(0.8))
-                    .frame(width: 14, height: 14)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(WinampColors.displayBg)
-        .overlay(
-            Rectangle()
-                .stroke(self.isCritical ? Color.orange.opacity(0.8) : Color.yellow.opacity(0.6), lineWidth: 1)
-        )
     }
 }

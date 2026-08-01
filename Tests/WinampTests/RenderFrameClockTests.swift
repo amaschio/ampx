@@ -1,14 +1,18 @@
 import QuartzCore
-import XCTest
-
 @testable import Winamp
+import XCTest
 
 final class RenderFrameClockTests: XCTestCase {
     /// Deterministic clock whose time the test advances by hand.
     private final class FakeClock: VisualizationClock, @unchecked Sendable {
         var time: CFTimeInterval
-        init(start: CFTimeInterval) { self.time = start }
-        func now() -> CFTimeInterval { self.time }
+        init(start: CFTimeInterval) {
+            self.time = start
+        }
+
+        func now() -> CFTimeInterval {
+            self.time
+        }
     }
 
     func testFirstTickReportsZeroElapsedAndDelta() {

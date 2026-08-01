@@ -2,7 +2,7 @@ import Foundation
 import QuartzCore
 
 /// Thread-safe snapshot of audio analysis data for the visualization render loop.
-struct AudioFeatures: Sendable {
+struct AudioFeatures {
     static let spectrumBandCount = 32
     static let fftSize = 1024
     static let fftHopSize = 256
