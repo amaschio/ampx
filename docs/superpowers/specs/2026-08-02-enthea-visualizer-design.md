@@ -7,18 +7,28 @@
 
 ## Goal
 
-Replace the Visualizer panel’s Metal “MilkDrop” body with a vendored, adapted build of **ENTHEA** (WebGL2 psychedelic / music visualizer) hosted in `WKWebView`, driven by this app’s playback and `AudioFeatureBus`. Keep the existing Classic panel shell (show/hide, dock, size, pledit chrome). Eventually remove the fullscreen Metal MilkDrop path; keep the main-window mini Metal LCD.
+Replace the Visualizer panel’s Metal “MilkDrop” body with a vendored, adapted build of **ENTHEA** (WebGL2 psychedelic / music visualizer) hosted in `WKWebView`, driven by this app’s playback and `AudioFeatureBus`. Keep the existing Classic panel shell (show/hide, dock, size, pledit chrome). Eventually remove the fullscreen Metal MilkDrop path. Later, replace the main-window 76×16 mini visualizer with an ENTHEA-derived preview (dedicated stage — not part of the first panel cutover).
 
 This is a personal fork: shipping ENTHEA and relicensing the combined work to AGPL-3.0 is intentional.
 
 ## Non-goals
 
-- Rewriting ENTHEA’s 29 modes in Metal (optional later; not required for success)
-- Putting ENTHEA in the main-window 76×16 mini visualizer
+- Rewriting ENTHEA’s 29 modes in Metal as a **required** deliverable (kept only as **optional last stage**)
 - A separate forever “Enthea” panel ID alongside Visualizer
 - Browser tab-capture / Web MIDI as primary audio inputs (native player owns audio)
-- Changing EQ / playlist docking semantics
-- Medical / substance claims in UI copy (artistic presets only; first-open photosensitive note is enough)
+- Changing EQ / playlist docking semantics (see note below — out of scope on purpose)
+
+**Not non-goals (explicit later stages):** main-window mini ENTHEA preview; substance / phenomenology preset UI with careful copy; optional full Metal port.
+
+### What “EQ / playlist docking semantics” means
+
+Today the app lays out panels like classic Winamp:
+
+- **Main** is the anchor.
+- **EQ** and **playlist** stack in a **vertical column** under main (pack/unpack when shown/hidden; snap as a column).
+- **Visualizer** docks to the **right of main** by default and is **excluded** from that vertical pack — it floats/docks via geometry, not as “panel #3 in the stack.”
+
+“Changing EQ / playlist docking semantics” would mean redesigning that behavior (e.g. user-reorderable stacks, visualizer in the vertical column, new snap rules). **This project does not do that** — ENTHEA only replaces what draws *inside* the existing visualizer window. EQ/playlist keep their current dock/pack rules.
 
 ## Decisions (locked)
 
@@ -26,12 +36,14 @@ This is a personal fork: shipping ENTHEA and relicensing the combined work to AG
 |---|---|
 | Placement vs MilkDrop | **ENTHEA replaces the Visualizer panel body** (same `showVisualizer` / `.visualizer`) |
 | Migration | Short **Classic / Enthea** body switch while validating; then remove Metal fullscreen |
-| Mini LCD | Stay **Metal** (`ClassicVisualizerView` / spectrum modes) |
+| Mini LCD | **Metal until Stage 8**; then replace with ENTHEA-derived preview (see below) |
 | Embedding | Vendored ENTHEA HTML in app bundle + `WKWebView` |
 | Audio | Inject from `AudioFeatureBus` / player clock; mute ENTHEA’s own Web Audio output |
 | License | Relicense **this fork** to **AGPL-3.0**; keep MIT upstream + ENTHEA attribution |
 | Theater | Fullscreen / large window is an enhancement of the same Visualizer (not a 4th panel) |
 | ENTHEA chrome | Prefer **hidden** (`H`); Classic strip + menus drive mode / autopilot / dose |
+| Substance UI | Dedicated stage: expose phenomenology presets with **artistic / non-medical** copy + disclaimers |
+| Metal port | **Optional last stage** — rewrite modes natively only if desired after WebKit path is done |
 
 ## Architecture
 
@@ -125,8 +137,20 @@ Rules:
 
 ### Main-window mini visualizer
 
-- Unchanged Metal LCD; double-tap still toggles `showVisualizer` (now ENTHEA panel).
-- No WKWebView on the main 275×116 surface.
+Yes — replacing the mini LCD **is** the former non-goal “Putting ENTHEA in the main-window 76×16 mini visualizer.” It is now an **explicit later stage**, not part of the first panel cutover.
+
+Constraints:
+
+- Slot is ~**76×16** Classic pixels (scaled with Zoom) — a full second ENTHEA `WKWebView` there is possible but heavy and nearly unreadable as a UI.
+- Double-tap must keep toggling `showVisualizer`.
+
+**Recommended approach (Stage 8):** ENTHEA-**derived** preview, not a naive second full app instance:
+
+1. Prefer **shared preview**: when the Visualizer panel is open, periodically sample / downscale the panel WebGL into the LCD (or a tiny offscreen WebView sized for the LCD only while the panel is open).
+2. When the panel is **closed**, show a cheap fallback (last frame, idle ENTHEA-tinted bars, or current Metal spectrum) so the main window does not keep a WebContent process forever.
+3. Only if shared preview is insufficient, evaluate a dedicated tiny WebView with extreme cost controls (paused when main occluded, low FPS).
+
+Exact sampling API is an implementation detail for that stage’s plan; Stage 8 is the product commitment.
 
 ## License
 
@@ -150,12 +174,16 @@ Each stage leaves the app buildable and usable.
 | **2 — Boot ENTHEA** | Vendored HTML loads; WebGL paints; ENTHEA UI hidden; flicker off; first-open photosensitive note |
 | **3 — Live audio** | `AudioFeatureBus` → bridge; visuals react to current track; no double audio |
 | **4 — Classic controls** | Strip/menus for mode, autopilot, dose, reseed; persist last mode/autopilot |
-| **5 — Theater + retire Metal path** | Fullscreen theater; remove Metal\|Enthea switch and fullscreen Metal MilkDrop (mini LCD stays) |
+| **5 — Theater + retire Metal path** | Fullscreen theater; remove Metal\|Enthea switch and fullscreen Metal MilkDrop (**mini LCD still Metal**) |
 | **6 — Predictive drops** | Track file + playhead sync; drop arsenal works with playlist |
 | **7 — Polish** | Album art → Image Warp; FPS/visibility caps; `USAGE.md` shortcuts |
-| **8 — Optional** | Metal-port 1–3 favorite modes later (YAGNI unless WebKit hurts) |
+| **8 — Mini ENTHEA LCD** | Replace main-window 76×16 Metal viz with ENTHEA-derived preview (shared/downscaled preferred); keep double-tap → panel |
+| **9 — Substance / phenomenology UI** | Classic menu or strip for ENTHEA substance presets; **artistic interpretation** copy only; disclaimers (not dosing/medical advice); photosensitive note remains |
+| **10 — Optional Metal port** | Optionally rewrite ENTHEA modes (up to all 29) in Metal — last, only if WebKit cost or native desire justifies it |
 
-Stages 0–5 are the minimum “ENTHEA is the visualizer.” Stages 6–7 are the full product intent from brainstorming. Stage 8 is explicitly optional.
+**Minimum “ENTHEA is the visualizer panel”:** Stages 0–5.  
+**Full product intent:** through Stage 9.  
+**Stage 10** is explicitly optional.
 
 ## Testing
 
@@ -163,12 +191,15 @@ Stages 0–5 are the minimum “ENTHEA is the visualizer.” Stages 6–7 are th
 |---|---|
 | License/docs mention AGPL + ENTHEA attribution | Doc review |
 | `showVisualizer` still defaults false; size/dock persistence unchanged | Existing layout tests |
+| EQ/playlist vertical pack unchanged after visualizer work | Existing dock/pack tests + manual |
 | WebView torn down or idle when panel hidden | Manual / light unit on bridge `isActive` |
 | Audio push only while visible | Unit on bridge gate |
 | Feature mapping (32-band → ENTHEA input) documented + smoke | Manual with known track |
 | Controls: mode / autopilot / close / shade / resize | Manual + `./scripts/shoot.sh` |
 | Track change updates analysis (Stage 6) | Manual |
 | Photosensitive note once | Manual / defaults flag |
+| Mini LCD ENTHEA preview + double-tap (Stage 8) | Manual / shoot |
+| Substance UI copy has disclaimer, no medical claims (Stage 9) | Doc + UI review |
 
 Automated UI tests for WebGL content are out of scope; prefer bridge unit tests + interactive verification.
 
@@ -182,6 +213,8 @@ Automated UI tests for WebGL content are out of scope; prefer bridge unit tests 
 | Large single HTML hard to patch | Isolate patches in `bridge.js` + minimal hooks; vendor with clear commit hash / tag |
 | Photosensitive flicker | Flicker off by default; one-time warning |
 | Key focus in borderless panel | Forward only when visualizer is key window; don’t steal playlist hotkeys |
+| Mini LCD WebKit cost (Stage 8) | Prefer shared/downscaled preview; avoid always-on second WebView |
+| Substance UI misread as medical advice (Stage 9) | Explicit disclaimers; “artistic / phenomenological” framing only |
 
 ## Implementation outline (for the plan)
 
@@ -193,7 +226,9 @@ Automated UI tests for WebGL content are out of scope; prefer bridge unit tests 
 6. Theater + delete Metal fullscreen / rename panel view (Stage 5).
 7. Track/position bridges + drop UX (Stage 6).
 8. Polish + USAGE (Stage 7).
-
+9. Mini LCD ENTHEA-derived preview (Stage 8).
+10. Substance / phenomenology preset UI + disclaimers (Stage 9).
+11. Optional Metal port (Stage 10) — only if pursued.
 ## References
 
 - [ENTHEA README](https://github.com/elder-plinius/ENTHEA)
