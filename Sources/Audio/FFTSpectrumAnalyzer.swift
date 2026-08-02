@@ -18,6 +18,12 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
     private var windowedScratch: [Float]
     private var bandMappings: [(start: Int, end: Int)] = []
     private var lastSampleRate: Float = 0
+    /// Squared-magnitude a full-scale, bin-aligned sinusoid produces after this analyzer's
+    /// window is applied (empirically `windowSum^2` for vDSP's real-packed FFT convention —
+    /// verified against a calibration tone). Dividing raw bins by this before taking dB
+    /// puts 0 dB at "full digital scale", matching `AnalyserNode`'s convention so its default
+    /// `minDecibels`/`maxDecibels` window (−100/−30) is meaningful for `quantizedByte`.
+    private let rawBinReferenceMagnitude: Float
     private let processingQueue = DispatchQueue(label: "com.winamp.fft", qos: .userInteractive)
     private let tapStaging = TapPCMStaging()
 
@@ -28,6 +34,12 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
     var onSpectrumUpdate: (@Sendable ([Float]) -> Void)?
     var onWaveformUpdate: (@Sendable ([Float], [Float]) -> Void)?
     var onAnalysisUpdate: (@Sendable (_ bands: [Float], _ left: [Float], _ right: [Float]) -> Void)?
+    /// The full linear FFT magnitude spectrum for one hop (`fftSize / 2` bins), quantized
+    /// to bytes with the same dB window `AnalyserNode.getByteFrequencyData` uses. Unlike
+    /// `spectrum`'s 32 log-spaced bands, bin `i` here sits at a fixed `i * sampleRate / 2 /
+    /// count` — required by consumers (e.g. ENTHEA) that index bins linearly or diff
+    /// adjacent bins for spectral flux. No smoothing is applied.
+    var onRawBins: (@Sendable (_ bins: [UInt8], _ sampleRate: Double) -> Void)?
     /// All FFT hop-frames computed from one audio buffer, plus how long that buffer
     /// spans in seconds, so the consumer can play the frames out across the buffer's
     /// duration instead of showing only the last hop (which steps at the tap rate).
@@ -53,6 +65,7 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
         self.windowedScratch = [Float](repeating: 0, count: fftSize)
         self.fftSetup = vDSP_create_fftsetup(self.log2n, FFTRadix(kFFTRadix2))
         vDSP_hann_window(&self.window, vDSP_Length(fftSize), Int32(vDSP_HANN_NORM))
+        self.rawBinReferenceMagnitude = pow(self.window.reduce(0, +), 2)
         self.prepareBandMappings(sampleRate: 44100)
     }
 
@@ -248,6 +261,10 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
             bands[index] = self.normalizedMagnitude(combined)
         }
 
+        if let onRawBins {
+            onRawBins(self.magnitudes.map(self.quantizedByte), Double(sampleRate))
+        }
+
         return bands
     }
 
@@ -339,5 +356,28 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
         let ceiling: Float = 18
         let clamped = min(max(decibels, floor), ceiling)
         return (clamped - floor) / (ceiling - floor)
+    }
+
+    /// Quantizes a raw squared-magnitude FFT bin to a byte using the same dB window
+    /// (`minDecibels` −100, `maxDecibels` −30) that `AnalyserNode.getByteFrequencyData`
+    /// uses by default, so downstream consumers built against that Web Audio API shape
+    /// need no rescaling. `magnitude` is first normalized against
+    /// `rawBinReferenceMagnitude` so 0 dB lines up with full digital scale, the same
+    /// reference point `minDecibels`/`maxDecibels` assume.
+    private func quantizedByte(_ magnitude: Float) -> UInt8 {
+        guard magnitude > 0 else { return 0 }
+        let normalizedPower = magnitude / self.rawBinReferenceMagnitude
+        let decibels = 10 * log10(normalizedPower)
+        let minDecibels: Float = -100
+        let maxDecibels: Float = -30
+        let clamped = min(max(decibels, minDecibels), maxDecibels)
+        let normalized = (clamped - minDecibels) / (maxDecibels - minDecibels)
+        return UInt8((normalized * 255).rounded().clamped(to: 0 ... 255))
+    }
+}
+
+private extension Comparable {
+    func clamped(to range: ClosedRange<Self>) -> Self {
+        min(max(self, range.lowerBound), range.upperBound)
     }
 }

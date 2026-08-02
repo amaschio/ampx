@@ -184,6 +184,9 @@ class AudioPlayer: NSObject, ObservableObject {
                 isPlaying: self.isPlayingInternal
             )
         }
+        analyzer.onRawBins = { bins, sampleRate in
+            AudioFeatureBus.shared.publishRawBins(bins, sampleRate: sampleRate)
+        }
         analyzer.onAnalysisUpdate = { [weak self] bands, _, _ in
             guard let self else { return }
             // Build the diagnostic context lazily: the probe throttles to ~1 Hz, so the
