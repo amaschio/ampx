@@ -13,6 +13,8 @@ struct ClassicMilkdropPanelView: View {
     @State private var fadeOpacity: Double = 1.0
     @State private var isDraggingResize = false
     @State private var resizeStartSize: CGSize = .zero
+    // Task 1–5 migration switch; stays on `.metal` until Task 3 wires live audio.
+    @State private var bodyMode: EntheaBodyMode = .metal
 
     private var s: CGFloat {
         self.uiScale
@@ -72,11 +74,20 @@ struct ClassicMilkdropPanelView: View {
                         Color.clear.frame(width: self.sideLeft * self.s)
                         VStack(spacing: 0) {
                             self.presetStrip
-                            MilkdropMetalVisualizationView(
-                                preset: self.currentPreset,
-                                size: CGSize(width: self.metalWidth, height: self.metalHeight)
-                            )
-                            .opacity(self.fadeOpacity)
+                            Group {
+                                if self.bodyMode == .enthea {
+                                    EntheaWebView(
+                                        isActive: self.showVisualizer && !self.isMinimized,
+                                        size: CGSize(width: self.metalWidth, height: self.metalHeight)
+                                    )
+                                } else {
+                                    MilkdropMetalVisualizationView(
+                                        preset: self.currentPreset,
+                                        size: CGSize(width: self.metalWidth, height: self.metalHeight)
+                                    )
+                                    .opacity(self.fadeOpacity)
+                                }
+                            }
                             .frame(width: self.metalWidth, height: self.metalHeight)
                         }
                         Color.clear.frame(width: self.sideRight * self.s)
@@ -131,12 +142,42 @@ struct ClassicMilkdropPanelView: View {
     private var bottomBar: some View {
         ZStack(alignment: .bottomTrailing) {
             ClassicSkinColors.body
+            HStack(spacing: 0) {
+                self.bodyModeSwitch
+                    .padding(.leading, 4 * self.s)
+                Spacer(minLength: 0)
+            }
             self.resizeGrip
                 .padding(.trailing, 2 * self.s)
                 .padding(.bottom, 2 * self.s)
         }
         .frame(height: self.bottomBarHeight * self.s)
         .contentShape(Rectangle())
+    }
+
+    /// Task 1–5 migration control. The visible switch goes away in Stage 5; a hidden kill
+    /// switch outlives it (see the design spec).
+    private var bodyModeSwitch: some View {
+        HStack(spacing: 3 * self.s) {
+            self.bodyModeButton(.metal, label: "METAL")
+            Text("|")
+                .font(.system(size: 7 * self.s, weight: .bold, design: .monospaced))
+                .foregroundColor(ClassicSkinColors.led.opacity(0.4))
+            self.bodyModeButton(.enthea, label: "ENTHEA")
+        }
+    }
+
+    private func bodyModeButton(_ mode: EntheaBodyMode, label: String) -> some View {
+        Button(action: { self.bodyMode = mode }) {
+            Text(label)
+                .font(.system(size: 7 * self.s, weight: .bold, design: .monospaced))
+                .foregroundColor(
+                    self.bodyMode == mode
+                        ? ClassicSkinColors.led
+                        : ClassicSkinColors.led.opacity(0.35)
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     private var resizeGrip: some View {
