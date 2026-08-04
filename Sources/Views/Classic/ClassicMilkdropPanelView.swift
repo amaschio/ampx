@@ -13,8 +13,11 @@ struct ClassicMilkdropPanelView: View {
     @State private var fadeOpacity: Double = 1.0
     @State private var isDraggingResize = false
     @State private var resizeStartSize: CGSize = .zero
-    // Task 1–5 migration switch; stays on `.metal` until Task 3 wires live audio.
-    @State private var bodyMode: EntheaBodyMode = .metal
+    // Default Enthea for Task 2+ smoke; Metal remains available via the strip.
+    // (Plan flipped this at Task 3; brought forward so panel open shows the WebView host.)
+    @State private var bodyMode: EntheaBodyMode = .enthea
+    @State private var showPhotosensitiveWarning = false
+    private let entheaPreferences = EntheaPreferences()
 
     private var s: CGFloat {
         self.uiScale
@@ -22,17 +25,10 @@ struct ClassicMilkdropPanelView: View {
 
     private let sideLeft: CGFloat = 12
     private let sideRight: CGFloat = 20
-    private let bottomBarHeight: CGFloat = 14
+    /// Match playlist pledit bottom chrome (sprites are 38px tall) — the old 14pt
+    /// flat `Color` bar looked unfinished and hid the mode switch.
+    private var bottomBarHeight: CGFloat { ClassicSkinMetrics.playlistBottomBarHeight }
     private let presetStripHeight: CGFloat = 14
-
-    private var metalWidth: CGFloat {
-        max(0, self.visualizerSize.width - (self.sideLeft + self.sideRight) * self.s)
-    }
-
-    private var metalHeight: CGFloat {
-        let chrome = (ClassicSkinMetrics.playlistTopBarHeight + self.presetStripHeight + self.bottomBarHeight) * self.s
-        return max(0, self.visualizerSize.height - chrome)
-    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -70,28 +66,35 @@ struct ClassicMilkdropPanelView: View {
                         scale: self.s
                     )
 
+                    // Fill remaining height *above* the bottom bar so the bar is never clipped.
                     HStack(spacing: 0) {
                         Color.clear.frame(width: self.sideLeft * self.s)
                         VStack(spacing: 0) {
                             self.presetStrip
-                            Group {
-                                if self.bodyMode == .enthea {
-                                    EntheaWebView(
-                                        isActive: self.showVisualizer && !self.isMinimized,
-                                        size: CGSize(width: self.metalWidth, height: self.metalHeight)
-                                    )
-                                } else {
-                                    MilkdropMetalVisualizationView(
-                                        preset: self.currentPreset,
-                                        size: CGSize(width: self.metalWidth, height: self.metalHeight)
-                                    )
-                                    .opacity(self.fadeOpacity)
+                            GeometryReader { geo in
+                                Group {
+                                    if self.bodyMode == .enthea {
+                                        EntheaWebView(
+                                            isActive: self.showVisualizer && !self.isMinimized,
+                                            size: geo.size
+                                        )
+                                    } else {
+                                        MilkdropMetalVisualizationView(
+                                            preset: self.currentPreset,
+                                            size: geo.size
+                                        )
+                                        .opacity(self.fadeOpacity)
+                                    }
                                 }
+                                .frame(width: geo.size.width, height: geo.size.height)
                             }
-                            .frame(width: self.metalWidth, height: self.metalHeight)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color.black)
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         Color.clear.frame(width: self.sideRight * self.s)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                     self.bottomBar
                 }
@@ -105,7 +108,26 @@ struct ClassicMilkdropPanelView: View {
                 : self.visualizerSize.height
         )
         .clipped()
-        .onAppear { self.startAutoChangeTimer() }
+        .onAppear {
+            self.startAutoChangeTimer()
+            if self.bodyMode == .enthea, !self.entheaPreferences.photosensitiveWarningAccepted {
+                self.showPhotosensitiveWarning = true
+            }
+        }
+        .onChange(of: self.bodyMode) { mode in
+            if mode == .enthea, !self.entheaPreferences.photosensitiveWarningAccepted {
+                self.showPhotosensitiveWarning = true
+            }
+        }
+        .alert("Photosensitivity notice", isPresented: self.$showPhotosensitiveWarning) {
+            Button("OK") {
+                self.entheaPreferences.photosensitiveWarningAccepted = true
+            }
+        } message: {
+            Text(
+                "ENTHEA includes bright, rapidly changing patterns. If you have photosensitive epilepsy or migraines, switch back to Metal or close the Visualizer. Flicker drive stays off unless you enable it later."
+            )
+        }
         .onDisappear { self.stopAutoChangeTimer() }
     }
 
@@ -119,7 +141,7 @@ struct ClassicMilkdropPanelView: View {
             .buttonStyle(.plain)
             .padding(.trailing, 4 * self.s)
 
-            Text("MILKDROP • \(self.currentPreset.name.uppercased())")
+            Text(self.presetStripTitle)
                 .font(.system(size: 8 * self.s, weight: .bold, design: .monospaced))
                 .foregroundColor(ClassicSkinColors.led)
                 .lineLimit(1)
@@ -139,42 +161,106 @@ struct ClassicMilkdropPanelView: View {
         .background(ClassicSkinColors.displayBg)
     }
 
+    private var presetStripTitle: String {
+        switch self.bodyMode {
+        case .metal:
+            return "MILKDROP • \(self.currentPreset.name.uppercased())"
+        case .enthea:
+            return "ENTHEA"
+        }
+    }
+
+    /// Same pledit bottom geometry as the playlist: border · inset · tile · inset · border.
+    /// Full-height tile covers hide playlist faces; native hatch remains on the right.
     private var bottomBar: some View {
         ZStack(alignment: .bottomTrailing) {
-            ClassicSkinColors.body
             HStack(spacing: 0) {
-                self.bodyModeSwitch
-                    .padding(.leading, 4 * self.s)
-                Spacer(minLength: 0)
+                SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomLeftBorder, scale: self.s)
+
+                ZStack(alignment: .bottomLeading) {
+                    SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomLeftInset, scale: self.s)
+                    ClassicMilkdropTiledStrip(
+                        sprite: WinampSkinSprites.Pledit.bottomTile,
+                        scale: self.s,
+                        axis: .horizontal
+                    )
+                    .frame(width: 117 * self.s, height: self.bottomBarHeight * self.s)
+                    self.bodyModeSwitch
+                        .padding(.leading, 6 * self.s)
+                        .padding(.bottom, 12 * self.s)
+                }
+                .frame(width: 117 * self.s, height: self.bottomBarHeight * self.s)
+                .clipped()
+
+                ClassicMilkdropTiledStrip(
+                    sprite: WinampSkinSprites.Pledit.bottomTile,
+                    scale: self.s,
+                    axis: .horizontal
+                )
+                .frame(maxWidth: .infinity)
+                .frame(height: self.bottomBarHeight * self.s)
+
+                // Full bottomRight (150) so hatch+border stay one skin piece.
+                // Cover only button faces — leave hatch chrome/bevel untouched.
+                ZStack(alignment: .topLeading) {
+                    SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomRight, scale: self.s)
+                    ClassicMilkdropTiledStrip(
+                        sprite: WinampSkinSprites.Pledit.bottomTile,
+                        scale: self.s,
+                        axis: .horizontal
+                    )
+                    .frame(width: 100 * self.s, height: self.bottomBarHeight * self.s)
+                    ClassicMilkdropTiledStrip(
+                        sprite: WinampSkinSprites.Pledit.bottomTile,
+                        scale: self.s,
+                        axis: .horizontal
+                    )
+                    .frame(width: 44 * self.s, height: 28 * self.s)
+                    .offset(x: 102 * self.s, y: 5 * self.s)
+                    ClassicMilkdropTiledStrip(
+                        sprite: WinampSkinSprites.Pledit.bottomTile,
+                        scale: self.s,
+                        axis: .horizontal
+                    )
+                    .frame(width: 15 * self.s, height: 18 * self.s)
+                    .offset(x: 128 * self.s, y: 3 * self.s)
+                }
+                .frame(width: 150 * self.s, height: self.bottomBarHeight * self.s)
+                .clipped()
             }
+
             self.resizeGrip
-                .padding(.trailing, 2 * self.s)
-                .padding(.bottom, 2 * self.s)
         }
+        .frame(maxWidth: .infinity)
         .frame(height: self.bottomBarHeight * self.s)
+        .background(ClassicSkinColors.body)
         .contentShape(Rectangle())
     }
 
-    /// Task 1–5 migration control. The visible switch goes away in Stage 5; a hidden kill
-    /// switch outlives it (see the design spec).
+    /// Task 1–5 migration control — LED-style inset like the playlist time readout.
     private var bodyModeSwitch: some View {
-        HStack(spacing: 3 * self.s) {
+        HStack(spacing: 4 * self.s) {
             self.bodyModeButton(.metal, label: "METAL")
             Text("|")
-                .font(.system(size: 7 * self.s, weight: .bold, design: .monospaced))
-                .foregroundColor(ClassicSkinColors.led.opacity(0.4))
+                .font(.system(size: 9 * self.s, weight: .bold, design: .monospaced))
+                .foregroundColor(ClassicSkinColors.led.opacity(0.45))
             self.bodyModeButton(.enthea, label: "ENTHEA")
         }
+        .padding(.horizontal, 5 * self.s)
+        .padding(.vertical, 2 * self.s)
+        .background(Color.black)
+        .frame(height: 14 * self.s)
+        .clipped()
     }
 
     private func bodyModeButton(_ mode: EntheaBodyMode, label: String) -> some View {
         Button(action: { self.bodyMode = mode }) {
             Text(label)
-                .font(.system(size: 7 * self.s, weight: .bold, design: .monospaced))
+                .font(.system(size: 9 * self.s, weight: .bold, design: .monospaced))
                 .foregroundColor(
                     self.bodyMode == mode
                         ? ClassicSkinColors.led
-                        : ClassicSkinColors.led.opacity(0.35)
+                        : ClassicSkinColors.led.opacity(0.4)
                 )
         }
         .buttonStyle(.plain)
@@ -382,6 +468,7 @@ private struct ClassicMilkdropTiledStrip: View {
                         SkinSpriteView(sprite: self.sprite, scale: self.scale)
                     }
                 }
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
             case .vertical:
                 let tileH = max(self.sprite.height * self.scale, 1)
                 let count = max(1, Int(ceil(geo.size.height / tileH)))
@@ -390,6 +477,7 @@ private struct ClassicMilkdropTiledStrip: View {
                         SkinSpriteView(sprite: self.sprite, scale: self.scale)
                     }
                 }
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
             }
         }
         .frame(
@@ -401,5 +489,7 @@ private struct ClassicMilkdropTiledStrip: View {
             height: self.axis == .horizontal ? self.sprite.height * self.scale : nil
         )
         .clipped()
+        // Yield to fixed-width pledit corners (matches ClassicPlaylistTiledStrip).
+        .layoutPriority(-1)
     }
 }

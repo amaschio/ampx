@@ -185,6 +185,8 @@ enum WinampSkinSprites {
         static let bottomLeftBorder = Sprite(sheet: .pledit, x: 0, y: 72, width: 8, height: 38)
         /// Right-edge chrome of bottomRight — used to pad LIST OPTS away from the window edge.
         static let bottomRightBorder = Sprite(sheet: .pledit, x: 268, y: 72, width: 8, height: 38)
+        /// Far-right slice of `bottomRight` — resize hatch only (no scroll/LIST OPTS faces).
+        static let bottomRightHatch = Sprite(sheet: .pledit, x: 251, y: 72, width: 25, height: 38)
         static let leftTile = Sprite(sheet: .pledit, x: 0, y: 42, width: 12, height: 29)
         static let rightTile = Sprite(sheet: .pledit, x: 31, y: 42, width: 20, height: 29)
 

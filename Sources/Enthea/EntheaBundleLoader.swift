@@ -2,11 +2,9 @@ import Foundation
 
 /// Resolves the vendored ENTHEA bundle from `Bundle.main`.
 ///
-/// Stage 1 stub: `Resources/Enthea/` does not exist yet, so this always returns `nil` and
-/// `EntheaWKHostView` falls back to its inline placeholder HTML. Task 2 adds the real
-/// folder reference; deliberately no fallback chain here once it does, since a
-/// nil-returning fallback would hide exactly the "flattened into Contents/Resources"
-/// bundling mistake this loader exists to catch.
+/// `Resources/Enthea` must be a **folder reference** in `project.pbxproj` so
+/// `Contents/Resources/Enthea/` exists at runtime. Loose file refs flatten into
+/// `Contents/Resources/` and both lookups return `nil`.
 enum EntheaBundleLoader {
     static func directoryURL(in bundle: Bundle = .main) -> URL? {
         guard let url = bundle.url(forResource: "Enthea", withExtension: nil),
