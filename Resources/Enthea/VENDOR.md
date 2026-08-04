@@ -10,6 +10,7 @@
 1. Append `<script src="bridge.js"></script>` after ENTHEA’s main `</script>` (end of `index.html`) so `bridge.js` runs in the page content world after `AUDIO` / `S` / `MODES` exist.
 2. `bridge.js` (this directory): neuters ENTHEA’s `keydown` (capture-phase `stopImmediatePropagation`), exposes `window.winampEnthea` / `window.winampAudio`, hides ENTHEA chrome on boot, overrides `resize()` to honor `window.__winampBackingScale` (2.0 Mpx budget from the host).
 3. `bridge.js` Task 3: `winampAudio.push` installs a fake `AnalyserNode` (512 bins + stereo PCM) and sets `S.audio.source = "winamp"` so ENTHEA’s DSP runs on host audio without modifying upstream `updateAudio`.
+4. `bridge.js` Task 4: `setMode` is absolute; `stepMode(±1)` is relative (avoids clashing with mode id 1); `setDose(delta)` nudges `S.dose`; `getStatus()` feeds the Classic strip title.
 
 ## License
 

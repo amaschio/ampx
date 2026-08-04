@@ -19,6 +19,8 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
     private let audioBridge: EntheaAudioBridge
     private var pushTimer: Timer?
     private var didLoadEnthea = false
+    /// Classic strip / prefs owner — attached from SwiftUI representable.
+    weak var panelController: EntheaPanelController?
 
     override init(frame frameRect: NSRect) {
         let configuration = WKWebViewConfiguration()
@@ -92,6 +94,10 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
     /// between that and dealloc.
     func teardown() {
         self.setAudioBridgeActive(false)
+        let controller = self.panelController
+        Task { @MainActor in
+            controller?.hostDidTeardown()
+        }
         self.didLoadEnthea = false
         self.webView.stopLoading()
         self.webView.load(URLRequest(url: URL(string: "about:blank")!))
@@ -103,6 +109,12 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
             "window.winampEnthea && window.winampEnthea.hideChrome();",
             completionHandler: nil
         )
+        guard self.didLoadEnthea, let controller = self.panelController else { return }
+        let evaluator = self.jsEvaluator
+        Task { @MainActor in
+            controller.attach(evaluator: evaluator)
+            controller.hostDidFinishLoad()
+        }
     }
 
     private func startPushTimerIfNeeded() {
@@ -123,9 +135,11 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
 struct EntheaWebView: NSViewRepresentable {
     var isActive: Bool
     var size: CGSize
+    @ObservedObject var controller: EntheaPanelController
 
     func makeNSView(context: Context) -> EntheaWKHostView {
         let host = EntheaWKHostView(frame: CGRect(origin: .zero, size: self.size))
+        host.panelController = self.controller
         if self.isActive {
             host.loadEnthea()
             host.setAudioBridgeActive(true)
@@ -134,6 +148,7 @@ struct EntheaWebView: NSViewRepresentable {
     }
 
     func updateNSView(_ host: EntheaWKHostView, context: Context) {
+        host.panelController = self.controller
         host.frame.size = self.size
         if self.isActive {
             let url = host.webView.url

@@ -35,4 +35,23 @@ final class EntheaPreferencesTests: XCTestCase {
         )
         XCTAssertEqual(scale, 2, accuracy: 0.01)
     }
+
+    func testAutopilotDefaultsTrue() {
+        let suiteName = "EntheaPreferencesTests.\(#function)"
+        let suite = UserDefaults(suiteName: suiteName)!
+        suite.removePersistentDomain(forName: suiteName)
+        XCTAssertTrue(EntheaPreferences(defaults: suite).autopilot)
+    }
+
+    func testModeAndAutopilotPersist() {
+        let suiteName = "EntheaPreferencesTests.\(#function)"
+        let suite = UserDefaults(suiteName: suiteName)!
+        suite.removePersistentDomain(forName: suiteName)
+        let prefs = EntheaPreferences(defaults: suite)
+        prefs.modeID = 12
+        prefs.autopilot = false
+        let again = EntheaPreferences(defaults: suite)
+        XCTAssertEqual(again.modeID, 12)
+        XCTAssertFalse(again.autopilot)
+    }
 }

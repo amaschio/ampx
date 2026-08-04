@@ -17,6 +17,7 @@ struct ClassicMilkdropPanelView: View {
     // (Plan flipped this at Task 3; brought forward so panel open shows the WebView host.)
     @State private var bodyMode: EntheaBodyMode = .enthea
     @State private var showPhotosensitiveWarning = false
+    @StateObject private var entheaController = EntheaPanelController()
     private let entheaPreferences = EntheaPreferences()
 
     private var s: CGFloat {
@@ -76,7 +77,8 @@ struct ClassicMilkdropPanelView: View {
                                     if self.bodyMode == .enthea {
                                         EntheaWebView(
                                             isActive: self.showVisualizer && !self.isMinimized,
-                                            size: geo.size
+                                            size: geo.size,
+                                            controller: self.entheaController
                                         )
                                     } else {
                                         MilkdropMetalVisualizationView(
@@ -133,7 +135,7 @@ struct ClassicMilkdropPanelView: View {
 
     private var presetStrip: some View {
         HStack {
-            Button(action: self.previousPreset) {
+            Button(action: self.stripPrevious) {
                 Text("◀")
                     .font(.system(size: 9 * self.s, weight: .bold))
                     .foregroundColor(ClassicSkinColors.led)
@@ -141,14 +143,24 @@ struct ClassicMilkdropPanelView: View {
             .buttonStyle(.plain)
             .padding(.trailing, 4 * self.s)
 
-            Text(self.presetStripTitle)
-                .font(.system(size: 8 * self.s, weight: .bold, design: .monospaced))
-                .foregroundColor(ClassicSkinColors.led)
-                .lineLimit(1)
+            Button(action: self.stripTitleAction) {
+                Text(self.presetStripTitle)
+                    .font(.system(size: 8 * self.s, weight: .bold, design: .monospaced))
+                    .foregroundColor(ClassicSkinColors.led)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .simultaneousGesture(
+                TapGesture(count: 2).onEnded {
+                    if self.bodyMode == .enthea {
+                        self.entheaController.reseed()
+                    }
+                }
+            )
 
-            Spacer(minLength: 0)
-
-            Button(action: self.nextPreset) {
+            Button(action: self.stripNext) {
                 Text("▶")
                     .font(.system(size: 9 * self.s, weight: .bold))
                     .foregroundColor(ClassicSkinColors.led)
@@ -166,8 +178,39 @@ struct ClassicMilkdropPanelView: View {
         case .metal:
             return "MILKDROP • \(self.currentPreset.name.uppercased())"
         case .enthea:
-            return "ENTHEA"
+            return self.entheaController.stripTitle
         }
+    }
+
+    private func stripPrevious() {
+        switch self.bodyMode {
+        case .metal:
+            self.previousPreset()
+        case .enthea:
+            if NSEvent.modifierFlags.contains(.shift) {
+                self.entheaController.nudgeDose(-0.05)
+            } else {
+                self.entheaController.previousMode()
+            }
+        }
+    }
+
+    private func stripNext() {
+        switch self.bodyMode {
+        case .metal:
+            self.nextPreset()
+        case .enthea:
+            if NSEvent.modifierFlags.contains(.shift) {
+                self.entheaController.nudgeDose(0.05)
+            } else {
+                self.entheaController.nextMode()
+            }
+        }
+    }
+
+    private func stripTitleAction() {
+        guard self.bodyMode == .enthea else { return }
+        self.entheaController.toggleAutopilot()
     }
 
     /// Same pledit bottom geometry as the playlist: border · inset · tile · inset · border.

@@ -88,6 +88,10 @@
     }
   }
 
+  function clamp01(v) {
+    return Math.max(0, Math.min(1, v));
+  }
+
   const api = {
     ready: false,
     hideChrome() {
@@ -95,15 +99,24 @@
       // Same class ENTHEA uses in fullscreen: hide title / hint / buttons.
       document.body.classList.add("immersive");
     },
+    // Absolute mode index. Use stepMode(±1) for relative (avoids clashing with mode 1).
     setMode(i) {
-      if (typeof setMode === "function") setMode(i, true);
+      if (typeof setMode !== "function" || typeof MODES === "undefined") return;
+      const n = MODES.length;
+      const next = ((Number(i) % n) + n) % n;
+      setMode(next, true);
+    },
+    stepMode(delta) {
+      if (typeof S !== "object" || typeof MODES === "undefined") return;
+      this.setMode(S.mode + (Number(delta) || 0));
     },
     setAutopilot(on) {
       const el = document.getElementById("tgJourney");
       if (el && el.classList.contains("on") !== !!on) el.click();
     },
-    setDose(/* delta */) {
-      /* wired in Task 4 */
+    setDose(delta) {
+      if (typeof setDose !== "function" || typeof S !== "object") return;
+      setDose(clamp01(S.dose + Number(delta)));
     },
     fireDrop() {
       if (typeof fireDrop === "function") fireDrop(false);
@@ -117,6 +130,19 @@
     setBackingScale(scale) {
       window.__winampBackingScale = scale;
       if (typeof resize === "function") resize();
+    },
+    getStatus() {
+      const el = document.getElementById("tgJourney");
+      const mode = typeof S === "object" ? S.mode : 0;
+      const name =
+        typeof MODES !== "undefined" && MODES[mode] ? MODES[mode].name : "";
+      return {
+        ready: api.ready,
+        mode: mode,
+        name: name,
+        autopilot: !!(el && el.classList.contains("on")),
+        dose: typeof S === "object" ? S.dose : 0.45,
+      };
     },
   };
   window.winampEnthea = api;
