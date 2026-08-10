@@ -245,6 +245,116 @@ class PlaylistManager: ObservableObject {
         self.persistState()
     }
 
+    /// Remove multiple rows (highest-index-first safe). Remaps `currentIndex` by track id.
+    func removeTracks(at indices: IndexSet) {
+        guard !indices.isEmpty else { return }
+        let currentID = self.currentTrack?.id
+        let removingCurrent = self.currentIndex >= 0 && indices.contains(self.currentIndex)
+        let fallbackIndex = indices.min() ?? 0
+
+        self.tracks = self.tracks.enumerated().compactMap { indices.contains($0.offset) ? nil : $0.element }
+
+        if self.shuffleEnabled {
+            self.generateShuffledIndices()
+        }
+
+        if self.tracks.isEmpty {
+            self.currentIndex = -1
+            self.audioPlayer.stop()
+        } else if let currentID, let idx = self.tracks.firstIndex(where: { $0.id == currentID }) {
+            self.currentIndex = idx
+        } else if removingCurrent {
+            self.currentIndex = min(fallbackIndex, self.tracks.count - 1)
+            self.playTrack(at: self.currentIndex)
+            return
+        } else {
+            self.currentIndex = -1
+        }
+        self.persistState()
+    }
+
+    /// Keep only the given indices (Winamp crop).
+    func cropToTracks(at indices: IndexSet) {
+        guard !indices.isEmpty else { return }
+        let remove = IndexSet(integersIn: 0 ..< self.tracks.count).subtracting(indices)
+        self.removeTracks(at: remove)
+    }
+
+    /// Move all selected tracks as an ordered block by one row (`delta` = −1 or +1).
+    func moveSelectedTracks(indices: IndexSet, by delta: Int) {
+        guard delta == -1 || delta == 1, !indices.isEmpty else { return }
+        let sorted = indices.sorted()
+        let selectedTracks = sorted.map { self.tracks[$0] }
+        let currentID = self.currentTrack?.id
+
+        let remaining = self.tracks.enumerated().compactMap { indices.contains($0.offset) ? nil : $0.element }
+        let nonSelectedBefore = self.tracks[..<sorted[0]].indices.filter { !indices.contains($0) }.count
+        let insertAt = min(max(nonSelectedBefore + delta, 0), remaining.count)
+
+        var rebuilt = remaining
+        rebuilt.insert(contentsOf: selectedTracks, at: insertAt)
+        self.tracks = rebuilt
+
+        if let currentID {
+            self.currentIndex = self.tracks.firstIndex(where: { $0.id == currentID }) ?? -1
+        }
+        if self.shuffleEnabled {
+            self.generateShuffledIndices()
+        }
+        self.persistState()
+    }
+
+    enum TrackSortKey {
+        case title
+        case fileName
+        case path
+    }
+
+    func sortTracks(by key: TrackSortKey) {
+        let currentID = self.currentTrack?.id
+        self.tracks.sort { lhs, rhs in
+            let left: String
+            let right: String
+            switch key {
+            case .title:
+                left = "\(lhs.artist) - \(lhs.title)"
+                right = "\(rhs.artist) - \(rhs.title)"
+            case .fileName:
+                left = lhs.url?.lastPathComponent ?? lhs.title
+                right = rhs.url?.lastPathComponent ?? rhs.title
+            case .path:
+                left = lhs.url?.path ?? lhs.title
+                right = rhs.url?.path ?? rhs.title
+            }
+            return left.localizedCaseInsensitiveCompare(right) == .orderedAscending
+        }
+        self.remapCurrentIndex(preserving: currentID)
+    }
+
+    func reverseTracks() {
+        let currentID = self.currentTrack?.id
+        self.tracks.reverse()
+        self.remapCurrentIndex(preserving: currentID)
+    }
+
+    func randomizeTracks() {
+        let currentID = self.currentTrack?.id
+        self.tracks.shuffle()
+        self.remapCurrentIndex(preserving: currentID)
+    }
+
+    private func remapCurrentIndex(preserving currentID: UUID?) {
+        if let currentID, let idx = self.tracks.firstIndex(where: { $0.id == currentID }) {
+            self.currentIndex = idx
+        } else if self.tracks.isEmpty {
+            self.currentIndex = -1
+        }
+        if self.shuffleEnabled {
+            self.generateShuffledIndices()
+        }
+        self.persistState()
+    }
+
     func next() {
         guard !self.tracks.isEmpty else { return }
 
@@ -598,6 +708,32 @@ class PlaylistManager: ObservableObject {
 
         if response == .OK, let url = panel.url {
             self.saveM3UPlaylist(to: url)
+        }
+    }
+
+    func showLoadM3UPicker() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.init(filenameExtension: "m3u")].compactMap { $0 }
+        panel.title = "Load Playlist"
+        panel.message = "Choose an M3U playlist to load"
+
+        panel.begin { [weak self] response in
+            guard let self, response == .OK, let url = panel.url else { return }
+            Task { @MainActor in
+                await self.replacePlaylist(fromM3U: url)
+            }
+        }
+    }
+
+    func replacePlaylist(fromM3U url: URL) async {
+        self.fileService.bookmarkM3UResources(for: url)
+        let loaded = await self.fileService.loadM3UPlaylist(from: url) ?? []
+        self.clearPlaylist()
+        if !loaded.isEmpty {
+            self.addTracks(loaded)
         }
     }
 

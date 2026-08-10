@@ -101,6 +101,19 @@ final class ClassicPlaylistLayoutDefaultsTests: XCTestCase {
         )
         XCTAssertEqual(layout.playlistSize.width, ClassicSkinMetrics.windowWidth)
     }
+
+    func testPleditTileCountSkipsEmptyFlexSlot() {
+        // At classic width the bottom flex tile is offered 0pt — a forced tile would overflow
+        // the 275px chrome HStack and get clipped on horizontal resize.
+        XCTAssertEqual(ClassicPleditTiling.tileCount(containerLength: 0, tileLength: 25), 0)
+        XCTAssertEqual(ClassicPleditTiling.tileCount(containerLength: 0.4, tileLength: 25), 0)
+    }
+
+    func testPleditTileCountCoversWidenedFlexSlot() {
+        XCTAssertEqual(ClassicPleditTiling.tileCount(containerLength: 25, tileLength: 25), 1)
+        XCTAssertEqual(ClassicPleditTiling.tileCount(containerLength: 26, tileLength: 25), 2)
+        XCTAssertEqual(ClassicPleditTiling.tileCount(containerLength: 125, tileLength: 25), 5)
+    }
 }
 
 final class ClassicVisualizerLayoutDefaultsTests: XCTestCase {

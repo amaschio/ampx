@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -11,7 +12,7 @@ struct ClassicPlaylistView: View {
     @Binding var isMinimized: Bool
     @Binding var showPlaylist: Bool
 
-    @State private var selectedTrack: Track.ID?
+    @State private var selection = PlaylistSelectionModel()
     @State private var isDraggingResize = false
     @State private var resizeStartSize: CGSize = .zero
     @State private var draggedTrackIndex: Int?
@@ -67,8 +68,10 @@ struct ClassicPlaylistView: View {
                     HStack(spacing: 0) {
                         Color.clear.frame(width: 12 * self.s)
                         self.trackList
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                         Color.clear.frame(width: 20 * self.s)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                     self.bottomBar
                         .frame(height: ClassicSkinMetrics.playlistBottomBarHeight * self.s)
@@ -88,7 +91,7 @@ struct ClassicPlaylistView: View {
                 playlistManager: self.playlistManager,
                 isMinimized: { self.isMinimized },
                 visibleTracks: { self.indexedTracks },
-                selectedTrack: self.$selectedTrack,
+                selection: self.$selection,
                 userInitiatedPlayback: self.$userInitiatedPlayback
             )
             WinampPlaylistKeyboard.register(self.keyboardNavigation)
@@ -97,6 +100,11 @@ struct ClassicPlaylistView: View {
             WinampPlaylistKeyboard.unregister(self.keyboardNavigation)
             self.keyboardNavigation.unbind()
         }
+        .onChange(of: self.playlistManager.tracks.map(\.id)) { ids in
+            var model = self.selection
+            model.prune(toValidIDs: Set(ids))
+            self.selection = model
+        }
     }
 
     private var trackList: some View {
@@ -104,21 +112,25 @@ struct ClassicPlaylistView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(self.indexedTracks, id: \.track.id) { indexed in
-                        ClassicSkinPlaylistRow(
-                            index: indexed.index,
-                            track: indexed.track,
-                            isCurrent: indexed.index == self.playlistManager.currentIndex,
-                            isSelected: indexed.track.id == self.selectedTrack,
-                            scale: self.s
-                        )
+                        Button {
+                            self.applyClickSelection(to: indexed.track.id)
+                        } label: {
+                            ClassicSkinPlaylistRow(
+                                index: indexed.index,
+                                track: indexed.track,
+                                isCurrent: indexed.index == self.playlistManager.currentIndex,
+                                isSelected: self.selection.selectedIDs.contains(indexed.track.id),
+                                scale: self.s
+                            )
+                        }
+                        .buttonStyle(.plain)
                         .id(indexed.track.id)
-                        .onTapGesture(count: 2) {
-                            self.userInitiatedPlayback = true
-                            self.playlistManager.playTrack(at: indexed.index)
-                        }
-                        .onTapGesture {
-                            self.selectedTrack = indexed.track.id
-                        }
+                        .simultaneousGesture(
+                            TapGesture(count: 2).onEnded {
+                                self.userInitiatedPlayback = true
+                                self.playlistManager.playTrack(at: indexed.index)
+                            }
+                        )
                         .contextMenu {
                             Button("Play") {
                                 self.userInitiatedPlayback = true
@@ -131,16 +143,12 @@ struct ClassicPlaylistView: View {
                             Button("Remove from Playlist") {
                                 let removedID = self.playlistManager.tracks[indexed.index].id
                                 self.playlistManager.removeTrack(at: indexed.index)
-                                if self.selectedTrack == removedID {
-                                    self.selectedTrack = nil
-                                }
+                                self.selection.prune(toValidIDs: Set(self.playlistManager.tracks.map(\.id)))
+                                _ = removedID
                             }
                             Button("Remove from Disk…", role: .destructive) {
-                                let removedID = self.playlistManager.tracks[indexed.index].id
-                                if self.playlistManager.removeTrackFromDisk(at: indexed.index),
-                                   self.selectedTrack == removedID
-                                {
-                                    self.selectedTrack = nil
+                                if self.playlistManager.removeTrackFromDisk(at: indexed.index) {
+                                    self.selection.prune(toValidIDs: Set(self.playlistManager.tracks.map(\.id)))
                                 }
                             }
                         }
@@ -176,24 +184,65 @@ struct ClassicPlaylistView: View {
                     SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomLeftInset, scale: self.s)
                         .allowsHitTesting(false)
                     HStack(spacing: 0) {
-                        ClassicPlaylistHitTarget(scale: self.s) {
-                            self.playlistManager.showFilePicker()
+                        ClassicPlaylistMenuSlot(scale: self.s) {
+                            Button("Add File…") { self.playlistManager.showFilePicker() }
+                            Button("Add Directory…") { self.playlistManager.showFolderPicker() }
                         }
-                        ClassicPlaylistHitTarget(scale: self.s) {
-                            if let selected = self.selectedTrack,
-                               let index = self.playlistManager.tracks.firstIndex(where: { $0.id == selected })
-                            {
-                                self.playlistManager.removeTrack(at: index)
-                                self.selectedTrack = nil
+                        ClassicPlaylistMenuSlot(scale: self.s) {
+                            Button("Remove") {
+                                var model = self.selection
+                                PlaylistChromeActions.removeSelected(manager: self.playlistManager, selection: &model)
+                                self.selection = model
+                            }
+                            .disabled(self.selection.isEmpty)
+                            Button("Crop") {
+                                var model = self.selection
+                                PlaylistChromeActions.cropToSelected(manager: self.playlistManager, selection: &model)
+                                self.selection = model
+                            }
+                            .disabled(self.selection.isEmpty)
+                            Button("Clear Playlist") {
+                                var model = self.selection
+                                PlaylistChromeActions.clearList(manager: self.playlistManager, selection: &model)
+                                self.selection = model
                             }
                         }
-                        ClassicPlaylistHitTarget(scale: self.s) {
-                            if let current = self.playlistManager.currentTrack {
-                                self.selectedTrack = current.id
+                        ClassicPlaylistMenuSlot(scale: self.s) {
+                            Button("Select All") {
+                                var model = self.selection
+                                PlaylistChromeActions.selectAll(tracks: self.playlistManager.tracks, selection: &model)
+                                self.selection = model
+                            }
+                            Button("Select None") {
+                                var model = self.selection
+                                PlaylistChromeActions.selectNone(selection: &model)
+                                self.selection = model
+                            }
+                            Button("Invert Selection") {
+                                var model = self.selection
+                                PlaylistChromeActions.invertSelection(tracks: self.playlistManager.tracks, selection: &model)
+                                self.selection = model
                             }
                         }
-                        ClassicPlaylistHitTarget(scale: self.s) {
-                            self.playlistManager.showFolderPicker()
+                        ClassicPlaylistMenuSlot(scale: self.s) {
+                            Button("Sort by Title") { self.playlistManager.sortTracks(by: .title) }
+                            Button("Sort by Filename") { self.playlistManager.sortTracks(by: .fileName) }
+                            Button("Sort by Path") { self.playlistManager.sortTracks(by: .path) }
+                            Button("Reverse") { self.playlistManager.reverseTracks() }
+                            Button("Randomize") { self.playlistManager.randomizeTracks() }
+                            Button("File Info") {
+                                PlaylistChromeActions.presentFileInfo(
+                                    manager: self.playlistManager,
+                                    selection: self.selection
+                                )
+                            }
+                            .disabled(
+                                PlaylistChromeActions.fileInfoIndex(
+                                    tracks: self.playlistManager.tracks,
+                                    selection: self.selection,
+                                    currentIndex: self.playlistManager.currentIndex
+                                ) == nil
+                            )
                         }
                     }
                     // Faces at ~6,12 inside the inset sprite (was 14,12 in full bottomLeft)
@@ -222,8 +271,13 @@ struct ClassicPlaylistView: View {
                         .offset(x: 63 * self.s, y: 22 * self.s)
 
                     Menu {
-                        Button("Save Playlist…") { self.playlistManager.saveM3UPlaylist() }
-                        Button("Clear Playlist") { self.playlistManager.clearPlaylist() }
+                        Button("New List") {
+                            var model = self.selection
+                            PlaylistChromeActions.clearList(manager: self.playlistManager, selection: &model)
+                            self.selection = model
+                        }
+                        Button("Save List…") { self.playlistManager.saveM3UPlaylist() }
+                        Button("Load List…") { self.playlistManager.showLoadM3UPicker() }
                     } label: {
                         Color.clear
                             .frame(width: 44 * self.s, height: 28 * self.s)
@@ -238,9 +292,13 @@ struct ClassicPlaylistView: View {
 
                 SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomRightBorder, scale: self.s)
             }
+            // Fill the panel width so ZStack's trailing alignment can't pin a
+            // content-sized HStack and clip the leading chrome when widened.
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             self.resizeGrip
         }
+        .frame(maxWidth: .infinity)
         .frame(height: ClassicSkinMetrics.playlistBottomBarHeight * self.s)
         .background(ClassicSkinColors.body)
         .contentShape(Rectangle())
@@ -260,14 +318,18 @@ struct ClassicPlaylistView: View {
                         }
                         let minWidth = ClassicSkinMetrics.windowWidth * self.s
                         let minHeight = ClassicSkinMetrics.playlistMinHeight * self.s
+                        let newSize = CGSize(
+                            width: max(minWidth, self.resizeStartSize.width + value.translation.width),
+                            height: max(minHeight, self.resizeStartSize.height + value.translation.height)
+                        )
                         var transaction = Transaction()
                         transaction.disablesAnimations = true
                         withTransaction(transaction) {
-                            self.playlistSize = CGSize(
-                                width: max(minWidth, self.resizeStartSize.width + value.translation.width),
-                                height: max(minHeight, self.resizeStartSize.height + value.translation.height)
-                            )
+                            self.playlistSize = newSize
                         }
+                        // Grow/shrink the NSWindow in the same turn as the SwiftUI frame so
+                        // `.clipped()` doesn't chop chrome while content leads the window.
+                        WinampPanelWindowManager.shared.resizePlaylistPanel()
                     }
                     .onEnded { _ in self.isDraggingResize = false }
             )
@@ -275,6 +337,18 @@ struct ClassicPlaylistView: View {
 
     private var totalDuration: TimeInterval {
         self.playlistManager.tracks.reduce(0) { $0 + $1.duration }
+    }
+
+    private func applyClickSelection(to id: UUID) {
+        let flags = NSEvent.modifierFlags.intersection([.command, .shift])
+        let ordered = self.indexedTracks.map(\.track.id)
+        if flags.contains(.shift) {
+            self.selection.selectRange(to: id, orderedIDs: ordered)
+        } else if flags.contains(.command) {
+            self.selection.toggle(id)
+        } else {
+            self.selection.selectOnly(id)
+        }
     }
 
     private func handleDrop(providers: [NSItemProvider]) {
@@ -307,6 +381,7 @@ private struct ClassicPlaylistTitleBar: View {
                     scale: self.scale,
                     axis: .horizontal
                 )
+                .frame(maxWidth: .infinity)
 
                 SkinSpriteView(sprite: WinampSkinSprites.Pledit.titleLabel, scale: self.scale)
 
@@ -315,9 +390,11 @@ private struct ClassicPlaylistTitleBar: View {
                     scale: self.scale,
                     axis: .horizontal
                 )
+                .frame(maxWidth: .infinity)
 
                 SkinSpriteView(sprite: WinampSkinSprites.Pledit.topRight, scale: self.scale)
             }
+            .frame(maxWidth: .infinity)
             .allowsHitTesting(false)
 
             // Drag everywhere except the trailing shade/close icons.
@@ -458,7 +535,10 @@ private struct ClassicPlaylistTiledStrip: View {
             switch self.axis {
             case .horizontal:
                 let tileW = max(self.sprite.width * self.scale, 1)
-                let count = max(1, Int(ceil(geo.size.width / tileW)))
+                let count = ClassicPleditTiling.tileCount(
+                    containerLength: geo.size.width,
+                    tileLength: tileW
+                )
                 HStack(spacing: 0) {
                     ForEach(0 ..< count, id: \.self) { _ in
                         SkinSpriteView(sprite: self.sprite, scale: self.scale)
@@ -466,7 +546,10 @@ private struct ClassicPlaylistTiledStrip: View {
                 }
             case .vertical:
                 let tileH = max(self.sprite.height * self.scale, 1)
-                let count = max(1, Int(ceil(geo.size.height / tileH)))
+                let count = ClassicPleditTiling.tileCount(
+                    containerLength: geo.size.height,
+                    tileLength: tileH
+                )
                 VStack(spacing: 0) {
                     ForEach(0 ..< count, id: \.self) { _ in
                         SkinSpriteView(sprite: self.sprite, scale: self.scale)
@@ -483,7 +566,16 @@ private struct ClassicPlaylistTiledStrip: View {
             height: self.axis == .horizontal ? self.sprite.height * self.scale : nil
         )
         .clipped()
-        .layoutPriority(-1)
+    }
+}
+
+/// Shared pledit tile-count math (playlist + MilkDrop chrome).
+enum ClassicPleditTiling {
+    /// How many sprite tiles are needed to cover `containerLength` without stretching.
+    /// Returns 0 when the flex slot has no measurable size so a forced tile can't overflow.
+    static func tileCount(containerLength: CGFloat, tileLength: CGFloat) -> Int {
+        guard containerLength > 0.5, tileLength > 0 else { return 0 }
+        return Int(ceil(containerLength / tileLength))
     }
 }
 
@@ -500,48 +592,50 @@ private struct ClassicSkinPlaylistRow: View {
         HStack(spacing: 0) {
             Text("\(self.index + 1). \(self.track.artist) - \(self.track.title)")
                 .winampFont(size: 8, scale: self.scale)
-                .foregroundColor(
-                    (self.isCurrent || self.isSelected)
-                        ? ClassicSkinColors.playlistCurrent
-                        : ClassicSkinColors.playlistText
-                )
+                .foregroundColor(self.rowForeground)
                 .lineLimit(1)
 
             Spacer(minLength: 4)
 
             Text(WinampTimeFormatting.format(self.track.duration))
                 .winampFont(size: 8, scale: self.scale)
-                .foregroundColor(
-                    (self.isCurrent || self.isSelected)
-                        ? ClassicSkinColors.playlistCurrent
-                        : ClassicSkinColors.playlistText
-                )
+                .foregroundColor(self.rowForeground)
         }
         .padding(.horizontal, 3 * self.scale)
         .frame(height: ClassicSkinMetrics.playlistRowHeight * self.scale)
-        .background(
-            (self.isSelected || self.isCurrent)
-                ? ClassicSkinColors.playlistSelectedBg
-                : Color.black
-        )
+        // PLEDIT: only the selection cursor gets the blue bar. The playing track is
+        // white-on-black unless it is also selected (otherwise two rows look "selected").
+        .background(self.isSelected ? ClassicSkinColors.playlistSelectedBg : Color.black)
         .contentShape(Rectangle())
+    }
+
+    private var rowForeground: Color {
+        if self.isSelected || self.isCurrent {
+            ClassicSkinColors.playlistCurrent
+        } else {
+            ClassicSkinColors.playlistText
+        }
     }
 }
 
 // MARK: - Bottom bar controls
 
-/// Invisible hit target over a PLEDIT bottom-bar button slot (~22×18).
-private struct ClassicPlaylistHitTarget: View {
+/// Invisible menu label over a PLEDIT bottom-bar button slot (~22×18).
+private struct ClassicPlaylistMenuSlot<Content: View>: View {
     var scale: CGFloat = 1.0
-    let action: () -> Void
+    @ViewBuilder var content: () -> Content
 
     var body: some View {
-        Button(action: self.action) {
+        Menu {
+            self.content()
+        } label: {
             Color.clear
                 .frame(width: 22 * self.scale, height: 18 * self.scale)
                 .contentShape(Rectangle())
         }
+        .menuStyle(.button)
         .buttonStyle(.plain)
+        .menuIndicator(.hidden)
     }
 }
 
