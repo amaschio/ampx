@@ -55,6 +55,7 @@ struct ClassicPlaylistView: View {
                     .frame(width: 20 * self.s)
                     .frame(maxHeight: .infinity)
                 }
+                .allowsHitTesting(false)
 
                 VStack(spacing: 0) {
                     ClassicPlaylistTitleBar(
@@ -173,6 +174,7 @@ struct ClassicPlaylistView: View {
                 SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomLeftBorder, scale: self.s)
                 ZStack(alignment: .topLeading) {
                     SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomLeftInset, scale: self.s)
+                        .allowsHitTesting(false)
                     HStack(spacing: 0) {
                         ClassicPlaylistHitTarget(scale: self.s) {
                             self.playlistManager.showFilePicker()
@@ -205,6 +207,7 @@ struct ClassicPlaylistView: View {
 
                 ZStack(alignment: .topLeading) {
                     SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomRightInset, scale: self.s)
+                        .allowsHitTesting(false)
 
                     ClassicPlaylistTimeReadout(totalDuration: self.totalDuration, scale: self.s)
                         .frame(width: 92 * self.s, height: 10 * self.s)
@@ -224,6 +227,7 @@ struct ClassicPlaylistView: View {
                     } label: {
                         Color.clear
                             .frame(width: 44 * self.s, height: 28 * self.s)
+                            .contentShape(Rectangle())
                     }
                     .menuStyle(.button)
                     .buttonStyle(.plain)
@@ -535,6 +539,7 @@ private struct ClassicPlaylistHitTarget: View {
         Button(action: self.action) {
             Color.clear
                 .frame(width: 22 * self.scale, height: 18 * self.scale)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
