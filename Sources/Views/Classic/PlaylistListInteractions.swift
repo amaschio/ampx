@@ -1,79 +1,71 @@
+import AppKit
 import SwiftUI
 
-/// Drag-to-reorder modifier for playlist rows (disabled when a search filter is active).
+/// Drag-to-reorder for playlist rows.
+///
+/// Uses a movement-threshold `DragGesture` instead of `onDrag`/`NSItemProvider`. The system
+/// drag-and-drop recognizer delays click delivery while it waits to see if the press becomes a
+/// drag — that made playlist selection feel sluggish.
 struct PlaylistTrackReorderModifier: ViewModifier {
     let trackIndex: Int
     let searchTextEmpty: Bool
     @Binding var draggedTrackIndex: Int?
     let onMove: (Int, Int) -> Void
 
+    private static let dragThreshold: CGFloat = 6
+
     func body(content: Content) -> some View {
         content
-            .onDrag {
-                guard self.searchTextEmpty else {
-                    return NSItemProvider()
-                }
-                self.draggedTrackIndex = self.trackIndex
-                return NSItemProvider(object: String(self.trackIndex) as NSString)
-            }
-            .onDrop(
-                of: [.plainText],
-                delegate: PlaylistRowDropDelegate(
-                    destinationIndex: self.trackIndex,
-                    draggedIndex: self.$draggedTrackIndex,
-                    isEnabled: self.searchTextEmpty,
-                    onMove: self.onMove
-                )
+            .simultaneousGesture(
+                DragGesture(minimumDistance: Self.dragThreshold)
+                    .onChanged { _ in
+                        guard self.searchTextEmpty else { return }
+                        if self.draggedTrackIndex == nil {
+                            self.draggedTrackIndex = self.trackIndex
+                        }
+                    }
+                    .onEnded { _ in
+                        self.draggedTrackIndex = nil
+                    }
             )
+            .overlay {
+                if self.searchTextEmpty, self.draggedTrackIndex != nil {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onHover { hovering in
+                            guard hovering,
+                                  let from = self.draggedTrackIndex,
+                                  from != self.trackIndex
+                            else { return }
+                            self.onMove(from, self.trackIndex)
+                            self.draggedTrackIndex = self.trackIndex
+                        }
+                        .allowsHitTesting(true)
+                }
+            }
     }
 }
 
-struct PlaylistRowDropDelegate: DropDelegate {
-    let destinationIndex: Int
-    @Binding var draggedIndex: Int?
-    let isEnabled: Bool
-    let onMove: (Int, Int) -> Void
-
-    func validateDrop(info _: DropInfo) -> Bool {
-        self.isEnabled && self.draggedIndex != nil
-    }
-
-    func dropEntered(info _: DropInfo) {
-        guard self.isEnabled, let from = draggedIndex, from != destinationIndex else { return }
-        self.onMove(from, self.destinationIndex)
-        self.draggedIndex = self.destinationIndex
-    }
-
-    func performDrop(info _: DropInfo) -> Bool {
-        self.draggedIndex = nil
-        return true
-    }
-
-    func dropUpdated(info _: DropInfo) -> DropProposal? {
-        DropProposal(operation: self.isEnabled ? .move : .forbidden)
-    }
-}
-
-/// Bridges playlist keyboard commands from `AppDelegate` into view-local selection state.
+/// Bridges playlist keyboard commands from `WinampHotkeys` into view-local selection state.
 @MainActor
 final class PlaylistKeyboardNavigation: WinampPlaylistKeyboard.Handling {
     private weak var playlistManager: PlaylistManager?
     private var isMinimized: (() -> Bool)?
     private var visibleTracks: (() -> [(index: Int, track: Track)])?
-    private var selectedTrack: Binding<Track.ID?>?
+    private var selection: Binding<PlaylistSelectionModel>?
     private var userInitiatedPlayback: Binding<Bool>?
 
     func bind(
         playlistManager: PlaylistManager,
         isMinimized: @escaping () -> Bool,
         visibleTracks: @escaping () -> [(index: Int, track: Track)],
-        selectedTrack: Binding<Track.ID?>,
+        selection: Binding<PlaylistSelectionModel>,
         userInitiatedPlayback: Binding<Bool>
     ) {
         self.playlistManager = playlistManager
         self.isMinimized = isMinimized
         self.visibleTracks = visibleTracks
-        self.selectedTrack = selectedTrack
+        self.selection = selection
         self.userInitiatedPlayback = userInitiatedPlayback
     }
 
@@ -81,52 +73,199 @@ final class PlaylistKeyboardNavigation: WinampPlaylistKeyboard.Handling {
         self.playlistManager = nil
         self.isMinimized = nil
         self.visibleTracks = nil
-        self.selectedTrack = nil
+        self.selection = nil
         self.userInitiatedPlayback = nil
     }
 
-    func moveSelection(by offset: Int) {
+    func moveSelection(by offset: Int, extend: Bool) {
         guard self.isMinimized?() == false,
-              let visibleTracks = self.visibleTracks?(),
-              !visibleTracks.isEmpty,
-              let selectedTrack = self.selectedTrack
+              let ordered = self.orderedIDs(),
+              !ordered.isEmpty,
+              var model = self.selection?.wrappedValue
         else { return }
+        model.moveCursor(by: offset, extend: extend, orderedIDs: ordered)
+        self.selection?.wrappedValue = model
+    }
 
-        let anchorIndex = Self.anchorVisibleIndex(
-            in: visibleTracks,
-            selectedID: selectedTrack.wrappedValue,
-            currentPlaylistIndex: self.playlistManager?.currentIndex ?? -1
-        )
-        let nextIndex = min(max(anchorIndex + offset, 0), visibleTracks.count - 1)
-        selectedTrack.wrappedValue = visibleTracks[nextIndex].track.id
+    func jumpToStart(extend: Bool) {
+        guard self.isMinimized?() == false,
+              let ordered = self.orderedIDs(),
+              var model = self.selection?.wrappedValue
+        else { return }
+        model.jumpToStart(extend: extend, orderedIDs: ordered)
+        self.selection?.wrappedValue = model
+    }
+
+    func jumpToEnd(extend: Bool) {
+        guard self.isMinimized?() == false,
+              let ordered = self.orderedIDs(),
+              var model = self.selection?.wrappedValue
+        else { return }
+        model.jumpToEnd(extend: extend, orderedIDs: ordered)
+        self.selection?.wrappedValue = model
+    }
+
+    func pageSelection(direction: Int, extend: Bool) {
+        guard let ordered = self.orderedIDs() else { return }
+        let step = PlaylistSelectionModel.pageStep(count: ordered.count) * (direction >= 0 ? 1 : -1)
+        self.moveSelection(by: step, extend: extend)
     }
 
     func playSelectedTrack() {
         guard let playlistManager = self.playlistManager,
               let visibleTracks = self.visibleTracks?(),
-              let selectedID = self.selectedTrack?.wrappedValue,
-              let indexedTrack = visibleTracks.first(where: { $0.track.id == selectedID })
+              let model = self.selection?.wrappedValue
+        else { return }
+
+        let playID = model.cursorID
+            ?? model.selectedIDs.first
+        guard let playID,
+              let indexed = visibleTracks.first(where: { $0.track.id == playID })
         else { return }
 
         self.userInitiatedPlayback?.wrappedValue = true
-        playlistManager.playTrack(at: indexedTrack.index)
+        playlistManager.playTrack(at: indexed.index)
     }
 
-    private static func anchorVisibleIndex(
-        in visibleTracks: [(index: Int, track: Track)],
-        selectedID: Track.ID?,
-        currentPlaylistIndex: Int
-    ) -> Int {
-        if let selectedID,
-           let selectedIndex = visibleTracks.firstIndex(where: { $0.track.id == selectedID })
-        {
-            return selectedIndex
+    func removeSelectedTracks() {
+        guard let playlistManager = self.playlistManager,
+              let indices = self.selectedIndices(),
+              !indices.isEmpty
+        else { return }
+        playlistManager.removeTracks(at: indices)
+        self.pruneSelectionToPlaylist()
+    }
+
+    func cropToSelection() {
+        guard let playlistManager = self.playlistManager,
+              let indices = self.selectedIndices(),
+              !indices.isEmpty
+        else { return }
+        playlistManager.cropToTracks(at: indices)
+        self.pruneSelectionToPlaylist()
+    }
+
+    func clearSelection() {
+        self.selection?.wrappedValue = PlaylistSelectionModel()
+    }
+
+    func selectAll() {
+        guard let ordered = self.orderedIDs(),
+              var model = self.selection?.wrappedValue
+        else { return }
+        model.selectAll(orderedIDs: ordered)
+        self.selection?.wrappedValue = model
+    }
+
+    func invertSelection() {
+        guard let ordered = self.orderedIDs(),
+              var model = self.selection?.wrappedValue
+        else { return }
+        model.invert(orderedIDs: ordered)
+        self.selection?.wrappedValue = model
+    }
+
+    func moveSelectedTracks(by delta: Int) {
+        guard let playlistManager = self.playlistManager,
+              let indices = self.selectedIndices(),
+              !indices.isEmpty
+        else { return }
+        let selectedIDs = self.selection?.wrappedValue.selectedIDs ?? []
+        let cursorID = self.selection?.wrappedValue.cursorID
+        let anchorID = self.selection?.wrappedValue.anchorID
+        playlistManager.moveSelectedTracks(indices: indices, by: delta)
+        // Selection is by track id — still valid after reorder.
+        var model = PlaylistSelectionModel()
+        model.selectedIDs = selectedIDs
+        model.cursorID = cursorID
+        model.anchorID = anchorID
+        self.selection?.wrappedValue = model
+    }
+
+    private func orderedIDs() -> [UUID]? {
+        self.visibleTracks?().map(\.track.id)
+    }
+
+    private func selectedIndices() -> IndexSet? {
+        guard let visibleTracks = self.visibleTracks?(),
+              let selected = self.selection?.wrappedValue.selectedIDs,
+              !selected.isEmpty
+        else { return nil }
+        var indices = IndexSet()
+        for item in visibleTracks where selected.contains(item.track.id) {
+            indices.insert(item.index)
         }
-        if currentPlaylistIndex >= 0,
-           let currentIndex = visibleTracks.firstIndex(where: { $0.index == currentPlaylistIndex })
-        {
-            return currentIndex
+        return indices
+    }
+
+    private func pruneSelectionToPlaylist() {
+        guard var model = self.selection?.wrappedValue else { return }
+        let valid = Set(self.playlistManager?.tracks.map(\.id) ?? [])
+        model.prune(toValidIDs: valid)
+        self.selection?.wrappedValue = model
+    }
+}
+
+/// Classic pledit chrome menu commands (ADD/REM/SEL/MISC/LIST) shared by the UI.
+@MainActor
+enum PlaylistChromeActions {
+    static func selectedIndices(tracks: [Track], selection: PlaylistSelectionModel) -> IndexSet {
+        var indices = IndexSet()
+        for (index, track) in tracks.enumerated() where selection.selectedIDs.contains(track.id) {
+            indices.insert(index)
         }
-        return 0
+        return indices
+    }
+
+    static func removeSelected(manager: PlaylistManager, selection: inout PlaylistSelectionModel) {
+        let indices = self.selectedIndices(tracks: manager.tracks, selection: selection)
+        guard !indices.isEmpty else { return }
+        manager.removeTracks(at: indices)
+        selection.prune(toValidIDs: Set(manager.tracks.map(\.id)))
+    }
+
+    static func cropToSelected(manager: PlaylistManager, selection: inout PlaylistSelectionModel) {
+        let indices = self.selectedIndices(tracks: manager.tracks, selection: selection)
+        guard !indices.isEmpty else { return }
+        manager.cropToTracks(at: indices)
+        selection.prune(toValidIDs: Set(manager.tracks.map(\.id)))
+    }
+
+    static func clearList(manager: PlaylistManager, selection: inout PlaylistSelectionModel) {
+        manager.clearPlaylist()
+        selection = PlaylistSelectionModel()
+    }
+
+    static func selectAll(tracks: [Track], selection: inout PlaylistSelectionModel) {
+        selection.selectAll(orderedIDs: tracks.map(\.id))
+    }
+
+    static func selectNone(selection: inout PlaylistSelectionModel) {
+        selection = PlaylistSelectionModel()
+    }
+
+    static func invertSelection(tracks: [Track], selection: inout PlaylistSelectionModel) {
+        selection.invert(orderedIDs: tracks.map(\.id))
+    }
+
+    static func fileInfoIndex(
+        tracks: [Track],
+        selection: PlaylistSelectionModel,
+        currentIndex: Int
+    ) -> Int? {
+        if let index = tracks.indices.first(where: { selection.selectedIDs.contains(tracks[$0].id) }) {
+            return index
+        }
+        guard currentIndex >= 0, currentIndex < tracks.count else { return nil }
+        return currentIndex
+    }
+
+    static func presentFileInfo(manager: PlaylistManager, selection: PlaylistSelectionModel) {
+        guard let index = self.fileInfoIndex(
+            tracks: manager.tracks,
+            selection: selection,
+            currentIndex: manager.currentIndex
+        ) else { return }
+        manager.presentTrackInfo(at: index)
     }
 }

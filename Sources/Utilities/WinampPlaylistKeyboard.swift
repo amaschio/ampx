@@ -1,6 +1,6 @@
 import Foundation
 
-/// Routes playlist arrow-key navigation from `AppDelegate` into the visible playlist panel.
+/// Routes playlist keyboard commands from `WinampHotkeys` into the visible playlist panel.
 @MainActor
 enum WinampPlaylistKeyboard {
     private weak static var handler: Handling?
@@ -19,19 +19,64 @@ enum WinampPlaylistKeyboard {
         self.handler != nil
     }
 
-    static func moveSelection(by offset: Int) {
-        self.handler?.moveSelection(by: offset)
+    static func moveSelection(by offset: Int, extend: Bool = false) {
+        self.handler?.moveSelection(by: offset, extend: extend)
+    }
+
+    static func jumpToStart(extend: Bool = false) {
+        self.handler?.jumpToStart(extend: extend)
+    }
+
+    static func jumpToEnd(extend: Bool = false) {
+        self.handler?.jumpToEnd(extend: extend)
+    }
+
+    static func pageSelection(direction: Int, extend: Bool = false) {
+        self.handler?.pageSelection(direction: direction, extend: extend)
     }
 
     static func playSelectedTrack() {
         self.handler?.playSelectedTrack()
+    }
+
+    static func removeSelectedTracks() {
+        self.handler?.removeSelectedTracks()
+    }
+
+    static func cropToSelection() {
+        self.handler?.cropToSelection()
+    }
+
+    static func clearSelection() {
+        self.handler?.clearSelection()
+    }
+
+    static func selectAll() {
+        self.handler?.selectAll()
+    }
+
+    static func invertSelection() {
+        self.handler?.invertSelection()
+    }
+
+    static func moveSelectedTracks(by delta: Int) {
+        self.handler?.moveSelectedTracks(by: delta)
     }
 }
 
 extension WinampPlaylistKeyboard {
     @MainActor
     protocol Handling: AnyObject {
-        func moveSelection(by offset: Int)
+        func moveSelection(by offset: Int, extend: Bool)
+        func jumpToStart(extend: Bool)
+        func jumpToEnd(extend: Bool)
+        func pageSelection(direction: Int, extend: Bool)
         func playSelectedTrack()
+        func removeSelectedTracks()
+        func cropToSelection()
+        func clearSelection()
+        func selectAll()
+        func invertSelection()
+        func moveSelectedTracks(by delta: Int)
     }
 }

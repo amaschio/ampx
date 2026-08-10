@@ -484,4 +484,81 @@ final class PlaylistManagerTests: XCTestCase {
             outsideTrack.path
         )
     }
+
+    func testRemoveTracksRemovesMultipleAndRemapsCurrent() {
+        self.manager.tracks = self.makeTracks(5)
+        self.manager.currentIndex = 3
+        self.manager.removeTracks(at: IndexSet([1, 3]))
+        XCTAssertEqual(self.manager.tracks.count, 3)
+        XCTAssertEqual(self.manager.tracks.map(\.title), ["Track 0", "Track 2", "Track 4"])
+        // Former index 3 removed while current — plays fallback at min removed slot.
+        XCTAssertEqual(self.manager.currentIndex, 1)
+    }
+
+    func testCropToTracksKeepsOnlySelection() {
+        self.manager.tracks = self.makeTracks(5)
+        self.manager.currentIndex = 2
+        self.manager.cropToTracks(at: IndexSet([1, 2, 4]))
+        XCTAssertEqual(self.manager.tracks.map(\.title), ["Track 1", "Track 2", "Track 4"])
+        XCTAssertEqual(self.manager.currentIndex, 1)
+    }
+
+    func testMoveSelectedTracksUpKeepsBlockOrder() {
+        self.manager.tracks = self.makeTracks(5)
+        self.manager.currentIndex = 2
+        self.manager.moveSelectedTracks(indices: IndexSet([2, 3]), by: -1)
+        XCTAssertEqual(self.manager.tracks.map(\.title), ["Track 0", "Track 2", "Track 3", "Track 1", "Track 4"])
+        XCTAssertEqual(self.manager.currentIndex, 1)
+    }
+
+    func testSortTracksByTitlePreservesCurrentID() {
+        self.manager.tracks = [
+            Track(title: "C", artist: "A", url: URL(fileURLWithPath: "/tmp/c.mp3")),
+            Track(title: "A", artist: "A", url: URL(fileURLWithPath: "/tmp/a.mp3")),
+            Track(title: "B", artist: "A", url: URL(fileURLWithPath: "/tmp/b.mp3")),
+        ]
+        let currentID = self.manager.tracks[0].id
+        self.manager.currentIndex = 0
+        self.manager.sortTracks(by: .title)
+        XCTAssertEqual(self.manager.tracks.map(\.title), ["A", "B", "C"])
+        XCTAssertEqual(self.manager.tracks[self.manager.currentIndex].id, currentID)
+    }
+
+    func testReverseTracks() {
+        self.manager.tracks = self.makeTracks(3)
+        self.manager.currentIndex = 0
+        let firstID = self.manager.tracks[0].id
+        self.manager.reverseTracks()
+        XCTAssertEqual(self.manager.tracks.map(\.title), ["Track 2", "Track 1", "Track 0"])
+        XCTAssertEqual(self.manager.tracks[self.manager.currentIndex].id, firstID)
+    }
+
+    func testReplacePlaylistFromM3UReplacesTracks() async throws {
+        let tempDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("winamp-replace-m3u-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDirectory) }
+
+        let bundle = Bundle(for: PlaylistManagerTests.self)
+        let wavURL = try XCTUnwrap(bundle.url(forResource: "short", withExtension: "wav"))
+        let destWav = tempDirectory.appendingPathComponent("loaded-track.wav")
+        try FileManager.default.copyItem(at: wavURL, to: destWav)
+
+        let m3uContent = """
+        #EXTM3U
+        loaded-track.wav
+        """
+        let playlistURL = tempDirectory.appendingPathComponent("playlist.m3u")
+        try m3uContent.write(to: playlistURL, atomically: true, encoding: .utf8)
+
+        self.manager.tracks = self.makeTracks(3)
+        self.manager.currentIndex = 1
+
+        await self.manager.replacePlaylist(fromM3U: playlistURL)
+
+        XCTAssertEqual(self.manager.tracks.count, 1)
+        XCTAssertEqual(self.manager.tracks[0].url?.lastPathComponent, "loaded-track.wav")
+        XCTAssertFalse(self.manager.tracks.contains { $0.title.hasPrefix("Track ") })
+        XCTAssertEqual(self.manager.currentIndex, -1)
+    }
 }

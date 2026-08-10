@@ -22,7 +22,10 @@ struct WinampApp: App {
                 .preferredColorScheme(.dark)
                 .background(Color.clear)
                 .onAppear {
-                    self.appDelegate.bind(audioPlayer: self.audioPlayer)
+                    self.appDelegate.bind(
+                        audioPlayer: self.audioPlayer,
+                        playlistManager: self.playlistManager
+                    )
                 }
         }
         .windowStyle(.hiddenTitleBar)
@@ -66,10 +69,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private weak var audioPlayer: AudioPlayer?
+    private weak var playlistManager: PlaylistManager?
     private var keyboardEventMonitor: Any?
 
-    func bind(audioPlayer: AudioPlayer) {
+    func bind(audioPlayer: AudioPlayer, playlistManager: PlaylistManager) {
         self.audioPlayer = audioPlayer
+        self.playlistManager = playlistManager
     }
 
     func applicationDidFinishLaunching(_: Notification) {
@@ -80,42 +85,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func installKeyboardShortcuts() {
         self.keyboardEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let window = NSApp.keyWindow, window.isKeyWindow else { return event }
-
-            let noModifiers = event.modifierFlags.intersection([.command, .option, .control]).isEmpty
-            if noModifiers, WinampPlaylistKeyboard.isActive,
-               WinampPanelWindowManager.shared.isPlaylistWindow(window)
-            {
-                switch event.keyCode {
-                case 126: // up arrow
-                    WinampPlaylistKeyboard.moveSelection(by: -1)
-                    return nil
-                case 125: // down arrow
-                    WinampPlaylistKeyboard.moveSelection(by: 1)
-                    return nil
-                case 36: // return
-                    WinampPlaylistKeyboard.playSelectedTrack()
-                    return nil
-                default:
-                    break
-                }
-            }
-
-            guard event.keyCode == 49,
-                  event.modifierFlags.intersection([.command, .option, .control]).isEmpty
-            else {
-                return event
-            }
-
-            // Space bar play/pause — ignore when typing in a text field.
-            if let firstResponder = window.firstResponder,
-               firstResponder is NSTextView || firstResponder is NSTextField
-            {
-                return event
-            }
-
-            self?.audioPlayer?.togglePlayPause()
-            return nil
+            WinampHotkeys.handle(
+                event,
+                audioPlayer: self?.audioPlayer,
+                playlistManager: self?.playlistManager
+            )
         }
     }
 

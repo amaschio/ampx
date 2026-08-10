@@ -56,13 +56,32 @@ Load and save M3U playlists from the playlist panel’s menus (same supported au
 
 | Shortcut | Action |
 |----------|--------|
-| `X` | Play / Pause |
+| `X` / `C` / `Space` | Play / Pause |
 | `V` | Stop |
-| `Z` | Previous track |
-| `B` | Next track |
-| `Space` | Play / Pause (when not typing in a text field) |
+| `Z` / `B` | Previous / Next track |
+| `R` / `S` | Toggle Repeat / Shuffle |
+| `←` / `→` | Seek −/+ 5 seconds (when playlist is not focused) |
+| `↑` / `↓` | Volume ± (when playlist is not focused) |
+| `L` / `⇧L` | Add file / Add folder |
+| `⌘L` / `⌘⇧L` | Add file / Add folder (File menu) |
 
-Playlist (when the playlist window is key): ↑ / ↓ move selection; Return plays the selected track.
+**Playlist** (when the playlist window is key):
+
+| Shortcut | Action |
+|----------|--------|
+| Click / `⇧`-click / `⌘`-click | Select / range / toggle |
+| `↑` `↓` · `⇧`+arrows | Move cursor · extend selection |
+| `Home` / `End` · `Page Up` / `Page Down` | Jump / page (~⅕ of list) |
+| `Return` | Play cursor / selection |
+| `Delete` | Remove selected |
+| `⌘⌫` | Crop (keep selected only) |
+| `⌘⇧⌫` | Clear playlist |
+| `⌥↑` / `⌥↓` | Move selected rows |
+| `⌘A` / `⌘I` | Select all / Invert |
+| `⌘⇧1` / `⌘⇧2` / `⌘⇧3` | Sort by title / file name / path |
+| `⌘R` / `⌘⇧R` | Reverse / Randomize |
+
+Winamp `Ctrl` shortcuts map to **⌘** on Mac.
 
 ### On-skin controls
 
@@ -107,7 +126,15 @@ Click the shade button in the title bar (or double-click the title) to collapse 
 
 Toggle with the **PL** button on the main window (or close from the playlist title bar).
 
-- Track list with selection, context menu (play / remove), and playlist actions (add, clear, M3U, etc.)
+- Track list with selection and context menu (play / remove)
+- Bottom chrome menus (classic Winamp):
+  - **ADD** — Add File…, Add Directory…
+  - **REM** — Remove, Crop, Clear Playlist (Remove and Crop require a selection)
+  - **SEL** — Select All, Select None, Invert Selection
+  - **MISC** — Sort by Title / Filename / Path, Reverse, Randomize, File Info
+  - **LIST** — New List, Save List…, Load List… (Load replaces the current playlist)
+- Multi-select: click, Shift-click, and ⌘-click (keyboard shortcuts in **Playback → Keyboard → Playlist** above)
+- **File Info** shows metadata for the first selected track in playlist order when multiple rows are selected; with no selection it uses the currently playing track
 - Resize from the bottom-right grip; width stays at least as wide as the main window when docked
 - Windowshade via title double-click or the panel’s shade control
 
