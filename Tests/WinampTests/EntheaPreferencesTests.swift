@@ -54,4 +54,20 @@ final class EntheaPreferencesTests: XCTestCase {
         XCTAssertEqual(again.modeID, 12)
         XCTAssertFalse(again.autopilot)
     }
+
+    func testForceMetalBodyDefaultsFalse() {
+        let suiteName = "EntheaPreferencesTests.\(#function)"
+        let suite = UserDefaults(suiteName: suiteName)!
+        suite.removePersistentDomain(forName: suiteName)
+        XCTAssertFalse(EntheaPreferences(defaults: suite).forceMetalBody)
+    }
+
+    func testForceMetalBodyPersists() {
+        let suiteName = "EntheaPreferencesTests.\(#function)"
+        let suite = UserDefaults(suiteName: suiteName)!
+        suite.removePersistentDomain(forName: suiteName)
+        let prefs = EntheaPreferences(defaults: suite)
+        prefs.forceMetalBody = true
+        XCTAssertTrue(EntheaPreferences(defaults: suite).forceMetalBody)
+    }
 }

@@ -1,6 +1,6 @@
 # Winamp macOS — Usage Guide
 
-A native Classic Winamp 2.x–style player for macOS. The UI is the **Classic skin only** (275 px Webamp geometry): main player, shade mode, playlist, equalizer, and a managed MilkDrop Metal visualizer panel. There is no modern dual UI.
+A native Classic Winamp 2.x–style player for macOS. The UI is the **Classic skin only** (275 px Webamp geometry): main player, shade mode, playlist, equalizer, and a managed ENTHEA visualizer panel. There is no modern dual UI.
 
 **Requires macOS 26.5 (Tahoe) or later.**
 
@@ -13,7 +13,7 @@ A native Classic Winamp 2.x–style player for macOS. The UI is the **Classic sk
 1. Open `Winamp.xcodeproj` in Xcode, select the **Winamp** scheme, and run (⌘R), **or**
 2. From the repo root: `./build.sh --run`
 
-On launch you get the Classic main window (275×116). Playlist and equalizer panels open by default and dock under the main window. The MilkDrop visualizer starts closed.
+On launch you get the Classic main window (275×116). Playlist and equalizer panels open by default and dock under the main window. The visualizer starts closed.
 
 ### Requirements
 
@@ -119,7 +119,7 @@ Toggle with the **EQ** button.
 - Preamp, ON / AUTO, and built-in presets
 - **Load EQF…** — import Winamp `.eqf` / `.q1` preset files
 
-### MilkDrop visualizer panel
+### Visualizer panel (ENTHEA)
 
 A separate managed window (same docking system as EQ and playlist), not an inline widen of the main player.
 
@@ -128,9 +128,11 @@ A separate managed window (same docking system as EQ and playlist), not an inlin
 1. **Double-click** the mini spectrum on the main window (or shade strip), or
 2. Title-bar **options** menu → **Show Visualizer**
 
-Close from the panel’s close control or the same menu (**Hide Visualizer**). The panel hosts the Metal MilkDrop-style visualizer (presets, resize, shade). Fullscreen is available from the visualizer UI when open.
+Close from the panel’s close control or the same menu (**Hide Visualizer**). The panel hosts **ENTHEA** (WebGL) with Classic pledit chrome: mode ◀/▶, title toggles autopilot, **F** (or the ⛶ strip control) enters theater mode (covers the full display including the menu-bar / notch band; **Escape** or **F** exits and restores size/position). The main-window mini spectrum stays Metal.
 
-Mini spectrum on the main window remains a real-time FFT / scope preview while the MilkDrop panel is closed.
+Photosensitivity: the first open shows a notice. Flicker drive stays off by default.
+
+Kill switch (rollback to Metal MilkDrop body): `defaults write com.winamp.macos entheaForceMetalBody -bool YES`, then reopen the panel.
 
 ### Zoom
 
@@ -175,7 +177,7 @@ Displayed metadata includes title, artist, duration, bitrate, and sample rate (a
 ### No spectrum / empty visualizer
 
 - Start playback — analysis follows the engine tap
-- Open the MilkDrop panel via double-click on the mini spectrum if you expect the full visualizer window
+- Open the visualizer panel via double-click on the mini spectrum if you expect the full visualizer window
 
 ---
 

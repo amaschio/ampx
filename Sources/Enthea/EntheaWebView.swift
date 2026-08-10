@@ -2,9 +2,8 @@ import AppKit
 import SwiftUI
 import WebKit
 
-/// Panel body mode for the Visualizer: `.metal` renders the existing MilkDrop `MTKView`,
-/// `.enthea` renders the `WKWebView` host. Default is `.enthea` (Task 2+); Metal stays
-/// on the migration strip until Stage 5 retires it.
+/// Panel body mode for the Visualizer: `.metal` is the kill-switch rollback path;
+/// `.enthea` is the default panel body (Task 5+).
 enum EntheaBodyMode: String {
     case metal
     case enthea

@@ -83,6 +83,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let window = NSApp.keyWindow, window.isKeyWindow else { return event }
 
             let noModifiers = event.modifierFlags.intersection([.command, .option, .control]).isEmpty
+            if noModifiers, WinampPanelWindowManager.shared.isVisualizerWindow(window) {
+                // F — toggle theater; Escape — exit theater only.
+                if event.keyCode == 3 {
+                    WinampPanelWindowManager.shared.toggleVisualizerTheater()
+                    return nil
+                }
+                if event.keyCode == 53, WinampPanelWindowManager.shared.isVisualizerInTheater {
+                    WinampPanelWindowManager.shared.exitVisualizerTheater()
+                    return nil
+                }
+            }
+
             if noModifiers, WinampPlaylistKeyboard.isActive,
                WinampPanelWindowManager.shared.isPlaylistWindow(window)
             {
