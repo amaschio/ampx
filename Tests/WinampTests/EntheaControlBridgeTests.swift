@@ -49,6 +49,13 @@ final class EntheaControlBridgeTests: XCTestCase {
         XCTAssertEqual(status?.dose ?? 0, 0.55, accuracy: 0.001)
     }
 
+    func testSetSubstanceEmitsJS() {
+        let evaluator = RecordingEvaluator()
+        let bridge = EntheaControlBridge(evaluator: evaluator)
+        bridge.setSubstance("psilo")
+        XCTAssertTrue(evaluator.scripts.contains { $0.contains("setSubstance(\"psilo\")") })
+    }
+
     @MainActor
     func testStripTitleReflectsAutopilot() {
         let controller = EntheaPanelController()

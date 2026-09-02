@@ -302,9 +302,9 @@ Each stage leaves the app buildable and usable.
 | **5 — Theater + retire Metal panel path** | `visibleFrame` theater; remove Metal\|Enthea switch UI (**keep the hidden kill-switch flag**); retire the Metal MilkDrop *panel body* (**mini LCD still Metal**) |
 | **6 — Predictive drops** | **Native Swift** offline track analysis → `S.timeline`; playhead shim; drop arsenal works with the playlist |
 | **7 — Polish** | Album art → Image Warp; FPS/visibility caps; `USAGE.md` shortcuts. **Kill switch may be removed after this ships** |
-| **8 — ENTHEA-styled mini LCD** | New ENTHEA-derived *Metal* mode in the main-window 76×16 viz, joining the tap-cycle; no WebKit involved; keep double-tap → panel |
+| **8 — ENTHEA-styled mini LCD** | **SKIP** — keep Classic mini LCD (bars / scope / analyzer); no ENTHEA-derived Metal mode in the tap cycle |
 | **9 — Substance / phenomenology UI** | Classic menu or strip for ENTHEA substance presets; **artistic interpretation** copy only; disclaimers (not dosing/medical advice); photosensitive note remains |
-| **10 — Optional further Metal port** | Optionally rewrite more ENTHEA modes in Metal, reusing the Stage 8 porting pattern — last, only if WebKit cost or native desire justifies it |
+| **10 — Optional further Metal port** | Optionally rewrite more ENTHEA modes in Metal — last, only if WebKit cost or native desire justifies it (no longer gated on Stage 8) |
 
 **Minimum “ENTHEA is the visualizer panel”:** Stages −1 through 5.  
 **Full product intent:** through Stage 9.  

@@ -169,8 +169,15 @@
     reseed() {
       if (typeof S === "object") S.reseed = 2;
     },
-    setSubstance(/* id */) {
-      /* wired in Task 9 */
+    setSubstance(id) {
+      if (typeof SUBSTANCES === "undefined" || typeof applySubstance !== "function") return;
+      const key = String(id || "");
+      const prof = SUBSTANCES.find(function (s) {
+        return s.id === key;
+      });
+      if (!prof) return;
+      // Visual signature only — do not beginTrip (no timed phase HUD).
+      applySubstance(prof);
     },
     setBackingScale(scale) {
       window.__winampBackingScale = scale;

@@ -51,6 +51,14 @@ final class EntheaControlBridge: @unchecked Sendable {
         self.evaluate("window.winampEnthea&&window.winampEnthea.fireDrop();")
     }
 
+    func setSubstance(_ id: String) {
+        guard let data = try? JSONEncoder().encode(id),
+              let encoded = String(data: data, encoding: .utf8)
+        else { return }
+        self.evaluate("window.winampEnthea&&window.winampEnthea.setSubstance(\(encoded));")
+        self.refreshStatus()
+    }
+
     /// Restore persisted prefs once `bridge.js` reports ready (poll briefly).
     func restoreWhenReady(modeID: Int, autopilot: Bool) {
         self.pollReady(attemptsLeft: 40) { [weak self] in
@@ -212,6 +220,14 @@ final class EntheaPanelController: ObservableObject {
 
     func fireDrop() {
         self.controlBridge.fireDrop()
+    }
+
+    /// Apply an artistic look (ENTHEA substance visual signature). Disables autopilot.
+    func applyLook(_ preset: EntheaLookPreset) {
+        self.preferences.autopilot = false
+        self.autopilot = false
+        self.controlBridge.setAutopilot(false)
+        self.controlBridge.setSubstance(preset.id)
     }
 
     private func apply(_ status: EntheaHostStatus) {

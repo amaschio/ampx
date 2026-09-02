@@ -13,6 +13,7 @@
 4. `bridge.js` Task 4: `setMode` is absolute; `stepMode(±1)` is relative (avoids clashing with mode id 1); `setDose(delta)` nudges `S.dose`; `getStatus()` feeds the Classic strip title.
 5. `bridge.js` Task 6: `setTimeline` / `setPosition` install a shim `AUDIO.fileEl` and force `S.audio.source = "file"` so ENTHEA's predictive `updateTimeline` runs from the native analyzer.
 6. `bridge.js` Task 7: `setCoverArt` mirrors ENTHEA `uploadImage` (texture + 6-color palette → mode 10 Image Warp); `setRenderPaused` stops the rAF loop at 0 fps when the host reports idle/occluded.
+7. `bridge.js` Task 9: `setSubstance(id)` calls ENTHEA `applySubstance` (visual signature only — no `beginTrip`).
 
 ## Host polish (Task 7)
 

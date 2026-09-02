@@ -213,6 +213,26 @@ struct ClassicVisualizerPanelView: View {
                 }
             )
 
+            Menu {
+                Text("Looks — artistic interpretations")
+                    .font(.caption)
+                ForEach(EntheaLookPreset.all) { preset in
+                    Button(preset.title) {
+                        self.entheaController.applyLook(preset)
+                    }
+                    .help(preset.blurb)
+                }
+            } label: {
+                Text("LOOKS")
+                    .font(.system(size: 8 * self.s, weight: .bold, design: .monospaced))
+                    .foregroundColor(ClassicSkinColors.led)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .help(EntheaLookPreset.disclaimer)
+            .padding(.horizontal, 2 * self.s)
+
             Button {
                 self.entheaController.fireDrop()
             } label: {

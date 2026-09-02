@@ -679,26 +679,11 @@ git commit -m "feat: drive ENTHEA's DSP from a fake AnalyserNode shim"
 
 ---
 
-### Task 8: ENTHEA-styled Metal mini viz (Stage 8)
+### Task 8: ENTHEA-styled Metal mini viz (Stage 8) — SKIP
 
-**Files:**
-- Modify: `Sources/Visualization/MetalVisualizationPlugin.swift` — new mini plugin kind
-- Modify: `Sources/Shaders/VisualizerShaders.metal` — port one cheap ENTHEA mode's GLSL to MSL
-- Modify: `Sources/SpectrumView.swift` — add the mode to the tap cycle
-- Test: extend `MetalVisualizationSmokeTests`
+**Status: not doing.** Product decision: keep the Classic mini LCD on bars / oscilloscope / analyzer only. Do not port an ENTHEA-derived Metal mode into the 76×16 tap cycle.
 
-**No WebKit in this task.** Both web routes were considered and rejected in the spec: `WKWebView.takeSnapshot` forces a full render pass plus image encode per frame to fill a 76×16 slot and only works while the panel is open (so Metal has to exist as a fallback anyway), and a second resident `WKWebView` in the main window is an explicit non-goal. Porting one cheap mode to Metal costs less than either and has no runtime overhead.
-
-**Constraints:**
-- Double-tap still toggles `showVisualizer`
-- Single-tap still cycles `visualizationMode` (`@AppStorage`); the new mode joins the cycle rather than replacing bars/oscilloscope/analyzer
-- Classic 76×16 geometry unchanged
-
-- [ ] Pick the cheapest visually-distinct ENTHEA mode (Waveform / Cellular / Breathing Walls are candidates); port its GLSL, not the uber-shader
-- [ ] Drive it from the existing `AudioFeatureBus` snapshot the mini renderer already reads
-- [ ] Smoke test renders headlessly like the other plugins
-- [ ] Manual: mode cycles, double-tap opens the panel, no extra process
-- [ ] Commit if asked: `feat: add ENTHEA-styled Metal mini visualizer mode`
+Any prior Task 8 work on this branch was reverted. Task 10 (optional further Metal port) remains skip-unless-requested and no longer depends on a Stage 8 porting pattern.
 
 ---
 
@@ -711,7 +696,7 @@ git commit -m "feat: drive ENTHEA's DSP from a fake AnalyserNode shim"
 
 **Copy rules (mandatory):**
 - Label as **artistic / phenomenological looks**, not “drugs” as medical guidance
-- One-line disclaimer near menu / first use: not dosing advice, not medical advice; simulator only
+- One-line disclaimer near the menu / in `USAGE.md`: not dosing advice, not medical advice; simulator only (no first-use alert)
 - Keep the photosensitive warning from Task 2
 
 - [ ] Wire menu → `setSubstance`
@@ -724,9 +709,9 @@ git commit -m "feat: drive ENTHEA's DSP from a fake AnalyserNode shim"
 
 **Files (only if pursued):**
 - `Sources/Shaders/VisualizerShaders.metal`
-- New Metal plugins per mode, reusing the porting pattern established in Task 8
+- New Metal plugins per mode
 
-**Exit criteria:** User explicitly asks to continue the Metal port after the WebKit path is satisfactory. Note that a no-go on Task −1 promotes this from optional to primary.
+**Exit criteria:** User explicitly asks to continue the Metal port after the WebKit path is satisfactory. Note that a no-go on Task −1 promotes this from optional to primary. Task 8 was skipped, so there is no mini-LCD porting pattern to reuse.
 
 - [ ] Do not start in the default execution of this plan
 
@@ -745,7 +730,7 @@ git commit -m "feat: drive ENTHEA's DSP from a fake AnalyserNode shim"
 | 5 | Theater expands and restores; kill switch works; mini still Metal; dock pack OK |
 | 6 | Analyzer fixture test passes; drops land on time; seek rewinds |
 | 7 | USAGE updated; caps work; kill switch retired |
-| 8 | Metal smoke test passes; mode in tap cycle; no second process |
+| 8 | **SKIP** — mini LCD stays Classic modes only |
 | 9 | Looks menu + disclaimer |
 | 10 | Optional only |
 

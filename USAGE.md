@@ -161,6 +161,7 @@ Close from the panel’s close control or the same menu (**Hide Visualizer**). T
 |--------|--------|
 | ◀ / ▶ | Previous / next visual mode (hold **⇧** to nudge dose) |
 | Title | Toggle autopilot · **double-click** to reseed |
+| **LOOKS** | Artistic / phenomenological look presets (not medical advice) |
 | 💥 | Force a drop effect |
 | ⛶ / **F** | Theater (full display including menu-bar / notch band) |
 | **Escape** / **F** | Exit theater and restore size/position |
@@ -168,6 +169,8 @@ Close from the panel’s close control or the same menu (**Hide Visualizer**). T
 While a track plays, native offline analysis maps drops/sections into ENTHEA’s timeline (no file handed to WebKit). Embedded album art (when present) feeds **Image Warp**. Audio IPC caps at ~30 Hz when the docked panel is small and ~60 Hz when large or in theater; rendering and IPC pause when playback is stopped, the panel is shaded/hidden, or the window is occluded. The main-window mini spectrum stays Metal.
 
 Photosensitivity: the first open shows a notice. Flicker drive stays off by default.
+
+**Looks** are artistic visual interpretations of ENTHEA’s substance presets (titles like “Electric Lattices”, not dosing guidance). Not dosing advice, not medical advice; simulator only.
 
 ### Zoom
 
