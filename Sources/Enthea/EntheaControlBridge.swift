@@ -47,6 +47,10 @@ final class EntheaControlBridge: @unchecked Sendable {
         self.evaluate("window.winampEnthea&&window.winampEnthea.reseed();")
     }
 
+    func fireDrop() {
+        self.evaluate("window.winampEnthea&&window.winampEnthea.fireDrop();")
+    }
+
     /// Restore persisted prefs once `bridge.js` reports ready (poll briefly).
     func restoreWhenReady(modeID: Int, autopilot: Bool) {
         self.pollReady(attemptsLeft: 40) { [weak self] in
@@ -204,6 +208,10 @@ final class EntheaPanelController: ObservableObject {
 
     func reseed() {
         self.controlBridge.reseed()
+    }
+
+    func fireDrop() {
+        self.controlBridge.fireDrop()
     }
 
     private func apply(_ status: EntheaHostStatus) {

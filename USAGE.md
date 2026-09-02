@@ -155,7 +155,7 @@ A separate managed window (same docking system as EQ and playlist), not an inlin
 1. **Double-click** the mini spectrum on the main window (or shade strip), or
 2. Title-bar **options** menu → **Show Visualizer**
 
-Close from the panel’s close control or the same menu (**Hide Visualizer**). The panel hosts **ENTHEA** (WebGL) with Classic pledit chrome: mode ◀/▶, title toggles autopilot, **F** (or the ⛶ strip control) enters theater mode (covers the full display including the menu-bar / notch band; **Escape** or **F** exits and restores size/position). The main-window mini spectrum stays Metal.
+Close from the panel’s close control or the same menu (**Hide Visualizer**). The panel hosts **ENTHEA** (WebGL) with Classic pledit chrome: mode ◀/▶, title toggles autopilot, **💥** forces a drop effect, **F** (or the ⛶ strip control) enters theater mode (covers the full display including the menu-bar / notch band; **Escape** or **F** exits and restores size/position). While a track plays, a native offline analysis maps drops/sections into ENTHEA’s timeline (no file handed to WebKit). The main-window mini spectrum stays Metal.
 
 Photosensitivity: the first open shows a notice. Flicker drive stays off by default.
 

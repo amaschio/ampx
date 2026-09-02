@@ -66,8 +66,9 @@
     AUDIO.waveL = new Float32Array(WAVE);
     AUDIO.waveR = new Float32Array(WAVE);
     AUDIO._winampShim = true;
+    // Prefer file when a native timeline is present (useTL); otherwise winamp.
     // Must not be 'system' — that arms the DRM-silence watchdog.
-    S.audio.source = "winamp";
+    S.audio.source = S.timeline ? "file" : "winamp";
   }
 
   function decodePush(blob) {
@@ -145,6 +146,13 @@
       };
     },
   };
+  function ensureFileEl() {
+    if (typeof AUDIO !== "object") return;
+    if (!AUDIO.fileEl || typeof AUDIO.fileEl !== "object") {
+      AUDIO.fileEl = { currentTime: 0, paused: true };
+    }
+  }
+
   window.winampEnthea = api;
   window.winampAudio = {
     push(blob, sampleRate, isPlaying) {
@@ -158,9 +166,39 @@
       }
       // Pause → ENTHEA's updateAudio early-returns and envelopes decay.
       S.audio.on = !!isPlaying;
+      // Keep timeline path armed while a native map is loaded.
+      if (S.timeline) S.audio.source = "file";
     },
-    setTimeline() {},
-    setPosition() {},
+    setTimeline(tl) {
+      if (typeof S !== "object" || typeof AUDIO !== "object") return;
+      ensureFileEl();
+      if (!tl) {
+        S.timeline = null;
+        return;
+      }
+      S.timeline = {
+        dur: Number(tl.dur) || 0,
+        drops: Array.isArray(tl.drops) ? tl.drops.map(Number) : [],
+        sections: Array.isArray(tl.sections)
+          ? tl.sections.map(function (s) {
+              return { t: Number(s.t) || 0, energy: s.energy | 0 };
+            })
+          : [],
+        fps: Number(tl.fps) || 0,
+        _di: 0,
+        _si: 0,
+        _lastCt: 0,
+        _cd: 0,
+        _sx: 0,
+      };
+      S.audio.source = "file";
+    },
+    setPosition(seconds, paused) {
+      if (typeof AUDIO !== "object") return;
+      ensureFileEl();
+      AUDIO.fileEl.currentTime = Number(seconds) || 0;
+      AUDIO.fileEl.paused = !!paused;
+    },
   };
 
   // Boot: hide ENTHEA's HTML chrome; keep flicker off (default in S).

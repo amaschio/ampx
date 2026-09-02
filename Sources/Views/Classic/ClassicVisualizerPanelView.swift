@@ -35,6 +35,7 @@ enum ClassicVisualizerPanelMounting {
 /// Classic managed visualizer panel: pledit chrome, ENTHEA body (Metal via kill switch), theater, BR resize.
 struct ClassicVisualizerPanelView: View {
     @Environment(\.winampUIScale) private var uiScale
+    @EnvironmentObject private var audioPlayer: AudioPlayer
     @Binding var visualizerSize: CGSize
     @Binding var isMinimized: Bool
     @Binding var showVisualizer: Bool
@@ -199,6 +200,9 @@ struct ClassicVisualizerPanelView: View {
                     EntheaWebView(
                         isActive: self.showVisualizer && !self.isMinimized,
                         size: geo.size,
+                        trackURL: self.audioPlayer.currentTrack?.url,
+                        currentTime: self.audioPlayer.currentTime,
+                        isPlaying: self.audioPlayer.isPlaying,
                         controller: self.entheaController
                     )
                 }
@@ -235,6 +239,21 @@ struct ClassicVisualizerPanelView: View {
                     }
                 }
             )
+
+            Button {
+                if !self.useMetalBody {
+                    self.entheaController.fireDrop()
+                }
+            } label: {
+                Text("💥")
+                    .font(.system(size: 9 * self.s, weight: .bold))
+                    .foregroundColor(ClassicSkinColors.led)
+            }
+            .buttonStyle(.plain)
+            .help("Force drop effect")
+            .opacity(self.useMetalBody ? 0.35 : 1)
+            .disabled(self.useMetalBody)
+            .padding(.horizontal, 2 * self.s)
 
             Button {
                 WinampPanelWindowManager.shared.toggleVisualizerTheater()

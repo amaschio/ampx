@@ -16,10 +16,12 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
     let webView: WKWebView
     private let jsEvaluator: EntheaWKJavaScriptEvaluator
     private let audioBridge: EntheaAudioBridge
+    private let trackBridge: EntheaTrackBridge
     private var pushTimer: Timer?
     private var didLoadEnthea = false
     /// Classic strip / prefs owner — attached from SwiftUI representable.
     weak var panelController: EntheaPanelController?
+    private var lastTrackURL: URL?
 
     override init(frame frameRect: NSRect) {
         let configuration = WKWebViewConfiguration()
@@ -30,6 +32,7 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
         let jsEvaluator = EntheaWKJavaScriptEvaluator(webView: webView)
         self.jsEvaluator = jsEvaluator
         self.audioBridge = EntheaAudioBridge(featureBus: .shared, evaluator: jsEvaluator)
+        self.trackBridge = EntheaTrackBridge(evaluator: jsEvaluator)
         super.init(frame: frameRect)
         self.wantsLayer = true
         self.layer?.backgroundColor = NSColor.black.cgColor
@@ -80,11 +83,21 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
 
     func setAudioBridgeActive(_ active: Bool) {
         self.audioBridge.isActive = active
+        self.trackBridge.isActive = active
         if active {
             self.startPushTimerIfNeeded()
         } else {
             self.stopPushTimer()
         }
+    }
+
+    /// Push playlist playhead + kick analysis when the current track URL changes.
+    func updatePlayback(trackURL: URL?, seconds: TimeInterval, isPlaying: Bool) {
+        if trackURL != self.lastTrackURL {
+            self.lastTrackURL = trackURL
+            self.trackBridge.trackDidChange(url: trackURL)
+        }
+        self.trackBridge.tickPosition(seconds: seconds, paused: !isPlaying)
     }
 
     /// Blanking the page does NOT stop the WebContent process — only releasing the
@@ -93,6 +106,8 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
     /// between that and dealloc.
     func teardown() {
         self.setAudioBridgeActive(false)
+        self.trackBridge.clearTimeline()
+        self.lastTrackURL = nil
         let controller = self.panelController
         Task { @MainActor in
             controller?.hostDidTeardown()
@@ -114,6 +129,7 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
             controller.attach(evaluator: evaluator)
             controller.hostDidFinishLoad()
         }
+        self.trackBridge.hostDidBecomeReady()
     }
 
     private func startPushTimerIfNeeded() {
@@ -134,6 +150,9 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
 struct EntheaWebView: NSViewRepresentable {
     var isActive: Bool
     var size: CGSize
+    var trackURL: URL?
+    var currentTime: TimeInterval
+    var isPlaying: Bool
     @ObservedObject var controller: EntheaPanelController
 
     func makeNSView(context: Context) -> EntheaWKHostView {
@@ -142,6 +161,11 @@ struct EntheaWebView: NSViewRepresentable {
         if self.isActive {
             host.loadEnthea()
             host.setAudioBridgeActive(true)
+            host.updatePlayback(
+                trackURL: self.trackURL,
+                seconds: self.currentTime,
+                isPlaying: self.isPlaying
+            )
         }
         return host
     }
@@ -160,6 +184,11 @@ struct EntheaWebView: NSViewRepresentable {
                 host.applyBackingScale(for: self.size)
             }
             host.setAudioBridgeActive(true)
+            host.updatePlayback(
+                trackURL: self.trackURL,
+                seconds: self.currentTime,
+                isPlaying: self.isPlaying
+            )
         } else {
             host.teardown()
         }
