@@ -30,7 +30,10 @@ final class EntheaAudioBridgeTests: XCTestCase {
     func testBridgeSkipsPushWhileAPreviousEvaluationIsInFlight() {
         let evaluator = SpyJavaScriptEvaluator()
         evaluator.completeImmediately = false
-        let bridge = EntheaAudioBridge(featureBus: .shared, evaluator: evaluator)
+        let bus = AudioFeatureBus.shared
+        bus.publishRawBins(Array(repeating: 7, count: AudioFeatures.rawBinCount), sampleRate: 48_000)
+        bus.setPlaying(true)
+        let bridge = EntheaAudioBridge(featureBus: bus, evaluator: evaluator)
         bridge.isActive = true
         bridge.tick()
         bridge.tick()
@@ -54,5 +57,31 @@ final class EntheaAudioBridgeTests: XCTestCase {
         XCTAssertTrue(script.contains("winampAudio.push("))
         XCTAssertTrue(script.contains("48000"))
         XCTAssertTrue(script.contains("true"))
+    }
+
+    func testBridgeSkipsPushWhenNotPlaying() {
+        let evaluator = SpyJavaScriptEvaluator()
+        let bus = AudioFeatureBus.shared
+        bus.publishRawBins(Array(repeating: 7, count: AudioFeatures.rawBinCount), sampleRate: 48_000)
+        bus.setPlaying(false)
+
+        let bridge = EntheaAudioBridge(featureBus: bus, evaluator: evaluator)
+        bridge.isActive = true
+        bridge.tick()
+        XCTAssertEqual(evaluator.callCount, 0)
+    }
+
+    func testBridgeRespectsMaxPushHz() {
+        let evaluator = SpyJavaScriptEvaluator()
+        let bus = AudioFeatureBus.shared
+        bus.publishRawBins(Array(repeating: 7, count: AudioFeatures.rawBinCount), sampleRate: 48_000)
+        bus.setPlaying(true)
+
+        let bridge = EntheaAudioBridge(featureBus: bus, evaluator: evaluator)
+        bridge.isActive = true
+        bridge.maxPushHz = 30
+        bridge.tick()
+        bridge.tick()
+        XCTAssertEqual(evaluator.callCount, 1, "second tick within 1/30s must be rate-limited")
     }
 }

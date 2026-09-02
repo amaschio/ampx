@@ -11,7 +11,6 @@ struct EntheaPreferences {
     private static let warningKey = "entheaPhotosensitiveWarningAccepted"
     private static let autopilotKey = "entheaAutopilot"
     private static let modeKey = "entheaModeID"
-    private static let forceMetalBodyKey = "entheaForceMetalBody"
 
     var photosensitiveWarningAccepted: Bool {
         get { self.defaults.bool(forKey: Self.warningKey) }
@@ -29,12 +28,6 @@ struct EntheaPreferences {
     var modeID: Int {
         get { self.defaults.integer(forKey: Self.modeKey) }
         nonmutating set { self.defaults.set(newValue, forKey: Self.modeKey) }
-    }
-
-    /// Kill switch for Task 5 — force Metal body even if Enthea is default.
-    var forceMetalBody: Bool {
-        get { self.defaults.bool(forKey: Self.forceMetalBodyKey) }
-        nonmutating set { self.defaults.set(newValue, forKey: Self.forceMetalBodyKey) }
     }
 }
 

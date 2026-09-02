@@ -93,6 +93,50 @@
     return Math.max(0, Math.min(1, v));
   }
 
+  function applyCoverArtFromImage(img) {
+    if (typeof gl === "undefined" || typeof imgTexture === "undefined") return;
+    gl.bindTexture(gl.TEXTURE_2D, imgTexture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    const cv = document.createElement("canvas");
+    cv.width = 6;
+    cv.height = 1;
+    const cx = cv.getContext("2d");
+    cx.drawImage(img, 0, 0, 6, 1);
+    const d = cx.getImageData(0, 0, 6, 1).data;
+    const pal = [];
+    for (let i = 0; i < 6; i++) {
+      pal.push([
+        Math.pow(d[i * 4] / 255, 2.2),
+        Math.pow(d[i * 4 + 1] / 255, 2.2),
+        Math.pow(d[i * 4 + 2] / 255, 2.2),
+      ]);
+    }
+    if (typeof S === "object") {
+      S.imgPal = pal;
+      S._imgPalFlat = new Float32Array(pal.flat());
+    }
+    if (typeof setPalette === "function") setPalette(9);
+    if (typeof setMode === "function") setMode(10, true);
+  }
+
+  let renderPaused = false;
+  let renderLoopAlive = true;
+  if (typeof frame === "function") {
+    const origFrame = frame;
+    frame = function () {
+      if (renderPaused) {
+        renderLoopAlive = false;
+        return;
+      }
+      renderLoopAlive = true;
+      origFrame();
+    };
+  }
+
   const api = {
     ready: false,
     hideChrome() {
@@ -131,6 +175,26 @@
     setBackingScale(scale) {
       window.__winampBackingScale = scale;
       if (typeof resize === "function") resize();
+    },
+    /** Task 7: 0 fps while stopped / occluded / minimized — resume kicks rAF. */
+    setRenderPaused(paused) {
+      renderPaused = !!paused;
+      if (typeof S === "object" && S.audio) {
+        if (renderPaused) S.audio.on = false;
+      }
+      if (!renderPaused && !renderLoopAlive && typeof frame === "function") {
+        renderLoopAlive = true;
+        requestAnimationFrame(frame);
+      }
+    },
+    /** Task 7: album art → IMAGE WARP (data URL or raw base64 + mime). */
+    setCoverArt(dataURL) {
+      if (!dataURL || typeof dataURL !== "string") return;
+      const img = new Image();
+      img.onload = function () {
+        applyCoverArtFromImage(img);
+      };
+      img.src = dataURL;
     },
     getStatus() {
       const el = document.getElementById("tgJourney");

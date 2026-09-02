@@ -12,6 +12,21 @@
 3. `bridge.js` Task 3: `winampAudio.push` installs a fake `AnalyserNode` (512 bins + stereo PCM) and sets `S.audio.source = "winamp"` so ENTHEA’s DSP runs on host audio without modifying upstream `updateAudio`.
 4. `bridge.js` Task 4: `setMode` is absolute; `stepMode(±1)` is relative (avoids clashing with mode id 1); `setDose(delta)` nudges `S.dose`; `getStatus()` feeds the Classic strip title.
 5. `bridge.js` Task 6: `setTimeline` / `setPosition` install a shim `AUDIO.fileEl` and force `S.audio.source = "file"` so ENTHEA's predictive `updateTimeline` runs from the native analyzer.
+6. `bridge.js` Task 7: `setCoverArt` mirrors ENTHEA `uploadImage` (texture + 6-color palette → mode 10 Image Warp); `setRenderPaused` stops the rAF loop at 0 fps when the host reports idle/occluded.
+
+## Host polish (Task 7)
+
+- Album art loaded natively (`TrackArtworkLoader`) and pushed as a JPEG data URL.
+- Push rate: ~30 Hz small docked panel, ~60 Hz large/theater (`EntheaPushRatePolicy`).
+- Render + audio IPC pause when stopped, shaded/hidden, or window-occluded.
+- `forceMetalBody` kill switch **retired**; panel body is always ENTHEA.
+
+## Metal fullscreen path — keep
+
+`FullscreenMetalPlugin`, `VisualizationPreset`, `fullscreenFragment`, and
+`MetalVisualizationSmokeTests` **stay**. They still drive the mini LCD and are
+the base for Task 8 (ENTHEA-styled Metal mini). Deleting them is out of scope
+for Task 7.
 
 ## License
 

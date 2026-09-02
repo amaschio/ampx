@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Layout policy for the visualizer panel body.
 ///
-/// Theater ↔ docked must share one mounted ENTHEA/`WKWebView` (or Metal) body. Branching
+/// Theater ↔ docked must share one mounted ENTHEA/`WKWebView` body. Branching
 /// `vizBody` into separate `if isTheater` / `else` trees remounts the representable and
 /// resets in-page settings (mic sensitivity, reactivity, etc.) to defaults.
 enum ClassicVisualizerPanelMounting {
@@ -32,7 +32,7 @@ enum ClassicVisualizerPanelMounting {
     }
 }
 
-/// Classic managed visualizer panel: pledit chrome, ENTHEA body (Metal via kill switch), theater, BR resize.
+/// Classic managed visualizer panel: pledit chrome, ENTHEA body, theater, BR resize.
 struct ClassicVisualizerPanelView: View {
     @Environment(\.winampUIScale) private var uiScale
     @EnvironmentObject private var audioPlayer: AudioPlayer
@@ -43,9 +43,6 @@ struct ClassicVisualizerPanelView: View {
     /// Window content size (docked `visualizerSize`, or theater fill).
     var displaySize: CGSize
 
-    @State private var currentPreset: VisualizationPreset = .kaleidoscope
-    @State private var autoChangeTimer: Timer?
-    @State private var fadeOpacity: Double = 1.0
     @State private var isDraggingResize = false
     @State private var resizeStartSize: CGSize = .zero
     @State private var showPhotosensitiveWarning = false
@@ -60,11 +57,6 @@ struct ClassicVisualizerPanelView: View {
     private let sideRight: CGFloat = 20
     private var bottomBarHeight: CGFloat { ClassicSkinMetrics.playlistBottomBarHeight }
     private let presetStripHeight: CGFloat = 14
-
-    /// Hidden `entheaForceMetalBody` kill switch — Metal panel body for rollback.
-    private var useMetalBody: Bool {
-        self.entheaPreferences.forceMetalBody
-    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -84,7 +76,7 @@ struct ClassicVisualizerPanelView: View {
                 ClassicVisualizerShadeBar(
                     isMinimized: self.$isMinimized,
                     showVisualizer: self.$showVisualizer,
-                    title: self.chromeTitle,
+                    title: "ENTHEA",
                     scale: self.s
                 )
             }
@@ -98,10 +90,7 @@ struct ClassicVisualizerPanelView: View {
         )
         .clipped()
         .onAppear {
-            if self.useMetalBody {
-                self.startAutoChangeTimer()
-            }
-            if !self.useMetalBody, !self.entheaPreferences.photosensitiveWarningAccepted {
+            if !self.entheaPreferences.photosensitiveWarningAccepted {
                 self.showPhotosensitiveWarning = true
             }
         }
@@ -114,11 +103,6 @@ struct ClassicVisualizerPanelView: View {
                 "ENTHEA includes bright, rapidly changing patterns. If you have photosensitive epilepsy or migraines, close the Visualizer. Flicker drive stays off unless you enable it later."
             )
         }
-        .onDisappear { self.stopAutoChangeTimer() }
-    }
-
-    private var chromeTitle: String {
-        self.useMetalBody ? "MILKDROP" : "ENTHEA"
     }
 
     private var bodyInsets: EdgeInsets {
@@ -161,7 +145,7 @@ struct ClassicVisualizerPanelView: View {
                 ClassicVisualizerTitleBar(
                     isMinimized: self.$isMinimized,
                     showVisualizer: self.$showVisualizer,
-                    title: self.chromeTitle,
+                    title: "ENTHEA",
                     scale: self.s,
                     onTheater: { WinampPanelWindowManager.shared.toggleVisualizerTheater() }
                 )
@@ -189,24 +173,15 @@ struct ClassicVisualizerPanelView: View {
 
     private var vizBody: some View {
         GeometryReader { geo in
-            Group {
-                if self.useMetalBody {
-                    MilkdropMetalVisualizationView(
-                        preset: self.currentPreset,
-                        size: geo.size
-                    )
-                    .opacity(self.fadeOpacity)
-                } else {
-                    EntheaWebView(
-                        isActive: self.showVisualizer && !self.isMinimized,
-                        size: geo.size,
-                        trackURL: self.audioPlayer.currentTrack?.url,
-                        currentTime: self.audioPlayer.currentTime,
-                        isPlaying: self.audioPlayer.isPlaying,
-                        controller: self.entheaController
-                    )
-                }
-            }
+            EntheaWebView(
+                isActive: self.showVisualizer && !self.isMinimized,
+                size: geo.size,
+                isTheater: self.isTheater,
+                trackURL: self.audioPlayer.currentTrack?.url,
+                currentTime: self.audioPlayer.currentTime,
+                isPlaying: self.audioPlayer.isPlaying,
+                controller: self.entheaController
+            )
             .frame(width: geo.size.width, height: geo.size.height)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -224,7 +199,7 @@ struct ClassicVisualizerPanelView: View {
             .padding(.trailing, 4 * self.s)
 
             Button(action: self.stripTitleAction) {
-                Text(self.presetStripTitle)
+                Text(self.entheaController.stripTitle)
                     .font(.system(size: 8 * self.s, weight: .bold, design: .monospaced))
                     .foregroundColor(ClassicSkinColors.led)
                     .lineLimit(1)
@@ -234,16 +209,12 @@ struct ClassicVisualizerPanelView: View {
             .buttonStyle(.plain)
             .simultaneousGesture(
                 TapGesture(count: 2).onEnded {
-                    if !self.useMetalBody {
-                        self.entheaController.reseed()
-                    }
+                    self.entheaController.reseed()
                 }
             )
 
             Button {
-                if !self.useMetalBody {
-                    self.entheaController.fireDrop()
-                }
+                self.entheaController.fireDrop()
             } label: {
                 Text("💥")
                     .font(.system(size: 9 * self.s, weight: .bold))
@@ -251,8 +222,6 @@ struct ClassicVisualizerPanelView: View {
             }
             .buttonStyle(.plain)
             .help("Force drop effect")
-            .opacity(self.useMetalBody ? 0.35 : 1)
-            .disabled(self.useMetalBody)
             .padding(.horizontal, 2 * self.s)
 
             Button {
@@ -279,18 +248,7 @@ struct ClassicVisualizerPanelView: View {
         .background(ClassicSkinColors.displayBg)
     }
 
-    private var presetStripTitle: String {
-        if self.useMetalBody {
-            return "MILKDROP • \(self.currentPreset.name.uppercased())"
-        }
-        return self.entheaController.stripTitle
-    }
-
     private func stripPrevious() {
-        if self.useMetalBody {
-            self.previousPreset()
-            return
-        }
         if NSEvent.modifierFlags.contains(.shift) {
             self.entheaController.nudgeDose(-0.05)
         } else {
@@ -299,10 +257,6 @@ struct ClassicVisualizerPanelView: View {
     }
 
     private func stripNext() {
-        if self.useMetalBody {
-            self.nextPreset()
-            return
-        }
         if NSEvent.modifierFlags.contains(.shift) {
             self.entheaController.nudgeDose(0.05)
         } else {
@@ -311,11 +265,10 @@ struct ClassicVisualizerPanelView: View {
     }
 
     private func stripTitleAction() {
-        guard !self.useMetalBody else { return }
         self.entheaController.toggleAutopilot()
     }
 
-    /// Pledit bottom geometry: border · inset · tile · inset · border. No Metal|Enthea switch.
+    /// Pledit bottom geometry: border · inset · tile · inset · border.
     private var bottomBar: some View {
         ZStack(alignment: .bottomTrailing) {
             HStack(spacing: 0) {
@@ -400,46 +353,6 @@ struct ClassicVisualizerPanelView: View {
                     }
                     .onEnded { _ in self.isDraggingResize = false }
             )
-    }
-
-    private func nextPreset() {
-        self.stopAutoChangeTimer()
-        self.changePresetWithFade(direction: 1)
-        self.startAutoChangeTimer()
-    }
-
-    private func previousPreset() {
-        self.stopAutoChangeTimer()
-        self.changePresetWithFade(direction: -1)
-        self.startAutoChangeTimer()
-    }
-
-    private func changePresetWithFade(direction: Int) {
-        withAnimation(.easeOut(duration: 0.5)) {
-            self.fadeOpacity = 0.0
-        }
-
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            self.currentPreset = self.currentPreset.advanced(by: direction)
-            withAnimation(.easeIn(duration: 0.5)) {
-                self.fadeOpacity = 1.0
-            }
-        }
-    }
-
-    private func startAutoChangeTimer() {
-        self.autoChangeTimer?.invalidate()
-        self.autoChangeTimer = Timer.scheduledTimer(withTimeInterval: 120.0, repeats: true) { _ in
-            MainActor.assumeIsolated {
-                self.changePresetWithFade(direction: 1)
-            }
-        }
-    }
-
-    private func stopAutoChangeTimer() {
-        self.autoChangeTimer?.invalidate()
-        self.autoChangeTimer = nil
     }
 }
 

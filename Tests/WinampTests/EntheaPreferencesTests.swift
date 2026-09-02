@@ -55,19 +55,27 @@ final class EntheaPreferencesTests: XCTestCase {
         XCTAssertFalse(again.autopilot)
     }
 
-    func testForceMetalBodyDefaultsFalse() {
-        let suiteName = "EntheaPreferencesTests.\(#function)"
-        let suite = UserDefaults(suiteName: suiteName)!
-        suite.removePersistentDomain(forName: suiteName)
-        XCTAssertFalse(EntheaPreferences(defaults: suite).forceMetalBody)
+    func testPushRatePolicyCapsDockedSmall() {
+        let hz = EntheaPushRatePolicy.pushHz(
+            forContentSize: CGSize(width: 400, height: 300),
+            isTheater: false
+        )
+        XCTAssertEqual(hz, EntheaPushRatePolicy.dockedSmallHz)
     }
 
-    func testForceMetalBodyPersists() {
-        let suiteName = "EntheaPreferencesTests.\(#function)"
-        let suite = UserDefaults(suiteName: suiteName)!
-        suite.removePersistentDomain(forName: suiteName)
-        let prefs = EntheaPreferences(defaults: suite)
-        prefs.forceMetalBody = true
-        XCTAssertTrue(EntheaPreferences(defaults: suite).forceMetalBody)
+    func testPushRatePolicyFullInTheater() {
+        let hz = EntheaPushRatePolicy.pushHz(
+            forContentSize: CGSize(width: 100, height: 100),
+            isTheater: true
+        )
+        XCTAssertEqual(hz, EntheaPushRatePolicy.theaterOrLargeHz)
+    }
+
+    func testPushRatePolicyFullWhenLarge() {
+        let hz = EntheaPushRatePolicy.pushHz(
+            forContentSize: CGSize(width: 800, height: 600),
+            isTheater: false
+        )
+        XCTAssertEqual(hz, EntheaPushRatePolicy.theaterOrLargeHz)
     }
 }

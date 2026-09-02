@@ -155,11 +155,19 @@ A separate managed window (same docking system as EQ and playlist), not an inlin
 1. **Double-click** the mini spectrum on the main window (or shade strip), or
 2. Title-bar **options** menu → **Show Visualizer**
 
-Close from the panel’s close control or the same menu (**Hide Visualizer**). The panel hosts **ENTHEA** (WebGL) with Classic pledit chrome: mode ◀/▶, title toggles autopilot, **💥** forces a drop effect, **F** (or the ⛶ strip control) enters theater mode (covers the full display including the menu-bar / notch band; **Escape** or **F** exits and restores size/position). While a track plays, a native offline analysis maps drops/sections into ENTHEA’s timeline (no file handed to WebKit). The main-window mini spectrum stays Metal.
+Close from the panel’s close control or the same menu (**Hide Visualizer**). The panel hosts **ENTHEA** (WebGL) with Classic pledit chrome:
+
+| Control | Action |
+|--------|--------|
+| ◀ / ▶ | Previous / next visual mode (hold **⇧** to nudge dose) |
+| Title | Toggle autopilot · **double-click** to reseed |
+| 💥 | Force a drop effect |
+| ⛶ / **F** | Theater (full display including menu-bar / notch band) |
+| **Escape** / **F** | Exit theater and restore size/position |
+
+While a track plays, native offline analysis maps drops/sections into ENTHEA’s timeline (no file handed to WebKit). Embedded album art (when present) feeds **Image Warp**. Audio IPC caps at ~30 Hz when the docked panel is small and ~60 Hz when large or in theater; rendering and IPC pause when playback is stopped, the panel is shaded/hidden, or the window is occluded. The main-window mini spectrum stays Metal.
 
 Photosensitivity: the first open shows a notice. Flicker drive stays off by default.
-
-Kill switch (rollback to Metal MilkDrop body): `defaults write com.winamp.macos entheaForceMetalBody -bool YES`, then reopen the panel.
 
 ### Zoom
 
@@ -183,7 +191,7 @@ Displayed metadata includes title, artist, duration, bitrate, and sample rate (a
 
 1. **Docking** — snap panels under or beside each other; connected stacks move together. Positions are the source of truth (geometry-primary docking).
 2. **Shade** — keep a thin strip on screen while listening; playlist and EQ can shade independently where supported.
-3. **Audio path** — AVAudioEngine with a 10-band `AVAudioUnitEQ` and an analysis tap feeding FFT features to the spectrum and MilkDrop views.
+3. **Audio path** — AVAudioEngine with a 10-band `AVAudioUnitEQ` and an analysis tap feeding FFT features to the mini spectrum and ENTHEA host.
 4. **UI iteration for developers** — `./scripts/shoot.sh` builds/relaunches and screenshots each window to `/tmp/winamp_shot*.png`.
 
 ---
@@ -214,13 +222,14 @@ Displayed metadata includes title, artist, duration, bitrate, and sample rate (a
 |-------|------|
 | SwiftUI + AppKit | Classic skin views (`Views/Classic`), borderless panel windows |
 | AVFoundation / AVAudioEngine | Decode, playback, EQ, FFT feature bus |
-| Metal | Mini spectrum and MilkDrop panel (`Visualization/`, `Shaders/`) |
+| WebKit / WebGL | ENTHEA visualizer panel (`Resources/Enthea/`, `Sources/Enthea/`) |
+| Metal | Mini spectrum (`Visualization/`, `Shaders/`) |
 
 **Audio pipeline (simplified):**
 
 ```
 Audio file → player node → 10-band EQ → mixer → output
-                              ↘ analysis tap → FFT / features → spectrum + MilkDrop
+                              ↘ analysis tap → FFT / features → spectrum + ENTHEA
 ```
 
 Key sources: `WinampApp.swift`, `ContentView.swift`, `AudioPlayer.swift`, `PlaylistManager.swift`, `Views/Classic/*`, `WinampPanelWindowManager.swift`.
