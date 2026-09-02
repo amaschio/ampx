@@ -80,6 +80,10 @@ class AudioPlayer: NSObject, ObservableObject {
     private nonisolated(unsafe) var isPlayingInternalStorage = false
     private nonisolated(unsafe) var playbackGeneration = 0
     private nonisolated(unsafe) var loadGeneration = 0
+    /// Absolute file time at the start of the currently scheduled player segment.
+    /// `AVAudioPlayerNode.playerTime.sampleTime` is relative to that segment, so UI
+    /// position is `playbackSegmentStartTime + sampleTime/sampleRate`.
+    private nonisolated(unsafe) var playbackSegmentStartTime: TimeInterval = 0
     private let audioQueue = DispatchQueue(label: "com.winamp.audio", qos: .userInteractive)
 
     private nonisolated var isPlayingInternal: Bool {
@@ -184,6 +188,9 @@ class AudioPlayer: NSObject, ObservableObject {
                 isPlaying: self.isPlayingInternal
             )
         }
+        analyzer.onRawBins = { bins, sampleRate in
+            AudioFeatureBus.shared.publishRawBins(bins, sampleRate: sampleRate)
+        }
         analyzer.onAnalysisUpdate = { [weak self] bands, _, _ in
             guard let self else { return }
             // Build the diagnostic context lazily: the probe throttles to ~1 Hz, so the
@@ -270,6 +277,7 @@ class AudioPlayer: NSObject, ObservableObject {
             self.shouldAutoAdvance = false
             self.audioFile = nil
             self.playbackGeneration += 1
+            self.playbackSegmentStartTime = 0
 
             self.preparePlayerNodeForNewTrack()
 
@@ -436,6 +444,7 @@ class AudioPlayer: NSObject, ObservableObject {
             player.reset()
 
             self.shouldAutoAdvance = true
+            self.playbackSegmentStartTime = 0
             let generation = self.playbackGeneration
 
             player.scheduleFile(file, at: nil) { [weak self] in
@@ -452,6 +461,7 @@ class AudioPlayer: NSObject, ObservableObject {
 
             self.runOnMainActor(weak: self) { player in
                 player.isPlaying = true
+                player.currentTime = 0
                 player.startTimer()
                 player.updateNowPlayingInfo()
             }
@@ -503,6 +513,7 @@ class AudioPlayer: NSObject, ObservableObject {
             guard let self else { return }
             self.shouldAutoAdvance = false
             self.playbackGeneration += 1
+            self.playbackSegmentStartTime = 0
             self.playerNode?.stop()
             self.isPlayingInternal = false
 
@@ -563,6 +574,7 @@ class AudioPlayer: NSObject, ObservableObject {
             }
 
             let generation = self.playbackGeneration
+            self.playbackSegmentStartTime = clampedTime
 
             player.scheduleSegment(
                 file,
@@ -829,7 +841,10 @@ class AudioPlayer: NSObject, ObservableObject {
         else {
             return nil
         }
-        return Double(playerTime.sampleTime) / file.fileFormat.sampleRate
+        let sampleRate = file.fileFormat.sampleRate
+        guard sampleRate > 0 else { return nil }
+        let relative = Double(playerTime.sampleTime) / sampleRate
+        return max(0, self.playbackSegmentStartTime + relative)
     }
 
     private func decaySpectrumDisplay() {

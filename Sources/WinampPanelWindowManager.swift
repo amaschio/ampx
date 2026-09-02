@@ -29,6 +29,9 @@ final class WinampPanelWindowManager {
     private var moveObservers: [NSObjectProtocol] = []
     private var dragEventMonitor: Any?
     private var activeDrag: ActiveDrag?
+    /// Frame before theater enter — origin used with `visualizerSize` on exit.
+    private var visualizerPreTheaterFrame: CGRect?
+    private var presentationOptionsBeforeTheater: NSApplication.PresentationOptions?
 
     /// The set of panels the manager can host. Built once; each descriptor reads live layout state
     /// through `self`, so a new panel is added by appending a descriptor here rather than editing
@@ -117,6 +120,10 @@ final class WinampPanelWindowManager {
                 },
                 sizing: .explicit { [weak self] in
                     guard let layoutState = self?.layoutState else { return .zero }
+                    if layoutState.visualizerInTheater {
+                        let size = layoutState.visualizerTheaterSize
+                        if size.width > 0, size.height > 0 { return size }
+                    }
                     let scale = self?.uiScale?.scale ?? 1
                     let minimizedHeight = ClassicSkinMetrics.scaled(
                         ClassicSkinMetrics.playlistShadeHeight,
@@ -175,6 +182,10 @@ final class WinampPanelWindowManager {
 
     func isVisualizerWindow(_ window: NSWindow) -> Bool {
         self.windows[.visualizer] === window
+    }
+
+    var isVisualizerInTheater: Bool {
+        self.layoutState?.visualizerInTheater ?? false
     }
 
     /// Double-click on a title bar: shade/unshade panels, but when the main window is already
@@ -277,11 +288,94 @@ final class WinampPanelWindowManager {
         self.stackDockedPanels()
     }
 
+    /// Expand the visualizer to the full `screen.frame` (covers the menu-bar / notch band).
+    /// Not native `toggleFullScreen` — Classic chrome hides via `visualizerInTheater`.
+    func toggleVisualizerTheater() {
+        guard let layoutState else { return }
+        if layoutState.visualizerInTheater {
+            self.exitVisualizerTheater()
+        } else {
+            self.enterVisualizerTheater()
+        }
+    }
+
+    func enterVisualizerTheater() {
+        guard let layoutState,
+              let window = self.windows[.visualizer],
+              window.isVisible,
+              !layoutState.visualizerInTheater
+        else { return }
+
+        if layoutState.visualizerMinimized {
+            layoutState.visualizerMinimized = false
+        }
+        self.visualizerPreTheaterFrame = window.frame
+        let screen = window.screen ?? NSScreen.main
+        // Full display bounds — `visibleFrame` would leave the webcam / menu-bar strip.
+        let theaterFrame = screen?.frame ?? window.frame
+        layoutState.visualizerTheaterSize = theaterFrame.size
+        layoutState.visualizerInTheater = true
+        self.presentationOptionsBeforeTheater = NSApp.presentationOptions
+        NSApp.presentationOptions.insert([.autoHideMenuBar, .autoHideDock])
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            window.setFrame(theaterFrame, display: true)
+        }
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    func exitVisualizerTheater() {
+        guard let layoutState, layoutState.visualizerInTheater else { return }
+        let preTheater = self.visualizerPreTheaterFrame
+        self.visualizerPreTheaterFrame = nil
+        layoutState.visualizerInTheater = false
+        layoutState.visualizerTheaterSize = .zero
+        if let previous = self.presentationOptionsBeforeTheater {
+            NSApp.presentationOptions = previous
+        } else {
+            NSApp.presentationOptions = []
+        }
+        self.presentationOptionsBeforeTheater = nil
+
+        guard let window = self.windows[.visualizer], window.isVisible,
+              let descriptor = self.descriptor(for: .visualizer)
+        else { return }
+
+        let contentSize = self.targetContentSize(for: descriptor)
+        let frameSize = window.frameRect(forContentRect: CGRect(origin: .zero, size: contentSize)).size
+        let topY = preTheater?.maxY ?? window.frame.maxY
+        let originX = preTheater?.minX ?? window.frame.minX
+        let frame = CGRect(
+            x: originX,
+            y: topY - frameSize.height,
+            width: frameSize.width,
+            height: frameSize.height
+        )
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            window.setFrame(frame, display: true)
+        }
+        self.persistPositions()
+        self.stackDockedPanels()
+    }
+
     /// Resize the visualizer panel (shade / user size). Preserves side-dock flush when abutting
     /// the parent's left or right edge; otherwise uses below-dock top-edge anchoring like playlist.
     func resizeVisualizerPanel() {
-        guard let window = self.windows[.visualizer], window.isVisible,
+        guard let layoutState = self.layoutState,
+              let window = self.windows[.visualizer], window.isVisible,
               let descriptor = self.descriptor(for: .visualizer) else { return }
+
+        if layoutState.visualizerInTheater {
+            let screen = window.screen ?? NSScreen.main
+            let theaterFrame = screen?.frame ?? window.frame
+            layoutState.visualizerTheaterSize = theaterFrame.size
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0
+                window.setFrame(theaterFrame, display: true)
+            }
+            return
+        }
 
         let contentSize = self.targetContentSize(for: descriptor)
         let frameSize = window.frameRect(forContentRect: CGRect(origin: .zero, size: contentSize)).size
@@ -575,6 +669,8 @@ final class WinampPanelWindowManager {
     private func persistPositions() {
         guard let mainOrigin = self.mainWindow?.frame.origin else { return }
         for id in self.panelIDs where self.windows[id]?.isVisible == true {
+            // Theater uses the full screen — don't overwrite the docked offset.
+            if id == .visualizer, self.layoutState?.visualizerInTheater == true { continue }
             guard let origin = self.windows[id]?.frame.origin else { continue }
             self.positionStore.store(id, panelOrigin: origin, mainOrigin: mainOrigin)
         }
@@ -587,6 +683,7 @@ final class WinampPanelWindowManager {
     private func flushDockedWindows() {
         let parents = self.currentDockParents()
         for id in self.dockedBFSOrder(parents: parents) {
+            if id == .visualizer, self.layoutState?.visualizerInTheater == true { continue }
             guard let panel = self.windows[id],
                   let parentWindow = self.dockParentWindow(for: id, parents: parents) else { continue }
 
@@ -845,7 +942,19 @@ final class WinampPanelWindowManager {
         window.parent?.removeChildWindow(window)
         window.orderOut(nil)
         if id == .visualizer {
-            // Drop the hosting tree so MilkDrop's MTKView stops rendering while hidden.
+            // Drop theater chrome/flags before tearing down the hosting tree.
+            if self.layoutState?.visualizerInTheater == true {
+                self.layoutState?.visualizerInTheater = false
+                self.layoutState?.visualizerTheaterSize = .zero
+                self.visualizerPreTheaterFrame = nil
+                if let previous = self.presentationOptionsBeforeTheater {
+                    NSApp.presentationOptions = previous
+                } else {
+                    NSApp.presentationOptions = []
+                }
+                self.presentationOptionsBeforeTheater = nil
+            }
+            // Drop the hosting tree so the Enthea WKWebView / Metal body stops while hidden.
             window.contentViewController = nil
             self.hostingControllers[id] = nil
         }
@@ -1029,19 +1138,21 @@ private struct EqualizerPanelRoot: View {
     }
 }
 
-/// Observing root for the detached MilkDrop visualizer window.
+/// Observing root for the detached visualizer window (ENTHEA / optional Metal kill switch).
 private struct VisualizerPanelRoot: View {
     @ObservedObject var layoutState: WinampPanelLayoutState
     @EnvironmentObject var uiScale: WinampUIScale
 
     var body: some View {
-        ClassicMilkdropPanelView(
+        ClassicVisualizerPanelView(
             visualizerSize: self.layoutState.visualizerSizeBinding,
             isMinimized: self.layoutState.visualizerMinimizedBinding,
             showVisualizer: Binding(
                 get: { self.layoutState.showVisualizer },
                 set: { self.layoutState.showVisualizer = $0 }
-            )
+            ),
+            isTheater: self.layoutState.visualizerInTheaterBinding,
+            displaySize: self.layoutState.visualizerDisplaySize
         )
         .environment(\.winampUIScale, self.uiScale.scale)
     }

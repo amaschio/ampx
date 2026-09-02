@@ -7,21 +7,40 @@ set -e
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG="Debug"
+ARCH="$(uname -m)"
+DESTINATION="platform=macOS,arch=${ARCH}"
 
 if [[ "$1" != "--no-build" ]]; then
     xcodebuild -project "${PROJECT_DIR}/Winamp.xcodeproj" -scheme Winamp \
-        -configuration "${CONFIG}" build >/tmp/winamp_build.log 2>&1 \
+        -configuration "${CONFIG}" \
+        -destination "${DESTINATION}" \
+        ONLY_ACTIVE_ARCH=YES \
+        build >/tmp/winamp_build.log 2>&1 \
         || { echo "❌ build failed — see /tmp/winamp_build.log"; tail -20 /tmp/winamp_build.log; exit 1; }
 fi
 
-APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData/Winamp-*/Build/Products/${CONFIG}/Winamp.app \
-    -maxdepth 0 2>/dev/null | head -n 1)
+# Resolve THIS project's product via build settings (not find|head across DerivedData).
+BUILT_PRODUCTS_DIR=$(xcodebuild -project "${PROJECT_DIR}/Winamp.xcodeproj" \
+    -scheme Winamp \
+    -configuration "${CONFIG}" \
+    -destination "${DESTINATION}" \
+    ONLY_ACTIVE_ARCH=YES \
+    -showBuildSettings 2>/dev/null \
+    | sed -n 's/^ *BUILT_PRODUCTS_DIR = //p' | head -n 1)
+APP_PATH="${BUILT_PRODUCTS_DIR}/Winamp.app"
+if [[ ! -d "$APP_PATH" ]]; then
+    echo "❌ Winamp.app not found at: $APP_PATH"
+    exit 1
+fi
 
 # Relaunch fresh so the screenshot reflects the new build.
+# Without -n, Launch Services reactivates a running instance from another checkout.
 osascript -e 'tell application "Winamp" to quit' >/dev/null 2>&1 || true
+killall Winamp >/dev/null 2>&1 || true
 pkill -x Winamp >/dev/null 2>&1 || true
 sleep 0.5
-open "$APP_PATH"
+echo "🚀 $APP_PATH"
+open -n "$APP_PATH"
 sleep 2.5
 
 # Enumerate Winamp's on-screen windows (layer 0 = normal) and capture each by ID.

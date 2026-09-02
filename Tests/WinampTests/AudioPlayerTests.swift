@@ -1,5 +1,7 @@
+import AVFoundation
 @testable import Winamp
 import XCTest
+
 
 @MainActor
 final class AudioPlayerTests: XCTestCase {
@@ -302,5 +304,64 @@ final class AudioPlayerTests: XCTestCase {
         waitForMainQueue()
         XCTAssertEqual(self.player.currentTime, 0.05, accuracy: 0.01)
         XCTAssertFalse(self.player.isPlaying)
+    }
+
+    /// AVAudioPlayerNode's sampleTime is relative to the scheduled segment start.
+    /// After seek, absolute UI time must be offset + sampleTime — otherwise the
+    /// ~10 Hz timer snaps the slider/time display back toward zero while audio
+    /// correctly continues from the seek point.
+    func testSeekWhilePlayingSnapshotIncludesSegmentOffset() throws {
+        let longURL = try Self.makeSilentWAVFixture(durationSeconds: 2.0)
+        defer { try? FileManager.default.removeItem(at: longURL) }
+
+        let track = Track(title: "Long", artist: "Test", url: longURL)
+        XCTAssertTrue(self.waitForLoad(track))
+        self.player.play()
+        self.waitBriefly(0.1)
+
+        self.player.seek(to: 1.0)
+        let seekExpectation = expectation(description: "seek processed")
+        self.player.testing_afterAudioQueueFlush {
+            seekExpectation.fulfill()
+        }
+        wait(for: [seekExpectation], timeout: 2.0)
+        waitForMainQueue()
+        self.waitBriefly(0.15)
+
+        let snapshotExpectation = expectation(description: "post-seek snapshot")
+        let snapshot = SendableBox<TimeInterval?>(nil)
+        self.player.testing_playbackTimeSnapshot { time in
+            snapshot.value = time
+            snapshotExpectation.fulfill()
+        }
+        wait(for: [snapshotExpectation], timeout: 2.0)
+
+        guard let time = snapshot.value else {
+            XCTFail("Expected a post-seek playback time snapshot")
+            return
+        }
+        XCTAssertGreaterThanOrEqual(
+            time,
+            0.9,
+            "Engine snapshot after seek must report absolute file time, not segment-relative ~0"
+        )
+        XCTAssertGreaterThanOrEqual(
+            self.player.currentTime,
+            0.9,
+            "Published currentTime must stay near the seek target after timer ticks"
+        )
+    }
+
+    private static func makeSilentWAVFixture(durationSeconds: Double) throws -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("winamp-seek-\(UUID().uuidString).wav")
+        let sampleRate = 44_100.0
+        let frameCount = AVAudioFrameCount(durationSeconds * sampleRate)
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1))
+        let file = try AVAudioFile(forWriting: url, settings: format.settings)
+        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount))
+        buffer.frameLength = frameCount
+        try file.write(from: buffer)
+        return url
     }
 }

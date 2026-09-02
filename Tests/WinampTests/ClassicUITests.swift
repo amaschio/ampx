@@ -124,6 +124,7 @@ final class ClassicVisualizerLayoutDefaultsTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suite) }
         let layout = WinampPanelLayoutState(defaults: defaults)
         XCTAssertFalse(layout.showVisualizer)
+        XCTAssertFalse(layout.visualizerInTheater)
         XCTAssertEqual(layout.visualizerSize.width, WinampMetrics.defaultVisualizerWidth)
         XCTAssertEqual(layout.visualizerSize.height, WinampMetrics.defaultVisualizerHeight)
     }
@@ -163,6 +164,56 @@ final class ClassicVisualizerLayoutDefaultsTests: XCTestCase {
         layout.scaleVisualizerDimensions(by: 2)
         XCTAssertEqual(layout.visualizerSize.width, 1200)
         XCTAssertEqual(layout.visualizerSize.height, 900)
+    }
+
+    /// Theater must not remount the ENTHEA/Metal body — that resets in-page settings
+    /// (mic sensitivity, reactivity, etc.) by recreating the WKWebView.
+    func testVisualizerBodyStaysMountedAcrossTheaterToggle() {
+        XCTAssertTrue(
+            ClassicVisualizerPanelMounting.isBodyMounted(minimized: false, theater: false)
+        )
+        XCTAssertTrue(
+            ClassicVisualizerPanelMounting.isBodyMounted(minimized: false, theater: true)
+        )
+        XCTAssertEqual(
+            ClassicVisualizerPanelMounting.isBodyMounted(minimized: false, theater: false),
+            ClassicVisualizerPanelMounting.isBodyMounted(minimized: false, theater: true)
+        )
+        XCTAssertFalse(
+            ClassicVisualizerPanelMounting.isBodyMounted(minimized: true, theater: false)
+        )
+        XCTAssertFalse(
+            ClassicVisualizerPanelMounting.isBodyMounted(minimized: true, theater: true)
+        )
+    }
+
+    func testVisualizerChromeInsetsZeroInTheaterOnly() {
+        let docked = ClassicVisualizerPanelMounting.contentInsets(
+            isTheater: false,
+            scale: 1,
+            sideLeft: 12,
+            sideRight: 20,
+            topBarHeight: 20,
+            presetStripHeight: 14,
+            bottomBarHeight: 38
+        )
+        let theater = ClassicVisualizerPanelMounting.contentInsets(
+            isTheater: true,
+            scale: 1,
+            sideLeft: 12,
+            sideRight: 20,
+            topBarHeight: 20,
+            presetStripHeight: 14,
+            bottomBarHeight: 38
+        )
+        XCTAssertEqual(docked.top, 34)
+        XCTAssertEqual(docked.leading, 12)
+        XCTAssertEqual(docked.bottom, 38)
+        XCTAssertEqual(docked.trailing, 20)
+        XCTAssertEqual(theater.top, 0)
+        XCTAssertEqual(theater.leading, 0)
+        XCTAssertEqual(theater.bottom, 0)
+        XCTAssertEqual(theater.trailing, 0)
     }
 }
 

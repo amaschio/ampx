@@ -22,6 +22,20 @@ enum WinampHotkeys {
         }
 
         let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
+        let noMods = flags.isEmpty
+
+        // Visualizer theater — F toggles; Escape exits. Keep before playlist/global so F isn't eaten.
+        if noMods, WinampPanelWindowManager.shared.isVisualizerWindow(window) {
+            if event.keyCode == 3 { // F
+                WinampPanelWindowManager.shared.toggleVisualizerTheater()
+                return nil
+            }
+            if event.keyCode == 53, WinampPanelWindowManager.shared.isVisualizerInTheater { // Escape
+                WinampPanelWindowManager.shared.exitVisualizerTheater()
+                return nil
+            }
+        }
+
         let playlistFocused = WinampPanelWindowManager.shared.isPlaylistWindow(window)
             && WinampPlaylistKeyboard.isActive
 

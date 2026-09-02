@@ -23,6 +23,11 @@ final class WinampPanelLayoutState: ObservableObject {
     @Published var playlistMinimized = false
     @Published var equalizerMinimized = false
     @Published var visualizerMinimized = false
+    /// Session-only: panel expanded to full `screen.frame` (incl. menu-bar / notch) with Classic chrome hidden.
+    /// Not persisted — size/position restore from `visualizerSize` + position store on exit.
+    @Published var visualizerInTheater = false
+    /// Live content size while `visualizerInTheater` (matches the theater window).
+    @Published var visualizerTheaterSize: CGSize = .zero
     @Published var playlistSize: CGSize {
         didSet {
             if oldValue.height != self.playlistSize.height {
@@ -131,5 +136,17 @@ final class WinampPanelLayoutState: ObservableObject {
             get: { self.visualizerMinimized },
             set: { self.visualizerMinimized = $0 }
         )
+    }
+
+    var visualizerInTheaterBinding: Binding<Bool> {
+        Binding(
+            get: { self.visualizerInTheater },
+            set: { self.visualizerInTheater = $0 }
+        )
+    }
+
+    /// Size the SwiftUI panel should lay out at (docked size, or theater fill).
+    var visualizerDisplaySize: CGSize {
+        self.visualizerInTheater ? self.visualizerTheaterSize : self.visualizerSize
     }
 }

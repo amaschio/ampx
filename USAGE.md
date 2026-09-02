@@ -1,6 +1,6 @@
 # Winamp macOS — Usage Guide
 
-A native Classic Winamp 2.x–style player for macOS. The UI is the **Classic skin only** (275 px Webamp geometry): main player, shade mode, playlist, equalizer, and a managed MilkDrop Metal visualizer panel. There is no modern dual UI.
+A native Classic Winamp 2.x–style player for macOS. The UI is the **Classic skin only** (275 px Webamp geometry): main player, shade mode, playlist, equalizer, and a managed ENTHEA visualizer panel. There is no modern dual UI.
 
 **Requires macOS 26.5 (Tahoe) or later.**
 
@@ -13,7 +13,7 @@ A native Classic Winamp 2.x–style player for macOS. The UI is the **Classic sk
 1. Open `Winamp.xcodeproj` in Xcode, select the **Winamp** scheme, and run (⌘R), **or**
 2. From the repo root: `./build.sh --run`
 
-On launch you get the Classic main window (275×116). Playlist and equalizer panels open by default and dock under the main window. The MilkDrop visualizer starts closed.
+On launch you get the Classic main window (275×116). Playlist and equalizer panels open by default and dock under the main window. The visualizer starts closed.
 
 ### Requirements
 
@@ -146,7 +146,7 @@ Toggle with the **EQ** button.
 - Preamp, ON / AUTO, and built-in presets
 - **Load EQF…** — import Winamp `.eqf` / `.q1` preset files
 
-### MilkDrop visualizer panel
+### Visualizer panel (ENTHEA)
 
 A separate managed window (same docking system as EQ and playlist), not an inline widen of the main player.
 
@@ -155,9 +155,22 @@ A separate managed window (same docking system as EQ and playlist), not an inlin
 1. **Double-click** the mini spectrum on the main window (or shade strip), or
 2. Title-bar **options** menu → **Show Visualizer**
 
-Close from the panel’s close control or the same menu (**Hide Visualizer**). The panel hosts the Metal MilkDrop-style visualizer (presets, resize, shade). Fullscreen is available from the visualizer UI when open.
+Close from the panel’s close control or the same menu (**Hide Visualizer**). The panel hosts **ENTHEA** (WebGL) with Classic pledit chrome:
 
-Mini spectrum on the main window remains a real-time FFT / scope preview while the MilkDrop panel is closed.
+| Control | Action |
+|--------|--------|
+| ◀ / ▶ | Previous / next visual mode (hold **⇧** to nudge dose) |
+| Title | Toggle autopilot · **double-click** to reseed |
+| **LOOKS** | Artistic / phenomenological look presets (not medical advice) |
+| 💥 | Force a drop effect |
+| ⛶ / **F** | Theater (full display including menu-bar / notch band) |
+| **Escape** / **F** | Exit theater and restore size/position |
+
+While a track plays, native offline analysis maps drops/sections into ENTHEA’s timeline (no file handed to WebKit). Embedded album art (when present) feeds **Image Warp**. Audio IPC caps at ~30 Hz when the docked panel is small and ~60 Hz when large or in theater; rendering and IPC pause when playback is stopped, the panel is shaded/hidden, or the window is occluded. The main-window mini spectrum stays Metal.
+
+Photosensitivity: the first open shows a notice. Flicker drive stays off by default.
+
+**Looks** are artistic visual interpretations of ENTHEA’s substance presets (titles like “Electric Lattices”, not dosing guidance). Not dosing advice, not medical advice; simulator only.
 
 ### Zoom
 
@@ -181,7 +194,7 @@ Displayed metadata includes title, artist, duration, bitrate, and sample rate (a
 
 1. **Docking** — snap panels under or beside each other; connected stacks move together. Positions are the source of truth (geometry-primary docking).
 2. **Shade** — keep a thin strip on screen while listening; playlist and EQ can shade independently where supported.
-3. **Audio path** — AVAudioEngine with a 10-band `AVAudioUnitEQ` and an analysis tap feeding FFT features to the spectrum and MilkDrop views.
+3. **Audio path** — AVAudioEngine with a 10-band `AVAudioUnitEQ` and an analysis tap feeding FFT features to the mini spectrum and ENTHEA host.
 4. **UI iteration for developers** — `./scripts/shoot.sh` builds/relaunches and screenshots each window to `/tmp/winamp_shot*.png`.
 
 ---
@@ -202,7 +215,7 @@ Displayed metadata includes title, artist, duration, bitrate, and sample rate (a
 ### No spectrum / empty visualizer
 
 - Start playback — analysis follows the engine tap
-- Open the MilkDrop panel via double-click on the mini spectrum if you expect the full visualizer window
+- Open the visualizer panel via double-click on the mini spectrum if you expect the full visualizer window
 
 ---
 
@@ -212,13 +225,14 @@ Displayed metadata includes title, artist, duration, bitrate, and sample rate (a
 |-------|------|
 | SwiftUI + AppKit | Classic skin views (`Views/Classic`), borderless panel windows |
 | AVFoundation / AVAudioEngine | Decode, playback, EQ, FFT feature bus |
-| Metal | Mini spectrum and MilkDrop panel (`Visualization/`, `Shaders/`) |
+| WebKit / WebGL | ENTHEA visualizer panel (`Resources/Enthea/`, `Sources/Enthea/`) |
+| Metal | Mini spectrum (`Visualization/`, `Shaders/`) |
 
 **Audio pipeline (simplified):**
 
 ```
 Audio file → player node → 10-band EQ → mixer → output
-                              ↘ analysis tap → FFT / features → spectrum + MilkDrop
+                              ↘ analysis tap → FFT / features → spectrum + ENTHEA
 ```
 
 Key sources: `WinampApp.swift`, `ContentView.swift`, `AudioPlayer.swift`, `PlaylistManager.swift`, `Views/Classic/*`, `WinampPanelWindowManager.swift`.
