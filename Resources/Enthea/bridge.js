@@ -237,14 +237,15 @@
       }
       // Pause → ENTHEA's updateAudio early-returns and envelopes decay.
       S.audio.on = !!isPlaying;
-      // Keep timeline path armed while a native map is loaded.
-      if (S.timeline) S.audio.source = "file";
+      // File path only while a native map is loaded; otherwise host analyser.
+      S.audio.source = S.timeline ? "file" : "winamp";
     },
     setTimeline(tl) {
       if (typeof S !== "object" || typeof AUDIO !== "object") return;
       ensureFileEl();
       if (!tl) {
         S.timeline = null;
+        S.audio.source = "winamp";
         return;
       }
       S.timeline = {
