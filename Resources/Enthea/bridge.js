@@ -187,7 +187,9 @@
     setRenderPaused(paused) {
       renderPaused = !!paused;
       if (typeof S === "object" && S.audio) {
-        if (renderPaused) S.audio.on = false;
+        // Host only unpauses while playing; restore analysis immediately so
+        // updateAudio does not early-return while waiting for the next push.
+        S.audio.on = !renderPaused;
       }
       if (!renderPaused && !renderLoopAlive && typeof frame === "function") {
         renderLoopAlive = true;

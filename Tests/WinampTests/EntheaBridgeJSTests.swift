@@ -38,6 +38,27 @@ final class EntheaBridgeJSTests: XCTestCase {
         )
     }
 
+    func testSetRenderPausedRestoresAudioOnWhenResuming() throws {
+        let ctx = try Self.makeBridgeContext()
+        let blob = EntheaAudioPayloadCodec.encode(bins: [], left: [], right: [])
+        ctx.evaluateScript("winampAudio.push('\(blob)',44100,true)")
+        XCTAssertEqual(Self.string(ctx, "String(!!S.audio.on)"), "true")
+
+        ctx.evaluateScript("winampEnthea.setRenderPaused(true)")
+        XCTAssertEqual(
+            Self.string(ctx, "String(!!S.audio.on)"),
+            "false",
+            "pause must disable ENTHEA audio analysis"
+        )
+
+        ctx.evaluateScript("winampEnthea.setRenderPaused(false)")
+        XCTAssertEqual(
+            Self.string(ctx, "String(!!S.audio.on)"),
+            "true",
+            "resume must restore audio.on before the next push so updateAudio does not early-return"
+        )
+    }
+
     private static func string(_ ctx: JSContext, _ expr: String) -> String {
         ctx.evaluateScript(expr)?.toString() ?? ""
     }
