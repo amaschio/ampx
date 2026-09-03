@@ -6,10 +6,13 @@ struct WinampApp: App {
     @StateObject private var audioPlayer = AudioPlayer.shared
     @StateObject private var playlistManager = PlaylistManager.shared
     @StateObject private var uiScale = WinampUIScale.shared
+    @StateObject private var panelLayout = WinampPanelLayoutState()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
         WinampTypography.registerBundledFonts()
+        // Fixed-size Classic chrome — hide the system "Enter Full Screen" View item.
+        UserDefaults.standard.set(false, forKey: "NSFullScreenMenuItemEverywhere")
     }
 
     var body: some Scene {
@@ -19,6 +22,7 @@ struct WinampApp: App {
                 .environmentObject(self.audioPlayer.playbackClock)
                 .environmentObject(self.playlistManager)
                 .environmentObject(self.uiScale)
+                .environmentObject(self.panelLayout)
                 .preferredColorScheme(.dark)
                 .background(Color.clear)
                 .onAppear {
@@ -32,31 +36,12 @@ struct WinampApp: App {
         .windowResizability(.contentSize)
         .defaultSize(width: 275, height: 116)
         .commands {
-            CommandGroup(replacing: .newItem) {}
-            CommandMenu("Playback") {
-                Button("Play/Pause") { self.audioPlayer.togglePlayPause() }
-                    .keyboardShortcut("x", modifiers: [])
-                Button("Stop") { self.audioPlayer.stop() }
-                    .keyboardShortcut("v", modifiers: [])
-                Button("Previous Track") { self.playlistManager.previous() }
-                    .keyboardShortcut("z", modifiers: [])
-                Button("Next Track") { self.playlistManager.next() }
-                    .keyboardShortcut("b", modifiers: [])
-            }
-            CommandMenu("File") {
-                Button("Add Files...") { self.playlistManager.showFilePicker() }
-                    .keyboardShortcut("l", modifiers: [.command])
-                Button("Add Folder...") { self.playlistManager.showFolderPicker() }
-                    .keyboardShortcut("l", modifiers: [.command, .shift])
-            }
-            CommandMenu("Zoom") {
-                ForEach(WinampUIScaleLevel.allCases) { level in
-                    Button(level.label) {
-                        self.uiScale.setLevel(level)
-                    }
-                    .disabled(self.uiScale.level == level)
-                }
-            }
+            WinampCommands(
+                audioPlayer: self.audioPlayer,
+                playlistManager: self.playlistManager,
+                uiScale: self.uiScale,
+                panelLayout: self.panelLayout
+            )
         }
     }
 }

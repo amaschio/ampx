@@ -9,7 +9,7 @@ struct ContentView: View {
     @EnvironmentObject var audioPlayer: AudioPlayer
     @EnvironmentObject var playlistManager: PlaylistManager
     @EnvironmentObject var uiScale: WinampUIScale
-    @StateObject private var panelLayout = WinampPanelLayoutState()
+    @EnvironmentObject var panelLayout: WinampPanelLayoutState
     @State private var lastAppliedUIScale: CGFloat = 0
     @AppStorage("showRemainingTime") private var showRemainingTime = false
 
@@ -137,8 +137,12 @@ struct ContentView: View {
     /// Only the SwiftUI `WindowGroup` player may receive Winamp borderless chrome. System About /
     /// open panels are `NSPanel`s (or other titled windows) and must keep their native close button.
     private func shouldConfigureAsMainPlayerWindow(_ window: NSWindow) -> Bool {
-        if WinampPanelWindowManager.shared.isPanelWindow(window) { return false }
-        if window is NSPanel { return false }
+        if WinampPanelWindowManager.shared.isPanelWindow(window) {
+            return false
+        }
+        if window is NSPanel {
+            return false
+        }
         if let known = Self.configuredMainWindowID {
             return ObjectIdentifier(window) == known
         }
