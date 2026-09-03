@@ -1,7 +1,14 @@
 import Foundation
 
 /// Pure volume math extracted from `AudioPlayer`: the perceptual fader taper and how it
-/// combines with ReplayGain normalization into the linear gain applied to the player node.
+/// combines with ReplayGain normalization into the **listening** gain product.
+///
+/// Live engine path applies **two** gains so analysis sits between them:
+/// - `AVAudioPlayerNode.volume` = ReplayGain / normalization only (`playerNormalizationGain`)
+/// - `mainMixer.outputVolume` = `taper(slider)` only
+///
+/// `appliedGain` remains the product of those factors (tests / combined listening equivalent),
+/// not what a single node receives.
 ///
 /// Kept stateless and free of audio-engine types so the mapping is unit-testable without an
 /// `AVAudioEngine`.
@@ -21,8 +28,15 @@ enum VolumeModel {
         return p * p * p
     }
 
-    /// The linear gain to apply to the player node for a tapered slider position and a linear
-    /// normalization gain, clamped to `0…maxAppliedGain`.
+    /// Linear gain for `AVAudioPlayerNode.volume` when the listening fader lives on the main mixer.
+    static func playerNormalizationGain(normalizationEnabled: Bool, normalizationGain: Float) -> Float {
+        let gain = normalizationEnabled ? normalizationGain : 1
+        return max(0, min(self.maxAppliedGain, gain))
+    }
+
+    /// The combined listening gain (taper × normalization), clamped to `0…maxAppliedGain`.
+    /// Prefer applying the factors on separate nodes in the live engine; use this for tests
+    /// or any call site that still wants the product.
     static func appliedGain(position: Float, normalizationGain: Float) -> Float {
         max(0, min(self.maxAppliedGain, self.taper(position) * normalizationGain))
     }

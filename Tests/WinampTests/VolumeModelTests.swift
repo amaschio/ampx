@@ -75,4 +75,22 @@ final class VolumeModelTests: XCTestCase {
             accuracy: 0.0001
         )
     }
+
+    func testPlayerNormalizationGainIgnoresFaderAndRespectsEnabledFlag() {
+        XCTAssertEqual(
+            VolumeModel.playerNormalizationGain(normalizationEnabled: false, normalizationGain: 2.0),
+            1.0,
+            accuracy: 0.0001
+        )
+        XCTAssertEqual(
+            VolumeModel.playerNormalizationGain(normalizationEnabled: true, normalizationGain: 2.0),
+            2.0,
+            accuracy: 0.0001
+        )
+        XCTAssertEqual(
+            VolumeModel.playerNormalizationGain(normalizationEnabled: true, normalizationGain: 8.0),
+            VolumeModel.maxAppliedGain,
+            accuracy: 0.0001
+        )
+    }
 }

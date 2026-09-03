@@ -28,10 +28,31 @@ final class AudioGraphTests: XCTestCase {
         engine.outputConnectionPoints(for: source, outputBus: 0).contains { $0.node === target }
     }
 
-    func testTapPointIsMainMixer() {
+    func testTapPointIsSourceWhenEffectChainEmpty() {
         let engine = AVAudioEngine()
         let graph = AudioGraph(engine: engine)
-        XCTAssertTrue(graph.tapPoint === engine.mainMixerNode)
+        XCTAssertTrue(graph.effects.isEmpty)
+        XCTAssertTrue(graph.tapPoint === graph.source)
+        XCTAssertFalse(graph.tapPoint === engine.mainMixerNode)
+    }
+
+    func testTapPointIsLastEffectOutputWhenChainBuilt() {
+        let engine = AVAudioEngine()
+        let graph = AudioGraph(engine: engine)
+        let eq = EQAudioEffect()
+        graph.build(effects: [eq])
+        XCTAssertTrue(graph.tapPoint === eq.outputNode)
+        XCTAssertFalse(graph.tapPoint === engine.mainMixerNode)
+    }
+
+    func testTapPointFollowsLastEffectAfterAppend() {
+        let engine = AVAudioEngine()
+        let graph = AudioGraph(engine: engine)
+        let eq = EQAudioEffect()
+        let extra = PassthroughEffect(identifier: "test.passthrough")
+        graph.build(effects: [eq])
+        graph.append(extra)
+        XCTAssertTrue(graph.tapPoint === extra.outputNode)
     }
 
     func testBuildConnectsSourceThroughEffectToMainMixer() {
@@ -95,6 +116,7 @@ final class AudioGraphTests: XCTestCase {
         graph.removeEffect(identifier: "winamp.eq")
         XCTAssertTrue(graph.effects.isEmpty)
         XCTAssertTrue(self.feeds(engine, from: graph.source, into: engine.mainMixerNode))
+        XCTAssertTrue(graph.tapPoint === graph.source)
     }
 
     func testEffectLookupByIdentifier() {

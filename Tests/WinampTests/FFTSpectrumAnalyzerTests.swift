@@ -11,6 +11,52 @@ final class FFTSpectrumAnalyzerTests: XCTestCase {
         XCTAssertTrue(bands.allSatisfy { $0 < 0.05 })
     }
 
+    func testFullScaleSineNearUnityOnPeakBandWithQuietNeighbors() {
+        let sampleRate: Double = 44100
+        let frequency: Double = 440
+        let frameCount = 1024
+        let samples = (0 ..< frameCount).map { index in
+            Float(sin(2 * .pi * frequency * Double(index) / sampleRate))
+        }
+        let analyzer = FFTSpectrumAnalyzer(bandCount: AudioFeatures.spectrumBandCount, fftSize: frameCount)
+        let bands = analyzer.analyze(self.makeBuffer(samples: samples, sampleRate: sampleRate))
+
+        let peak = bands.max() ?? 0
+        let peakIndex = bands.firstIndex(of: peak) ?? -1
+        XCTAssertGreaterThan(peak, 0.85, "full-scale tone should sit near the top of the −72…0 window")
+        XCTAssertLessThanOrEqual(peak, 1.0)
+
+        let neighborEnergies = bands.enumerated()
+            .filter { abs($0.offset - peakIndex) > 2 }
+            .map(\.element)
+        let neighborMax = neighborEnergies.max() ?? 1
+        XCTAssertLessThan(neighborMax, peak * 0.55)
+    }
+
+    func testAttenuatedSineIsClearlyLowerThanFullScale() {
+        let sampleRate: Double = 44100
+        let frequency: Double = 440
+        let frameCount = 1024
+        let full = (0 ..< frameCount).map { index in
+            Float(sin(2 * .pi * frequency * Double(index) / sampleRate))
+        }
+        let quiet = full.map { $0 * pow(10, -20.0 / 20.0) }
+
+        let analyzerLoud = FFTSpectrumAnalyzer(bandCount: AudioFeatures.spectrumBandCount, fftSize: frameCount)
+        let analyzerQuiet = FFTSpectrumAnalyzer(bandCount: AudioFeatures.spectrumBandCount, fftSize: frameCount)
+        let loudPeak = analyzerLoud.analyze(self.makeBuffer(samples: full, sampleRate: sampleRate)).max() ?? 0
+        let quietPeak = analyzerQuiet.analyze(self.makeBuffer(samples: quiet, sampleRate: sampleRate)).max() ?? 0
+
+        XCTAssertGreaterThan(loudPeak - quietPeak, 0.15)
+        XCTAssertLessThan(quietPeak, 0.85)
+    }
+
+    func testSilenceStaysNearZero() {
+        let analyzer = FFTSpectrumAnalyzer(bandCount: AudioFeatures.spectrumBandCount, fftSize: 1024)
+        let bands = analyzer.analyze(self.makeBuffer(samples: Array(repeating: 0, count: 1024)))
+        XCTAssertTrue(bands.allSatisfy { $0 < 0.05 })
+    }
+
     func testWeakerSignalProducesLowerBandsThanStrongerSignal() {
         let sampleRate: Double = 44100
         let frequency: Double = 440

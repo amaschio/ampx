@@ -255,10 +255,7 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
         for (index, mapping) in self.bandMappings.enumerated() {
             let slice = self.magnitudes[mapping.start ..< mapping.end]
             let peak = slice.max() ?? 0
-            let meanSquare = slice.reduce(0) { $0 + $1 * $1 } / Float(max(slice.count, 1))
-            let rms = sqrt(meanSquare)
-            let combined = peak * 0.55 + rms * 0.45
-            bands[index] = self.normalizedMagnitude(combined)
+            bands[index] = self.normalizedMagnitude(peak)
         }
 
         if let onRawBins {
@@ -350,10 +347,10 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
 
     private func normalizedMagnitude(_ magnitude: Float) -> Float {
         guard magnitude > 0 else { return 0 }
-        let decibels = 10 * log10(magnitude)
-        let floor: Float = -60
-        // Headroom above the raw 0 dB reference so peak bins are not always clipped to 1.0.
-        let ceiling: Float = 18
+        let normalizedPower = magnitude / self.rawBinReferenceMagnitude
+        let decibels = 10 * log10(normalizedPower)
+        let floor: Float = -72
+        let ceiling: Float = 0
         let clamped = min(max(decibels, floor), ceiling)
         return (clamped - floor) / (ceiling - floor)
     }

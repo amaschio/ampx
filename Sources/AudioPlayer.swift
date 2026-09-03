@@ -173,6 +173,7 @@ class AudioPlayer: NSObject, ObservableObject {
             self.installSpectrumTapIfNeeded()
         }
         self.engineIsRunning = engineStarted
+        self.applyPlayerVolume()
     }
 
     private func installSpectrumTapIfNeeded() {
@@ -198,7 +199,7 @@ class AudioPlayer: NSObject, ObservableObject {
             SpectrumAnalyzerDebugProbe.log(
                 stage: "publish",
                 bands: bands,
-                context: String(format: "preamp=%.1fdB tap=mainMixer", 20 * log10(max(self.spectrumDebugPreampLinear, 0.000_01)))
+                context: String(format: "preamp=%.1fdB tap=effectChain", 20 * log10(max(self.spectrumDebugPreampLinear, 0.000_01)))
             )
         }
         analyzer.installTap(on: graph.tapPoint)
@@ -417,8 +418,11 @@ class AudioPlayer: NSObject, ObservableObject {
 
     func play() {
         self.testing_lastTransportAction = .play
-        let normalization = self.volumeNormalizationEnabled ? self.normalizationLinearGain : 1.0
-        let volume = VolumeModel.appliedGain(position: self.volume, normalizationGain: normalization)
+        let playerGain = VolumeModel.playerNormalizationGain(
+            normalizationEnabled: self.volumeNormalizationEnabled,
+            normalizationGain: self.normalizationLinearGain
+        )
+        let mixerGain = VolumeModel.taper(self.volume)
         let balance = self.balance
         self.audioQueue.async { [weak self] in
             guard let self else { return }
@@ -454,7 +458,8 @@ class AudioPlayer: NSObject, ObservableObject {
                 }
             }
 
-            player.volume = volume
+            player.volume = playerGain
+            engine.mainMixerNode.outputVolume = mixerGain
             player.pan = balance
             player.play()
             self.isPlayingInternal = true
@@ -613,12 +618,18 @@ class AudioPlayer: NSObject, ObservableObject {
         self.applyPlayerVolume()
     }
 
-    /// Applies the current slider position (tapered) and normalization gain to the player node.
+    /// Applies ReplayGain on the player node and the tapered fader on the main mixer
+    /// so the analysis tap (post-EQ) does not see the listening volume.
     private func applyPlayerVolume() {
-        let normalization = self.volumeNormalizationEnabled ? self.normalizationLinearGain : 1.0
-        let applied = VolumeModel.appliedGain(position: self.volume, normalizationGain: normalization)
+        let playerGain = VolumeModel.playerNormalizationGain(
+            normalizationEnabled: self.volumeNormalizationEnabled,
+            normalizationGain: self.normalizationLinearGain
+        )
+        let mixerGain = VolumeModel.taper(self.volume)
         self.audioQueue.async { [weak self] in
-            self?.playerNode?.volume = applied
+            guard let self else { return }
+            self.playerNode?.volume = playerGain
+            self.audioEngine?.mainMixerNode.outputVolume = mixerGain
         }
     }
 
