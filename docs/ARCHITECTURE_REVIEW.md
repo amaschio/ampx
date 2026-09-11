@@ -131,7 +131,7 @@ loads/seeks is genuinely professional-grade.
 |---|---|---|---|
 | V1 | Multi-pass persistence/composite orchestration lives in the **renderer**, not behind the plugin protocol — a new visualization needing different passes requires engine surgery. | 🟡 Medium · **deferred** | [`MetalVisualizationView.swift`](../Sources/Visualization/MetalVisualizationView.swift) `drawSpectrumWithPeakPersistence` |
 | V2 | Fullscreen presets aliased via `preset % 4` — only 4 of 11 reachable, names mislabeled. | ✅ **Fixed (P2)** | now a total one-branch-per-preset dispatch in [`VisualizerShaders.metal`](../Sources/Shaders/VisualizerShaders.metal); 11 distinct effects |
-| V3 | `VizUniforms` duplicated in Swift + Metal with no layout check. | ✅ **Fixed (P2)** | Metal `static_assert` on size/alignment + [`VizUniformsLayoutTests`](../Tests/WinampTests/VizUniformsLayoutTests.swift) on stride/offsets |
+| V3 | `VizUniforms` duplicated in Swift + Metal with no layout check. | ✅ **Fixed (P2)** | Metal `static_assert` on size/alignment + [`VizUniformsLayoutTests`](../Tests/AmpXTests/VizUniformsLayoutTests.swift) on stride/offsets |
 | V4 | Silent pipeline-compile failures (`try? … → nil`, no log). | ✅ **Fixed (P2)** | [`MetalVisualizationEngine.makePipeline`](../Sources/Visualization/MetalVisualizationEngine.swift) logs missing functions + compile errors via `os.Logger` |
 | V5 | Per-frame `[Float]` allocations on the render path (spectrum smoother + analyzer peak tracker). | ✅ **Fixed (V5)** | smoother/peak-tracker now return reused state storage (copy-on-write value semantics), eliminating 1–3 array allocs/frame; guarded by value-semantics tests |
 
@@ -161,7 +161,7 @@ mutable scratch that escapes into `AudioFeatures` is an aliasing hazard for low 
   strong base reflecting deliberate "extract pure function → test it" discipline.
 - Good DI seams exist:
   [`AudioPlaybackControlling`](../Sources/AudioPlaybackControlling.swift) +
-  [`MockAudioPlayer`](../Tests/WinampTests/MockAudioPlayer.swift), plus injectable
+  [`MockAudioPlayer`](../Tests/AmpXTests/MockAudioPlayer.swift), plus injectable
   `featureBus`, `engine`, and `VisualizationClock`.
 
 **CI history:** A GitHub Actions workflow once built/released (and briefly gated on
@@ -174,7 +174,7 @@ Broken link note: do not expect [`../.github/workflows/build.yml`](../.github/wo
 | # | Issue | Severity |
 |---|---|---|
 | T1 | `AudioPlayer` carries **~10 `testing_` methods in the production type** ([`AudioPlayer.swift`](../Sources/AudioPlayer.swift)) — a symptom of the type being too coupled to mock cleanly. The `AudioRenderingEngine` mock seam was **deliberately deferred** (these hooks assert real engine behavior; a mock would lower fidelity). | 🟡 Medium · deferred |
-| T2 | ~~Metal `draw` path untested~~ → **GPU smoke harness added (P3 ✅)**: [`MetalVisualizationSmokeTests`](../Tests/WinampTests/MetalVisualizationSmokeTests.swift) compiles every pipeline and renders every plugin + all 11 presets to an offscreen target (skips cleanly with no GPU). **Still untested:** SwiftUI views, window-drag management, and the live playback lifecycle (only state transitions are covered). | 🟡 Medium |
+| T2 | ~~Metal `draw` path untested~~ → **GPU smoke harness added (P3 ✅)**: [`MetalVisualizationSmokeTests`](../Tests/AmpXTests/MetalVisualizationSmokeTests.swift) compiles every pipeline and renders every plugin + all 11 presets to an offscreen target (skips cleanly with no GPU). **Still untested:** SwiftUI views, window-drag management, and the live playback lifecycle (only state transitions are covered). | 🟡 Medium |
 | T3 | Pervasive singletons (`AudioFeatureBus.shared`, etc.) carry state *between* tests, undermining isolation. | 🟢 Low |
 
 ---
@@ -188,7 +188,7 @@ Instruments-grade.
 
 **Fixed in P0 ✅:** a centralized `os_signpost` layer
 ([`Instrumentation.swift`](../Sources/Utilities/Instrumentation.swift)) with `Audio` and
-`Visualization` categories under subsystem `com.winamp.macos`:
+`Visualization` categories under subsystem `com.ampx.macos`:
 
 - `frame` interval around per-frame CPU encoding in the renderer.
 - `gpu` event emitting `gpuEndTime − gpuStartTime` (µs) from the command-buffer
@@ -205,7 +205,7 @@ signposts cost ~nothing when no trace is recording and surface directly in Instr
 |---|---|---|
 | P-A | **No MetricKit** subscriber (no field CPU/memory/hang/launch aggregation). | 🟡 Medium |
 | P-B | **No memory instrumentation** — allocations-per-frame on the render path (V5) are not tracked. | 🟢 Low |
-| P-C | `WinampMetrics` is a **misnomer** — it's UI layout constants, not performance metrics. Potential naming confusion. | 🟢 Low |
+| P-C | `AmpXMetrics` is a **misnomer** — it's UI layout constants, not performance metrics. Potential naming confusion. | 🟢 Low |
 
 ---
 
@@ -259,7 +259,7 @@ signposts cost ~nothing when no trace is recording and surface directly in Instr
 ### P3 — testability depth (goal 3)  🟡 In progress
 
 6. 🟡 **Render + view coverage.** ✅ Metal GPU smoke harness
-   ([`MetalVisualizationSmokeTests`](../Tests/WinampTests/MetalVisualizationSmokeTests.swift)):
+   ([`MetalVisualizationSmokeTests`](../Tests/AmpXTests/MetalVisualizationSmokeTests.swift)):
    pipeline compilation + offscreen render of every plugin and all 11 presets, skipped
    cleanly when no GPU is present. ⬜ Snapshot tests for the retro chrome; ⬜ reduce
    singleton state-bleed between tests (T3).

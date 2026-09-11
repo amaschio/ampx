@@ -31,7 +31,7 @@ struct ClassicMainPlayerView: View {
             text = "\(self.playlistManager.currentIndex + 1). " + text
         }
         if let duration = self.displayTrack?.duration, duration > 0 {
-            text += " (\(WinampTimeFormatting.format(duration)))"
+            text += " (\(AmpXTimeFormatting.format(duration)))"
         }
         return text
     }
@@ -39,7 +39,7 @@ struct ClassicMainPlayerView: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             // Body only — titlebar corners come solely from TITLEBAR.BMP (no MAIN double-draw).
-            SkinSpriteView(sprite: WinampSkinSprites.Main.windowBody, scale: self.s)
+            SkinSpriteView(sprite: AmpXSkinSprites.Main.windowBody, scale: self.s)
                 .classicPlaced(x: 0, y: 14, width: 275, height: 102, scale: self.s)
 
             ClassicMainTitleBar(
@@ -77,8 +77,8 @@ struct ClassicMainPlayerView: View {
                     get: { Double(self.audioPlayer.volume) },
                     set: { self.audioPlayer.setVolume(Float($0)) }
                 ),
-                track: WinampSkinSprites.Volume.background(forNormalized: self.audioPlayer.volume),
-                thumb: WinampSkinSprites.Volume.thumb,
+                track: AmpXSkinSprites.Volume.background(forNormalized: self.audioPlayer.volume),
+                thumb: AmpXSkinSprites.Volume.thumb,
                 scale: self.s
             )
             .classicPlaced(x: 107, y: 57, width: 68, height: 13, scale: self.s)
@@ -88,25 +88,25 @@ struct ClassicMainPlayerView: View {
                     get: { (Double(self.audioPlayer.balance) + 1) / 2 },
                     set: { self.audioPlayer.setBalance(Float($0 * 2 - 1)) }
                 ),
-                track: WinampSkinSprites.Balance.background(
+                track: AmpXSkinSprites.Balance.background(
                     forNormalized: (self.audioPlayer.balance + 1) / 2
                 ),
-                thumb: WinampSkinSprites.Balance.thumb,
+                thumb: AmpXSkinSprites.Balance.thumb,
                 scale: self.s
             )
             .classicPlaced(x: 177, y: 57, width: 38, height: 13, scale: self.s)
 
-            WinampSkinToggle(
-                off: WinampSkinSprites.ShufRep.eqOff,
-                on: WinampSkinSprites.ShufRep.eqOn,
+            AmpXSkinToggle(
+                off: AmpXSkinSprites.ShufRep.eqOff,
+                on: AmpXSkinSprites.ShufRep.eqOn,
                 isOn: self.$showEqualizer,
                 scale: self.s
             )
             .classicPlaced(x: 219, y: 58, width: 23, height: 12, scale: self.s)
 
-            WinampSkinToggle(
-                off: WinampSkinSprites.ShufRep.plOff,
-                on: WinampSkinSprites.ShufRep.plOn,
+            AmpXSkinToggle(
+                off: AmpXSkinSprites.ShufRep.plOff,
+                on: AmpXSkinSprites.ShufRep.plOn,
                 isOn: self.$showPlaylist,
                 scale: self.s
             )
@@ -118,47 +118,47 @@ struct ClassicMainPlayerView: View {
             }
             .classicPlaced(x: 16, y: 72, width: 248, height: 10, scale: self.s)
 
-            WinampSkinButton(normal: WinampSkinSprites.CButtons.previous, pressed: WinampSkinSprites.CButtons.previousActive, scale: self.s) {
+            AmpXSkinButton(normal: AmpXSkinSprites.CButtons.previous, pressed: AmpXSkinSprites.CButtons.previousActive, scale: self.s) {
                 self.playlistManager.previous()
             }
             .classicPlaced(x: 16, y: 88, width: 23, height: 18, scale: self.s)
 
-            WinampSkinButton(normal: WinampSkinSprites.CButtons.play, pressed: WinampSkinSprites.CButtons.playActive, scale: self.s) {
+            AmpXSkinButton(normal: AmpXSkinSprites.CButtons.play, pressed: AmpXSkinSprites.CButtons.playActive, scale: self.s) {
                 self.audioPlayer.playOrResume()
             }
             .classicPlaced(x: 39, y: 88, width: 23, height: 18, scale: self.s)
 
-            WinampSkinButton(normal: WinampSkinSprites.CButtons.pause, pressed: WinampSkinSprites.CButtons.pauseActive, scale: self.s) {
+            AmpXSkinButton(normal: AmpXSkinSprites.CButtons.pause, pressed: AmpXSkinSprites.CButtons.pauseActive, scale: self.s) {
                 self.audioPlayer.pause()
             }
             .classicPlaced(x: 62, y: 88, width: 23, height: 18, scale: self.s)
 
-            WinampSkinButton(normal: WinampSkinSprites.CButtons.stop, pressed: WinampSkinSprites.CButtons.stopActive, scale: self.s) {
+            AmpXSkinButton(normal: AmpXSkinSprites.CButtons.stop, pressed: AmpXSkinSprites.CButtons.stopActive, scale: self.s) {
                 self.audioPlayer.stop()
             }
             .classicPlaced(x: 85, y: 88, width: 23, height: 18, scale: self.s)
 
-            WinampSkinButton(normal: WinampSkinSprites.CButtons.next, pressed: WinampSkinSprites.CButtons.nextActive, scale: self.s) {
+            AmpXSkinButton(normal: AmpXSkinSprites.CButtons.next, pressed: AmpXSkinSprites.CButtons.nextActive, scale: self.s) {
                 self.playlistManager.next()
             }
             .classicPlaced(x: 108, y: 88, width: 22, height: 18, scale: self.s)
 
-            WinampSkinButton(normal: WinampSkinSprites.CButtons.eject, pressed: WinampSkinSprites.CButtons.ejectActive, scale: self.s) {
+            AmpXSkinButton(normal: AmpXSkinSprites.CButtons.eject, pressed: AmpXSkinSprites.CButtons.ejectActive, scale: self.s) {
                 self.playlistManager.showFilePicker()
             }
             .classicPlaced(x: 136, y: 89, width: 22, height: 16, scale: self.s)
 
-            WinampSkinToggle(
-                off: WinampSkinSprites.ShufRep.shuffle,
-                on: WinampSkinSprites.ShufRep.shuffleOn,
+            AmpXSkinToggle(
+                off: AmpXSkinSprites.ShufRep.shuffle,
+                on: AmpXSkinSprites.ShufRep.shuffleOn,
                 isOn: self.$shuffleEnabled,
                 scale: self.s
             )
             .classicPlaced(x: 164, y: 89, width: 47, height: 15, scale: self.s)
 
-            WinampSkinToggle(
-                off: WinampSkinSprites.ShufRep.repeatBtn,
-                on: WinampSkinSprites.ShufRep.repeatOn,
+            AmpXSkinToggle(
+                off: AmpXSkinSprites.ShufRep.repeatBtn,
+                on: AmpXSkinSprites.ShufRep.repeatOn,
                 isOn: self.$repeatEnabled,
                 scale: self.s
             )
@@ -181,7 +181,7 @@ struct ClassicMainTitleBar: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            SkinSpriteView(sprite: WinampSkinSprites.Titlebar.barSelected, scale: self.scale)
+            SkinSpriteView(sprite: AmpXSkinSprites.Titlebar.barSelected, scale: self.scale)
                 .allowsHitTesting(false)
 
             // Drag only the center strip — options + window controls stay fully uncovered.
@@ -231,13 +231,13 @@ struct ClassicMainTitleBar: View {
     }
 
     static func activeWindow() -> NSWindow? {
-        if let main = WinampPanelWindowManager.shared.mainPlayerWindow {
+        if let main = AmpXPanelWindowManager.shared.mainPlayerWindow {
             return main
         }
         return NSApp.windows.first { window in
             window.isVisible
                 && !(window is NSPanel)
-                && !WinampPanelWindowManager.shared.isPanelWindow(window)
+                && !AmpXPanelWindowManager.shared.isPanelWindow(window)
         }
     }
 }
@@ -255,7 +255,7 @@ private struct ClassicBitmapTimeDisplayWrapper: View {
             let paused = !self.audioPlayer.isPlaying && self.audioPlayer.duration > 0
             let blinkOff = paused && Int(context.date.timeIntervalSinceReferenceDate * 2) % 2 == 1
             ClassicBitmapTimeDisplay(
-                text: WinampTimeFormatting.format(
+                text: AmpXTimeFormatting.format(
                     self.showRemainingTime
                         ? -(self.audioPlayer.duration - self.clock.currentTime)
                         : self.clock.currentTime,

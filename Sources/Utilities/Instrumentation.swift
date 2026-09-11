@@ -8,9 +8,9 @@ import os
 /// audio-analysis cadence can be measured directly — no bespoke `print` probes.
 ///
 /// Usage: profile a Release/Debug build with the *Time Profiler* + *os_signpost*
-/// templates; filter by subsystem `com.winamp.macos`.
+/// templates; filter by subsystem `com.ampx.macos`.
 enum Instrumentation {
-    static let subsystem = "com.winamp.macos"
+    static let subsystem = "com.ampx.macos"
 
     /// Audio analysis path: FFT hop processing and feature publishing.
     static let audio = OSSignposter(subsystem: subsystem, category: "Audio")

@@ -28,8 +28,8 @@
 | `Sources/Views/Classic/PlaylistListInteractions.swift` | Add `PlaylistChromeActions` (testable chrome command helpers) |
 | `Sources/PlaylistManager.swift` | Add `replacePlaylist(fromM3U:)` + `showLoadM3UPicker()` |
 | `Sources/Views/Classic/ClassicPlaylistView.swift` | Five `Menu`s; retire single-action hit targets for ADD/REM/SEL/MISC; fix LIST menu items |
-| `Tests/WinampTests/PlaylistChromeActionsTests.swift` | Unit tests for chrome helpers |
-| `Tests/WinampTests/PlaylistManagerTests.swift` | Load/replace M3U tests |
+| `Tests/AmpXTests/PlaylistChromeActionsTests.swift` | Unit tests for chrome helpers |
+| `Tests/AmpXTests/PlaylistManagerTests.swift` | Load/replace M3U tests |
 | `USAGE.md` | Document the five chrome menus |
 
 ---
@@ -38,7 +38,7 @@
 
 **Files:**
 - Modify: `Sources/Views/Classic/PlaylistListInteractions.swift`
-- Create: `Tests/WinampTests/PlaylistChromeActionsTests.swift`
+- Create: `Tests/AmpXTests/PlaylistChromeActionsTests.swift`
 
 **Interfaces:**
 - Consumes: `PlaylistManager.removeTracks(at:)`, `cropToTracks(at:)`, `clearPlaylist()`, `presentTrackInfo(at:)`; `PlaylistSelectionModel.prune` / `selectAll` / `invert`
@@ -56,7 +56,7 @@
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `Tests/WinampTests/PlaylistChromeActionsTests.swift`:
+Create `Tests/AmpXTests/PlaylistChromeActionsTests.swift`:
 
 ```swift
 import XCTest
@@ -162,7 +162,7 @@ If `MockAudioPlayer` / `Track` init differ in this repo, match existing `Playlis
 Run:
 
 ```bash
-./scripts/run-tests.sh -only-testing:WinampTests/PlaylistChromeActionsTests
+./scripts/run-tests.sh -only-testing:AmpXTests/PlaylistChromeActionsTests
 ```
 
 Expected: FAIL — `PlaylistChromeActions` not found (or similar compile error).
@@ -244,7 +244,7 @@ Optionally refactor `PlaylistKeyboardNavigation.removeSelectedTracks` / `cropToS
 Run:
 
 ```bash
-./scripts/run-tests.sh -only-testing:WinampTests/PlaylistChromeActionsTests
+./scripts/run-tests.sh -only-testing:AmpXTests/PlaylistChromeActionsTests
 ```
 
 Expected: PASS
@@ -253,7 +253,7 @@ Expected: PASS
 
 ```bash
 git add Sources/Views/Classic/PlaylistListInteractions.swift \
-  Tests/WinampTests/PlaylistChromeActionsTests.swift
+  Tests/AmpXTests/PlaylistChromeActionsTests.swift
 git commit -m "$(cat <<'EOF'
 feat: add PlaylistChromeActions for pledit menu commands
 
@@ -267,7 +267,7 @@ EOF
 
 **Files:**
 - Modify: `Sources/PlaylistManager.swift`
-- Modify: `Tests/WinampTests/PlaylistManagerTests.swift`
+- Modify: `Tests/AmpXTests/PlaylistManagerTests.swift`
 
 **Interfaces:**
 - Consumes: existing `fileService.loadM3UPlaylist(from:)`, `clearPlaylist()`, `addTracks(_:)`, bookmark helpers used by `importPickedURLs`
@@ -277,7 +277,7 @@ EOF
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `Tests/WinampTests/PlaylistManagerTests.swift` (reuse that file’s temp-dir / fixture patterns):
+Add to `Tests/AmpXTests/PlaylistManagerTests.swift` (reuse that file’s temp-dir / fixture patterns):
 
 ```swift
 func testReplacePlaylistFromM3UReplacesTracks() async throws {
@@ -294,7 +294,7 @@ Use the same fixture generation path as other M3U tests (`Tests/Fixtures` via `.
 Run:
 
 ```bash
-./scripts/run-tests.sh -only-testing:WinampTests/PlaylistManagerTests/testReplacePlaylistFromM3UReplacesTracks
+./scripts/run-tests.sh -only-testing:AmpXTests/PlaylistManagerTests/testReplacePlaylistFromM3UReplacesTracks
 ```
 
 Expected: FAIL — `replacePlaylist(fromM3U:)` missing.
@@ -336,7 +336,7 @@ func replacePlaylist(fromM3U url: URL) async {
 Run:
 
 ```bash
-./scripts/run-tests.sh -only-testing:WinampTests/PlaylistManagerTests/testReplacePlaylistFromM3UReplacesTracks
+./scripts/run-tests.sh -only-testing:AmpXTests/PlaylistManagerTests/testReplacePlaylistFromM3UReplacesTracks
 ```
 
 Expected: PASS
@@ -344,7 +344,7 @@ Expected: PASS
 - [ ] **Step 5: Commit** (only if the user asked)
 
 ```bash
-git add Sources/PlaylistManager.swift Tests/WinampTests/PlaylistManagerTests.swift
+git add Sources/PlaylistManager.swift Tests/AmpXTests/PlaylistManagerTests.swift
 git commit -m "$(cat <<'EOF'
 feat: load M3U replaces playlist via showLoadM3UPicker
 

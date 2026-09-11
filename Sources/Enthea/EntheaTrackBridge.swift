@@ -5,7 +5,7 @@ import Foundation
 /// Analysis runs off the main actor. Position updates are coalesced (~8 Hz) so they do not
 /// compete with the 60 Hz audio-bin push.
 final class EntheaTrackBridge: @unchecked Sendable {
-    private let queue = DispatchQueue(label: "com.winamp.enthea.track")
+    private let queue = DispatchQueue(label: "com.ampx.enthea.track")
     private weak var evaluator: EntheaJavaScriptEvaluating?
     private var analysisGeneration = 0
     private var analyzedURL: URL?

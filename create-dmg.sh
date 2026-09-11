@@ -1,11 +1,11 @@
 #!/bin/bash
-# Create DMG Installer for Winamp
+# Create DMG Installer for AmpX
 # This script creates a distributable DMG with a nice layout
 
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_NAME="Winamp"
+PROJECT_NAME="AmpX"
 
 # Get version from command line argument or extract from Xcode project
 if [ -n "$1" ]; then
@@ -23,7 +23,7 @@ DMG_NAME="${PROJECT_NAME}-${VERSION}"
 BUILD_DIR="${PROJECT_DIR}/dmg-build"
 RELEASE_DIR="${PROJECT_DIR}/release"
 
-echo "🎵 Creating Winamp DMG Installer..."
+echo "🎵 Creating AmpX DMG Installer..."
 echo ""
 
 # Clean up any previous build artifacts
@@ -169,6 +169,6 @@ echo ""
 echo "To distribute:"
 echo "  1. Upload to your website/cloud storage"
 echo "  2. Users download and mount the DMG"
-echo "  3. Users drag Winamp.app to Applications folder"
+echo "  3. Users drag AmpX.app to Applications folder"
 echo ""
 

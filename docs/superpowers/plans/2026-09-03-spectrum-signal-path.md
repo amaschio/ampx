@@ -29,8 +29,8 @@
 | `Sources/Audio/FFTSpectrumAnalyzer.swift` | Peak band energy + Classic −72…0 dB map |
 | `Sources/AudioPlayer.swift` | Split RG vs fader onto player vs mainMixer; debug probe context |
 | `Sources/Audio/VolumeModel.swift` | Optional: document split; keep `appliedGain` for combined listening math / tests |
-| `Tests/WinampTests/AudioGraphTests.swift` | Assert new `tapPoint` semantics |
-| `Tests/WinampTests/FFTSpectrumAnalyzerTests.swift` | Full-scale / attenuated / silence / neighbor isolation |
+| `Tests/AmpXTests/AudioGraphTests.swift` | Assert new `tapPoint` semantics |
+| `Tests/AmpXTests/FFTSpectrumAnalyzerTests.swift` | Full-scale / attenuated / silence / neighbor isolation |
 
 ---
 
@@ -38,7 +38,7 @@
 
 **Files:**
 - Modify: `Sources/Audio/AudioGraph.swift`
-- Modify: `Tests/WinampTests/AudioGraphTests.swift`
+- Modify: `Tests/AmpXTests/AudioGraphTests.swift`
 
 **Interfaces:**
 - Consumes: `AudioGraph.effects`, `AudioGraph.source`, `engine.mainMixerNode`
@@ -46,7 +46,7 @@
 
 - [ ] **Step 1: Write the failing tests**
 
-Replace `testTapPointIsMainMixer` and add empty-chain + with-effects cases in `Tests/WinampTests/AudioGraphTests.swift`:
+Replace `testTapPointIsMainMixer` and add empty-chain + with-effects cases in `Tests/AmpXTests/AudioGraphTests.swift`:
 
 ```swift
 func testTapPointIsSourceWhenEffectChainEmpty() {
@@ -84,7 +84,7 @@ Also update `testRemoveAllEffectsConnectsSourceToMainMixer` to assert `graph.tap
 Run:
 
 ```bash
-./scripts/run-tests.sh -only-testing:WinampTests/AudioGraphTests
+./scripts/run-tests.sh -only-testing:AmpXTests/AudioGraphTests
 ```
 
 (or full `./scripts/run-tests.sh` if the script has no `-only-testing` passthrough — then filter output for `AudioGraphTests`)
@@ -123,7 +123,7 @@ Expected: PASS for the new/updated `AudioGraphTests`.
 - [ ] **Step 5: Commit** (only if user asked)
 
 ```bash
-git add Sources/Audio/AudioGraph.swift Tests/WinampTests/AudioGraphTests.swift
+git add Sources/Audio/AudioGraph.swift Tests/AmpXTests/AudioGraphTests.swift
 git commit -m "$(cat <<'EOF'
 Move AudioGraph analysis tapPoint to post-effect output.
 
@@ -137,7 +137,7 @@ EOF
 
 **Files:**
 - Modify: `Sources/Audio/FFTSpectrumAnalyzer.swift`
-- Modify: `Tests/WinampTests/FFTSpectrumAnalyzerTests.swift`
+- Modify: `Tests/AmpXTests/FFTSpectrumAnalyzerTests.swift`
 
 **Interfaces:**
 - Consumes: `rawBinReferenceMagnitude`, `magnitudes` from `vDSP_zvmags`
@@ -146,7 +146,7 @@ EOF
 
 - [ ] **Step 1: Write the failing tests**
 
-Add to `Tests/WinampTests/FFTSpectrumAnalyzerTests.swift` (reuse existing `makeBuffer` helpers):
+Add to `Tests/AmpXTests/FFTSpectrumAnalyzerTests.swift` (reuse existing `makeBuffer` helpers):
 
 ```swift
 func testFullScaleSineNearUnityOnPeakBandWithQuietNeighbors() {
@@ -248,7 +248,7 @@ Expected: PASS for new FFT tests; existing ENTHEA / quieter-vs-louder tests stil
 - [ ] **Step 5: Commit** (only if user asked)
 
 ```bash
-git add Sources/Audio/FFTSpectrumAnalyzer.swift Tests/WinampTests/FFTSpectrumAnalyzerTests.swift
+git add Sources/Audio/FFTSpectrumAnalyzer.swift Tests/AmpXTests/FFTSpectrumAnalyzerTests.swift
 git commit -m "$(cat <<'EOF'
 Calibrate Classic spectrum bars to −72…0 dBFS peak power.
 
@@ -346,7 +346,7 @@ Expected: PASS. There is no full AVAudioEngine player harness for fader-vs-pream
 - [ ] **Step 6: Commit** (only if user asked)
 
 ```bash
-git add Sources/AudioPlayer.swift Sources/Audio/VolumeModel.swift Tests/WinampTests/VolumeModelTests.swift
+git add Sources/AudioPlayer.swift Sources/Audio/VolumeModel.swift Tests/AmpXTests/VolumeModelTests.swift
 git commit -m "$(cat <<'EOF'
 Apply volume fader after analysis tap; keep ReplayGain on player.
 

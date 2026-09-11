@@ -22,7 +22,7 @@ independently.
 > [`Sources/Utilities/Instrumentation.swift`](../Sources/Utilities/Instrumentation.swift).
 > The signposts below are general-purpose profiling hooks — they stay in the code and
 > cost ~nothing when no trace is recording. Profile them in **Instruments** (Time
-> Profiler + os_signpost templates), filtered by subsystem `com.winamp.macos`.
+> Profiler + os_signpost templates), filtered by subsystem `com.ampx.macos`.
 
 | Signpost | Category | Where | Measures |
 |---|---|---|---|
@@ -193,8 +193,8 @@ over the whole list 10×/sec.
 - `Sources/PlaylistView.swift` — isolate elapsed-time label (C2)
 
 ## 7. Tests added
-- `Tests/WinampTests/VisualizationPlayoutClockTests.swift` — pacing math
-- `Tests/WinampTests/SongMarqueeAnimationTests.swift` — all four marquee modes + helpers
+- `Tests/AmpXTests/VisualizationPlayoutClockTests.swift` — pacing math
+- `Tests/AmpXTests/SongMarqueeAnimationTests.swift` — all four marquee modes + helpers
 
 ## 8. Follow-ups (not yet done)
 - Apply the same intra‑buffer playout to the **waveform/oscilloscope** (needs a larger

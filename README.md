@@ -1,9 +1,11 @@
-# Winamp macOS
+# AmpX
 
-A native macOS application that recreates the classic Winamp experience for playing local audio files (MP3, FLAC, WAV).
+Modern audio player. Classic spirit.
+
+A native macOS music player with the compact floating-window workflow — playlist, EQ, visualizer — built for local libraries (MP3, FLAC, WAV, …).
 
 > **This is a personal fork** of [`mbrukman/winamp-macos`](https://github.com/mbrukman/winamp-macos) (originally by Matt Greenwood, MIT licensed), itself a tribute to the original Winamp by Nullsoft.
-> I'm continuing active development here at [`ratovarius/winamp-macos`](https://github.com/ratovarius/winamp-macos) — evolving the upstream proof-of-concept toward a production-quality, modern macOS music player while preserving the Winamp UX.
+> Active development continues at [`ratovarius/ampx`](https://github.com/ratovarius/ampx).
 
 ## Full Screen
 
@@ -34,8 +36,8 @@ A native macOS application that recreates the classic Winamp experience for play
 ## Building
 
 ### Using Xcode
-1. Open `Winamp.xcodeproj` in Xcode
-2. Select the Winamp scheme
+1. Open `AmpX.xcodeproj` in Xcode
+2. Select the AmpX scheme
 3. Build and run (⌘R)
 
 alternatively:
@@ -47,7 +49,7 @@ alternatively:
 
 ## Testing
 
-Tests live in `Tests/WinampTests`. Run them via the project script, which generates the required fixtures first:
+Tests live in `Tests/AmpXTests`. Run them via the project script, which generates the required fixtures first:
 
 ```bash
 ./scripts/run-tests.sh
@@ -68,4 +70,4 @@ Classic Winamp 2.x layout and behavior are informed by **[Webamp](https://github
 
 MIT License.
 
-Forked from [`mbrukman/winamp-macos`](https://github.com/mbrukman/winamp-macos), © 2024 Matt Greenwood, MIT licensed. The upstream project was itself a tribute to the original Winamp by Nullsoft. This fork continues development independently.
+Forked from [`mbrukman/winamp-macos`](https://github.com/mbrukman/winamp-macos), © 2024 Matt Greenwood, MIT licensed. The upstream project was itself a tribute to the original Winamp by Nullsoft. This fork continues development independently as AmpX.

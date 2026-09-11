@@ -8,7 +8,7 @@
 
 This document captures findings from reviewing **[Webamp](https://github.com/captbaritone/webamp)** — the open-source Winamp 2.x recreation ([webamp.org](https://webamp.org/)) — as a layout and behavior reference for this native macOS fork.
 
-Webamp is **not** a runtime dependency. We use it as a spec for geometry, spacing, skin coordinates, and classic Winamp behavior. The app remains SwiftUI + AppKit with our own `WinampMetrics`, `WinampSkinSprites`, and Classic skin chrome.
+Webamp is **not** a runtime dependency. We use it as a spec for geometry, spacing, skin coordinates, and classic Winamp behavior. The app remains SwiftUI + AppKit with our own `AmpXMetrics`, `AmpXSkinSprites`, and Classic skin chrome.
 
 ---
 
@@ -124,21 +124,21 @@ External references Webamp cites: [skinspecs.pdf](https://github.com/captbariton
 
 | Component | Path | Status |
 |---|---|---|
-| Layout constants | `Sources/Utilities/WinampMetrics.swift` | Partial — uses 450 px width |
-| UI scale (100–200%) | `Sources/Utilities/WinampUIScale.swift` | ✓ |
-| Classic palette | `Sources/WinampColors.swift` | ✓ PLEDIT-aligned |
-| BMP sprite coords | `Sources/WinampSkinSprites.swift` | ✓ 275 px coords; underused in views |
+| Layout constants | `Sources/Utilities/AmpXMetrics.swift` | Partial — uses 450 px width |
+| UI scale (100–200%) | `Sources/Utilities/AmpXUIScale.swift` | ✓ |
+| Classic palette | `Sources/AmpXColors.swift` | ✓ PLEDIT-aligned |
+| BMP sprite coords | `Sources/AmpXSkinSprites.swift` | ✓ 275 px coords; underused in views |
 | Skin bitmap helpers | `WinampSkinButton`, `SkinSpriteView` | Implemented, not wired to main UI |
 | Chrome primitives | `Sources/Views/Components/WinampClassicChrome.swift` | Procedural bevels + vector glyphs |
 | Seven-segment time | `MainPlayerView` | ✓ (custom sizes, not 9 × 13) |
-| EQ bands | `WinampEQBands` / `EqualizerView` | ✓ frequencies match Webamp `BANDS` |
+| EQ bands | `AmpXEQBands` / `EqualizerView` | ✓ frequencies match Webamp `BANDS` |
 | Volume/balance frames | `ModernSlider.swift` | ✓ 68 × 13 / 38 × 13 |
 
 ### Dimension comparison
 
 | Element | Webamp / classic | winamp-macos (today) |
 |---|---|---|
-| Panel width | 275 | **450** (`WinampMetrics.panelWidth`) |
+| Panel width | 275 | **450** (`AmpXMetrics.panelWidth`) |
 | Main player body height | 116 (incl. title) | **160** body + 14 title |
 | Title bar | 14 | 14 ✓ |
 | Shade mode | 14 px bar | Custom row below title (~50 px content) |
@@ -150,7 +150,7 @@ External references Webamp cites: [skinspecs.pdf](https://github.com/captbariton
 | Typography | 5 × 6 / 9 × 13 bitmap | JetBrains Mono 8–14 pt, system fonts in places |
 | Skin sprites in live UI | Bitmap everywhere | Mostly vector / SwiftUI-drawn |
 | `ShadeView` scaling | N/A | **No `winampUIScale`** |
-| Default window size | 275 × 348 stacked | 450 × 500 (`WinampApp.swift`) |
+| Default window size | 275 × 348 stacked | 450 × 500 (`AmpXApp.swift`) |
 
 ### Structural differences
 
@@ -162,7 +162,7 @@ External references Webamp cites: [skinspecs.pdf](https://github.com/captbariton
 
 ### Documentation drift
 
-`USAGE.md` and `CHANGES.md` still reference **275 px** width; code uses **450 px** via `WinampMetrics` and `WinampUIScale.basePanelWidth`.
+`USAGE.md` and `CHANGES.md` still reference **275 px** width; code uses **450 px** via `AmpXMetrics` and `AmpXUIScale.basePanelWidth`.
 
 ---
 
@@ -170,10 +170,10 @@ External references Webamp cites: [skinspecs.pdf](https://github.com/captbariton
 
 ### High impact
 
-1. **Rebaseline `WinampMetrics` to 275 × 116** — use `WinampUIScale` for accessibility instead of a wider logical panel.
+1. **Rebaseline `AmpXMetrics` to 275 × 116** — use `AmpXUIScale` for accessibility instead of a wider logical panel.
 2. **Port `main-window.css` positions** — add `MainPlayerLayout` constants (transport y=88, volume at (107,57), etc.) and replace magic numbers in `MainPlayerView.swift`.
 3. **Rewrite shade mode as 14 px collapse** — align `ShadeView` with Webamp shade rules: mini-viz (79,5), transport (169–215), position (226,4), mini-time (127,4).
-4. **Wire `WinampSkinSprites` into live views** — transport, EQ/PL toggles, window buttons via `WinampSkinButton` where bitmaps win over vectors.
+4. **Wire `AmpXSkinSprites` into live views** — transport, EQ/PL toggles, window buttons via `WinampSkinButton` where bitmaps win over vectors.
 5. **Playlist row height 13 px** — match `TRACK_HEIGHT`; adopt PLEDIT tile chrome (top 20, bottom 38, sides 12/20).
 
 ### Medium impact
@@ -187,7 +187,7 @@ External references Webamp cites: [skinspecs.pdf](https://github.com/captbariton
 ### Reference / tooling
 
 11. **Regression loop** — [webamp.org](https://webamp.org/) vs `./scripts/shoot.sh` at matching scale.
-12. **Expand `WinampSkinSprites`** — port remaining regions from `skinSprites.ts` (TITLEBAR shade, PLAYPAUS, EQMAIN, PLEDIT tiles).
+12. **Expand `AmpXSkinSprites`** — port remaining regions from `skinSprites.ts` (TITLEBAR shade, PLAYPAUS, EQMAIN, PLEDIT tiles).
 
 ---
 
@@ -214,10 +214,10 @@ packages/webamp/assets/skins/base-2.91.wsz
 ### Corresponding files in this repo
 
 ```
-Sources/Utilities/WinampMetrics.swift
-Sources/Utilities/WinampUIScale.swift
-Sources/WinampSkinSprites.swift
-Sources/WinampColors.swift
+Sources/Utilities/AmpXMetrics.swift
+Sources/Utilities/AmpXUIScale.swift
+Sources/AmpXSkinSprites.swift
+Sources/AmpXColors.swift
 Sources/Views/Classic/ClassicMainPlayerView.swift   # current main UI
 Sources/Views/Classic/ClassicShadeView.swift
 Sources/Views/Classic/ClassicPlaylistView.swift
@@ -241,9 +241,9 @@ scripts/shoot.sh                          # screenshot regression
    ```bash
    ./scripts/shoot.sh
    ```
-   Screenshots land in `/tmp/winamp_shot0.png`, `winamp_shot1.png`, etc.
+   Screenshots land in `/tmp/ampx_shot0.png`, `winamp_shot1.png`, etc.
 3. Compare at the same UI scale (View → UI Scale in our app; 100% Webamp in browser).
-4. Adjust `WinampMetrics`, `WinampSkinSprites`, and view-specific layout enums.
+4. Adjust `AmpXMetrics`, `AmpXSkinSprites`, and view-specific layout enums.
 5. Re-run `shoot.sh` until the target region matches.
 
 For behavior checks (shade toggle, double-click title bar, playlist resize snapping), interact with Webamp manually or use the Cursor IDE Browser MCP against webamp.org.
@@ -283,7 +283,7 @@ the fork as of this review (updated 2026-08 where noted). Source paths are in th
 - **What:** Webamp's core loads real `.wsz` skins (zipped BMPs + `pledit.txt`/`viscolor.txt`/
   `region.txt`). Key files: `skinParserUtils.ts`, `skinSprites.ts`, `regionParser.ts`,
   `skinSelectors.ts`.
-- **Gap:** the fork is procedural/vector; `WinampSkinSprites` scaffolding exists but no `.wsz`
+- **Gap:** the fork is procedural/vector; `AmpXSkinSprites` scaffolding exists but no `.wsz`
   parsing. Supporting it would unlock the entire classic-skin ecosystem.
 - **Tension:** large effort (unzip, sprite-atlas wiring, region masks, per-skin color tables) and
   somewhat against this fork's "own procedural chrome" philosophy. Treat as a roadmap decision, not
@@ -362,4 +362,4 @@ We keep SwiftUI/AppKit, lossless codecs, Metal visualizations, media keys, and m
 
 - [Webamp](https://github.com/captbaritone/webamp) by Jordan Eldredge et al., MIT License.
 - Original Winamp by Nullsoft.
-- This fork: [`ratovarius/winamp-macos`](https://github.com/ratovarius/winamp-macos), forked from [`mbrukman/winamp-macos`](https://github.com/mbrukman/winamp-macos).
+- This fork: [`ratovarius/ampx`](https://github.com/ratovarius/ampx), forked from [`mbrukman/winamp-macos`](https://github.com/mbrukman/winamp-macos).

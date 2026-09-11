@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let bookmarkLogger = Logger(subsystem: "com.winamp.macos", category: "SecurityScopedBookmarks")
+private let bookmarkLogger = Logger(subsystem: "com.ampx.macos", category: "SecurityScopedBookmarks")
 
 private struct ResolvedBookmark {
     let url: URL
@@ -23,7 +23,7 @@ final class SecurityScopedBookmarkStore: @unchecked Sendable {
 
     init(
         userDefaults: UserDefaults = .standard,
-        bookmarksKey: String = "WinampSecurityScopedBookmarks"
+        bookmarksKey: String = "AmpXSecurityScopedBookmarks"
     ) {
         self.userDefaults = userDefaults
         self.bookmarksKey = bookmarksKey

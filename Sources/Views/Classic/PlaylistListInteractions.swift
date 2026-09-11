@@ -46,9 +46,9 @@ struct PlaylistTrackReorderModifier: ViewModifier {
     }
 }
 
-/// Bridges playlist keyboard commands from `WinampHotkeys` into view-local selection state.
+/// Bridges playlist keyboard commands from `AmpXHotkeys` into view-local selection state.
 @MainActor
-final class PlaylistKeyboardNavigation: WinampPlaylistKeyboard.Handling {
+final class PlaylistKeyboardNavigation: AmpXPlaylistKeyboard.Handling {
     private weak var playlistManager: PlaylistManager?
     private var isMinimized: (() -> Bool)?
     private var visibleTracks: (() -> [(index: Int, track: Track)])?

@@ -4,7 +4,7 @@
 
 **Goal:** Make MilkDrop a managed dockable panel with classic chrome, defaulting to the right of main, with persisted size/visibility.
 
-**Architecture:** Register `WinampPanelID.visualizer` via `WinampPanelDescriptor`; host `ClassicMilkdropPanelView` in its own borderless window; place first-open flush right of main; remove the inline `ContentView` expansion.
+**Architecture:** Register `AmpXPanelID.visualizer` via `AmpXPanelDescriptor`; host `ClassicMilkdropPanelView` in its own borderless window; place first-open flush right of main; remove the inline `ContentView` expansion.
 
 **Tech Stack:** Swift 6, SwiftUI + AppKit panel manager, Metal viz (`MilkdropMetalVisualizationView`), XCTest.
 
@@ -24,37 +24,37 @@
 
 | File | Role |
 |---|---|
-| `Sources/WinampPanelDescriptor.swift` | Add `.visualizer` ID |
-| `Sources/WinampPanelLayoutState.swift` | `showVisualizer`, `visualizerSize`, `visualizerMinimized` |
-| `Sources/Utilities/WinampMetrics.swift` | Default viz size constants |
-| `Sources/WinampPanelPlacement.swift` | Pure initial-origin helper (testable) |
+| `Sources/AmpXPanelDescriptor.swift` | Add `.visualizer` ID |
+| `Sources/AmpXPanelLayoutState.swift` | `showVisualizer`, `visualizerSize`, `visualizerMinimized` |
+| `Sources/Utilities/AmpXMetrics.swift` | Default viz size constants |
+| `Sources/AmpXPanelPlacement.swift` | Pure initial-origin helper (testable) |
 | `Sources/Views/Classic/ClassicMilkdropPanelView.swift` | Classic chrome panel UI |
-| `Sources/WinampPanelWindowManager.swift` | Registry, place/resize/shade |
+| `Sources/AmpXPanelWindowManager.swift` | Registry, place/resize/shade |
 | `Sources/ContentView.swift` | Bind layout state; drop inline viz |
 | `Sources/Views/Classic/ClassicMainPlayerView.swift` | Bindings → `showVisualizer` |
 | `Sources/Views/Classic/ClassicShadeView.swift` | Same |
 | `Sources/Views/Visualizer/MilkdropVisualizerView.swift` | Retire modern chrome or thin to unused |
-| `Tests/WinampTests/ClassicUITests.swift` | Layout persist + placement unit tests |
+| `Tests/AmpXTests/ClassicUITests.swift` | Layout persist + placement unit tests |
 
 ---
 
 ### Task 1: Layout state + placement helper
 
 **Files:**
-- Modify: `Sources/WinampPanelDescriptor.swift`
-- Modify: `Sources/Utilities/WinampMetrics.swift`
-- Modify: `Sources/WinampPanelLayoutState.swift`
-- Create: `Sources/WinampPanelPlacement.swift`
-- Modify: `Tests/WinampTests/ClassicUITests.swift`
+- Modify: `Sources/AmpXPanelDescriptor.swift`
+- Modify: `Sources/Utilities/AmpXMetrics.swift`
+- Modify: `Sources/AmpXPanelLayoutState.swift`
+- Create: `Sources/AmpXPanelPlacement.swift`
+- Modify: `Tests/AmpXTests/ClassicUITests.swift`
 
 **Interfaces:**
-- Produces: `WinampPanelID.visualizer`
-- Produces: `WinampMetrics.defaultVisualizerWidth/Height` = 600 / 450
+- Produces: `AmpXPanelID.visualizer`
+- Produces: `AmpXMetrics.defaultVisualizerWidth/Height` = 600 / 450
 - Produces: `layout.showVisualizer: Bool` (UserDefaults key `showVisualizer`, default false)
 - Produces: `layout.visualizerSize: CGSize` (keys `visualizerWidth` / `visualizerHeight`)
 - Produces: `layout.visualizerMinimized: Bool` (in-memory)
 - Produces: `layout.scaleVisualizerDimensions(by:)`
-- Produces: `WinampPanelPlacement.initialOrigin(panelID:panelSize:mainFrame:lowestClusterOriginY:)` → `CGPoint`
+- Produces: `AmpXPanelPlacement.initialOrigin(panelID:panelSize:mainFrame:lowestClusterOriginY:)` → `CGPoint`
 
 - [ ] **Step 1: Write failing tests** in `ClassicUITests.swift`:
 
@@ -76,7 +76,7 @@ func testVisualizerSizePersists() { /* set size, new layout, assert */ }
 func testVisualizerInitialOriginIsRightOfMain() {
     let main = CGRect(x: 100, y: 400, width: 275, height: 116)
     let size = CGSize(width: 600, height: 450)
-    let origin = WinampPanelPlacement.initialOrigin(
+    let origin = AmpXPanelPlacement.initialOrigin(
         panelID: .visualizer,
         panelSize: size,
         mainFrame: main,
@@ -89,7 +89,7 @@ func testVisualizerInitialOriginIsRightOfMain() {
 func testEqualizerInitialOriginStacksBelow() {
     let main = CGRect(x: 100, y: 400, width: 275, height: 116)
     let size = CGSize(width: 275, height: 116)
-    let origin = WinampPanelPlacement.initialOrigin(
+    let origin = AmpXPanelPlacement.initialOrigin(
         panelID: .equalizer,
         panelSize: size,
         mainFrame: main,
@@ -108,17 +108,17 @@ func testEqualizerInitialOriginStacksBelow() {
 - [ ] **Step 3: Implement ID, metrics, layout state, placement helper**
 
 ```swift
-// WinampPanelDescriptor.swift
-static let visualizer = WinampPanelID("visualizer")
+// AmpXPanelDescriptor.swift
+static let visualizer = AmpXPanelID("visualizer")
 
-// WinampMetrics.swift
+// AmpXMetrics.swift
 static let defaultVisualizerWidth: CGFloat = 600
 static let defaultVisualizerHeight: CGFloat = 450
 
-// WinampPanelPlacement.swift
-enum WinampPanelPlacement {
+// AmpXPanelPlacement.swift
+enum AmpXPanelPlacement {
     static func initialOrigin(
-        panelID: WinampPanelID,
+        panelID: AmpXPanelID,
         panelSize: CGSize,
         mainFrame: CGRect,
         stackBelowOrigin: CGPoint?
@@ -178,7 +178,7 @@ Expected: success
 ### Task 3: Register panel + manager hooks
 
 **Files:**
-- Modify: `Sources/WinampPanelWindowManager.swift`
+- Modify: `Sources/AmpXPanelWindowManager.swift`
 
 **Interfaces:**
 - Consumes: Task 1 placement helper + layout fields; Task 2 view
@@ -187,7 +187,7 @@ Expected: success
 - [ ] **Step 1: Append descriptor** in `makeRegistry()`:
 
 ```swift
-WinampPanelDescriptor(
+AmpXPanelDescriptor(
     id: .visualizer,
     isVisible: { [weak self] in self?.layoutState?.showVisualizer ?? false },
     makeRoot: { [weak self] in
@@ -217,7 +217,7 @@ WinampPanelDescriptor(
 )
 ```
 
-- [ ] **Step 2: `placePanelInitially`** use `WinampPanelPlacement.initialOrigin` when no saved offset
+- [ ] **Step 2: `placePanelInitially`** use `AmpXPanelPlacement.initialOrigin` when no saved offset
 
 - [ ] **Step 3: `showPanel`** — for `.visualizer`, never call `packMainVerticalColumn(forcing: .visualizer)`. On new: place initially; on re-show: restore saved offset or right-of-main. Still call `packMainVerticalColumn(forcing: nil)` so EQ/PL column can reflow if needed.
 

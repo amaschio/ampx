@@ -20,7 +20,7 @@ final class PlaylistStateStore {
 
     init(
         userDefaults: UserDefaults = .standard,
-        stateKey: String = "WinampPlaylistState"
+        stateKey: String = "AmpXPlaylistState"
     ) {
         self.userDefaults = userDefaults
         self.stateKey = stateKey

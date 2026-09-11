@@ -10,7 +10,7 @@ import AVFoundation
 /// Only touched on the owning ``AudioGraph``'s serial audio queue; `@unchecked Sendable`
 /// reflects that single-queue discipline, not node thread-safety.
 final class EQAudioEffect: AudioEffectUnit, @unchecked Sendable {
-    let identifier = "winamp.eq"
+    let identifier = "ampx.eq"
 
     /// Preamp gain stage. Upstream connects here.
     let preamp = AVAudioMixerNode()
@@ -25,17 +25,17 @@ final class EQAudioEffect: AudioEffectUnit, @unchecked Sendable {
         self.eq
     }
 
-    init(bandCount: Int = WinampEQBands.bandCount) {
+    init(bandCount: Int = AmpXEQBands.bandCount) {
         self.eq = AVAudioUnitEQ(numberOfBands: bandCount)
         self.configureBands()
     }
 
-    /// Programs each parametric band with its Winamp center frequency and bandwidth.
+    /// Programs each parametric band with its AmpX center frequency and bandwidth.
     private func configureBands() {
-        for (index, frequency) in WinampEQBands.centerFrequenciesHz.enumerated() where index < self.eq.bands.count {
+        for (index, frequency) in AmpXEQBands.centerFrequenciesHz.enumerated() where index < self.eq.bands.count {
             let band = self.eq.bands[index]
             band.frequency = frequency
-            band.bandwidth = WinampEQBands.bandwidthsOctaves[index]
+            band.bandwidth = AmpXEQBands.bandwidthsOctaves[index]
             band.bypass = false
             band.filterType = .parametric
             band.gain = 0
@@ -94,7 +94,7 @@ final class EQAudioEffect: AudioEffectUnit, @unchecked Sendable {
         min(max(pow(10, decibels / 20), 0.05), 4)
     }
 
-    /// Winamp AUTO preamp: the negative preamp (dB) that counteracts the summed positive band
+    /// AmpX AUTO preamp: the negative preamp (dB) that counteracts the summed positive band
     /// boost to limit clipping. Only boosts (positive band gains) contribute; the cut is capped
     /// at −9 dB so heavily-boosted curves don't go inaudibly quiet.
     static func autoPreampCompensationDB(forBandGainsDB bandGainsDB: [Float]) -> Float {

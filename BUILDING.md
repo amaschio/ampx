@@ -1,6 +1,6 @@
-# Building Winamp macOS
+# Building AmpX
 
-This guide covers how to build and run the Winamp macOS application.
+This guide covers how to build and run the AmpX application.
 
 ## Prerequisites
 
@@ -20,12 +20,12 @@ xcode-select --install
 
 1. **Open the Project**
    ```bash
-   cd /path/to/winamp
-   open Winamp.xcodeproj
+   cd /path/to/ampx
+   open AmpX.xcodeproj
    ```
 
 2. **Select the Scheme**
-   - In Xcode, select the "Winamp" scheme from the scheme dropdown
+   - In Xcode, select the "AmpX" scheme from the scheme dropdown
    - Select "My Mac" as the destination
 
 3. **Build**
@@ -41,9 +41,9 @@ xcode-select --install
 ### Build Debug Version
 
 ```bash
-cd /path/to/winamp
-xcodebuild -project Winamp.xcodeproj \
-           -scheme Winamp \
+cd /path/to/ampx
+xcodebuild -project AmpX.xcodeproj \
+           -scheme AmpX \
            -configuration Debug \
            build
 ```
@@ -51,8 +51,8 @@ xcodebuild -project Winamp.xcodeproj \
 ### Build Release Version
 
 ```bash
-xcodebuild -project Winamp.xcodeproj \
-           -scheme Winamp \
+xcodebuild -project AmpX.xcodeproj \
+           -scheme AmpX \
            -configuration Release \
            build
 ```
@@ -61,12 +61,12 @@ xcodebuild -project Winamp.xcodeproj \
 
 Debug build:
 ```bash
-open ~/Library/Developer/Xcode/DerivedData/Winamp-*/Build/Products/Debug/Winamp.app
+open ~/Library/Developer/Xcode/DerivedData/AmpX-*/Build/Products/Debug/AmpX.app
 ```
 
 Release build:
 ```bash
-open ~/Library/Developer/Xcode/DerivedData/Winamp-*/Build/Products/Release/Winamp.app
+open ~/Library/Developer/Xcode/DerivedData/AmpX-*/Build/Products/Release/AmpX.app
 ```
 
 ## Using Swift Package Manager (Alternative)
@@ -90,8 +90,8 @@ If you encounter issues, try a clean build:
 
 ### Command Line
 ```bash
-xcodebuild -project Winamp.xcodeproj \
-           -scheme Winamp \
+xcodebuild -project AmpX.xcodeproj \
+           -scheme AmpX \
            -configuration Debug \
            clean build
 ```
@@ -116,7 +116,7 @@ The project uses ad-hoc signing by default (sign-to-run-locally). For distributi
 
 1. **Select Your Team**
    - Open the project in Xcode
-   - Select the "Winamp" target
+   - Select the "AmpX" target
    - Go to "Signing & Capabilities"
    - Select your development team
 
@@ -145,7 +145,7 @@ The project uses ad-hoc signing by default (sign-to-run-locally). For distributi
 - Quit Xcode
 - Delete DerivedData:
   ```bash
-  rm -rf ~/Library/Developer/Xcode/DerivedData/Winamp-*
+  rm -rf ~/Library/Developer/Xcode/DerivedData/AmpX-*
   ```
 - Reopen and rebuild
 
@@ -157,8 +157,8 @@ The project uses ad-hoc signing by default (sign-to-run-locally). For distributi
 
 Default build output locations:
 
-- **Debug**: `~/Library/Developer/Xcode/DerivedData/Winamp-*/Build/Products/Debug/`
-- **Release**: `~/Library/Developer/Xcode/DerivedData/Winamp-*/Build/Products/Release/`
+- **Debug**: `~/Library/Developer/Xcode/DerivedData/AmpX-*/Build/Products/Debug/`
+- **Release**: `~/Library/Developer/Xcode/DerivedData/AmpX-*/Build/Products/Release/`
 
 ### Archiving for Distribution
 

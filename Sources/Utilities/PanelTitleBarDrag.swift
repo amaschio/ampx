@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-enum WinampTitleBarMetrics {
+enum AmpXTitleBarMetrics {
     /// Default trailing exclusion for main-window controls when callers don't pass a width.
     static let buttonAreaWidth: CGFloat = 60
 }
@@ -18,10 +18,10 @@ final class DraggableWindowView: NSView {
         guard let window = self.window else { return }
 
         if event.clickCount == 2 {
-            WinampPanelWindowManager.shared.handleTitleBarDoubleClick(for: window)
+            AmpXPanelWindowManager.shared.handleTitleBarDoubleClick(for: window)
             return
         }
-        WinampPanelWindowManager.shared.startDrag(leading: window, event: event)
+        AmpXPanelWindowManager.shared.startDrag(leading: window, event: event)
     }
 
     override func acceptsFirstMouse(for _: NSEvent?) -> Bool {

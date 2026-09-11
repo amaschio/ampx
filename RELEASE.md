@@ -1,3 +1,11 @@
+## AmpX identity
+
+This release renames the app to **AmpX** (`com.ampx.macos`). macOS treats it as a new app: preferences, playlist state, and folder bookmarks from builds that used `com.ampx.macos` are **not** imported. Both apps may coexist on disk. Re-add music folders / playlists in AmpX as needed.
+
+Tagline: *Modern audio player. Classic spirit.*
+
+---
+
 v1.0.1
 
 * Now pause/play buttons and next / back buttons work in the keyboard and show the currently playing song in the system

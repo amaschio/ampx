@@ -4,7 +4,7 @@
 
 **Goal:** Classic playlist multi-select (click / Shift / ⌘) plus Pass-B Winamp hotkeys (playlist ops + missing global playback), with Winamp Ctrl → ⌘.
 
-**Architecture:** Pure `PlaylistSelectionModel` for selection math; `PlaylistManager` gains batch remove/crop/sort/reverse/randomize/move-selected; `WinampHotkeys` NSEvent router replaces the thin playlist-only monitor; `ClassicPlaylistView` owns selection state and wires clicks.
+**Architecture:** Pure `PlaylistSelectionModel` for selection math; `PlaylistManager` gains batch remove/crop/sort/reverse/randomize/move-selected; `AmpXHotkeys` NSEvent router replaces the thin playlist-only monitor; `ClassicPlaylistView` owns selection state and wires clicks.
 
 **Tech Stack:** Swift 6, AppKit `NSEvent` monitor, XCTest
 
@@ -22,14 +22,14 @@
 | File | Role |
 |---|---|
 | `Sources/Playlist/PlaylistSelectionModel.swift` | Pure selection + page-step helpers |
-| `Sources/Utilities/WinampHotkeys.swift` | Key→action router |
+| `Sources/Utilities/AmpXHotkeys.swift` | Key→action router |
 | `Sources/Utilities/WinampPlaylistKeyboard.swift` | Expand / façade for playlist handler |
 | `Sources/Views/Classic/PlaylistListInteractions.swift` | Selection bridge + keyboard handling |
 | `Sources/Views/Classic/ClassicPlaylistView.swift` | Multi-select clicks + blue bar from set |
 | `Sources/PlaylistManager.swift` | Batch ops |
-| `Sources/WinampApp.swift` | Install `WinampHotkeys` monitor |
-| `Tests/WinampTests/PlaylistSelectionModelTests.swift` | Selection unit tests |
-| `Tests/WinampTests/PlaylistManagerTests.swift` | Batch ops tests |
+| `Sources/AmpXApp.swift` | Install `AmpXHotkeys` monitor |
+| `Tests/AmpXTests/PlaylistSelectionModelTests.swift` | Selection unit tests |
+| `Tests/AmpXTests/PlaylistManagerTests.swift` | Batch ops tests |
 | `USAGE.md` | Document shortcuts briefly |
 
 ---
@@ -38,7 +38,7 @@
 
 **Files:**
 - Create: `Sources/Playlist/PlaylistSelectionModel.swift`
-- Test: `Tests/WinampTests/PlaylistSelectionModelTests.swift`
+- Test: `Tests/AmpXTests/PlaylistSelectionModelTests.swift`
 
 **Produces:** `struct PlaylistSelectionModel` with `selectedIDs`, `anchorID`, `cursorID`; methods `selectOnly`, `toggle`, `selectRange`, `moveCursor(by:extend:orderedIDs:)`, `selectAll`, `invert`, `pageStep(count:)`.
 
@@ -50,7 +50,7 @@
 
 **Files:**
 - Modify: `Sources/PlaylistManager.swift`
-- Test: `Tests/WinampTests/PlaylistManagerTests.swift`
+- Test: `Tests/AmpXTests/PlaylistManagerTests.swift`
 
 **Produces:** `removeTracks(at:)`, `cropToTracks(at:)`, `moveSelectedTracks(indices:direction:)`, `sortTracks(by:)`, `reverseTracks()`, `randomizeTracks()` — all remap `currentIndex` / shuffle sanely.
 
@@ -71,8 +71,8 @@
 ### Task 4: Hotkey router + AppDelegate
 
 **Files:**
-- Create: `Sources/Utilities/WinampHotkeys.swift`
-- Modify: `WinampApp.swift`, `WinampPlaylistKeyboard.swift`
+- Create: `Sources/Utilities/AmpXHotkeys.swift`
+- Modify: `AmpXApp.swift`, `WinampPlaylistKeyboard.swift`
 
 - [ ] Router handles global C/R/S/seek/volume and playlist branch
 - [ ] AppDelegate uses router

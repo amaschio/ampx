@@ -23,12 +23,12 @@ struct ClassicEqualizerView: View {
                 )
             } else {
                 ZStack(alignment: .topLeading) {
-                    SkinSpriteView(sprite: WinampSkinSprites.EQMain.windowBody, scale: self.s)
+                    SkinSpriteView(sprite: AmpXSkinSprites.EQMain.windowBody, scale: self.s)
                         .classicPlaced(x: 0, y: 14, width: 275, height: 102, scale: self.s)
 
-                    WinampSkinToggle(
-                        off: WinampSkinSprites.EQMain.on,
-                        on: WinampSkinSprites.EQMain.onSelected,
+                    AmpXSkinToggle(
+                        off: AmpXSkinSprites.EQMain.on,
+                        on: AmpXSkinSprites.EQMain.onSelected,
                         isOn: Binding(
                             get: { self.audioPlayer.eqEnabled },
                             set: { self.audioPlayer.setEQEnabled($0) }
@@ -37,9 +37,9 @@ struct ClassicEqualizerView: View {
                     )
                     .classicPlaced(x: 14, y: 18, width: 26, height: 12, scale: self.s)
 
-                    WinampSkinToggle(
-                        off: WinampSkinSprites.EQMain.auto,
-                        on: WinampSkinSprites.EQMain.autoSelected,
+                    AmpXSkinToggle(
+                        off: AmpXSkinSprites.EQMain.auto,
+                        on: AmpXSkinSprites.EQMain.autoSelected,
                         isOn: Binding(
                             get: { self.audioPlayer.eqAutoEnabled },
                             set: { self.audioPlayer.setEQAutoEnabled($0) }
@@ -48,7 +48,7 @@ struct ClassicEqualizerView: View {
                     )
                     .classicPlaced(x: 40, y: 18, width: 32, height: 12, scale: self.s)
 
-                    SkinSpriteView(sprite: WinampSkinSprites.EQMain.graphBackground, scale: self.s)
+                    SkinSpriteView(sprite: AmpXSkinSprites.EQMain.graphBackground, scale: self.s)
                         .classicPlaced(x: 86, y: 17, width: 113, height: 19, scale: self.s)
                     ClassicEQGraph(
                         bandValues: self.audioPlayer.eqBandValues,
@@ -68,7 +68,7 @@ struct ClassicEqualizerView: View {
                     )
                     .classicPlaced(x: 21, y: 38, width: 14, height: 64, scale: self.s)
 
-                    ForEach(0 ..< WinampEQBands.bandCount, id: \.self) { index in
+                    ForEach(0 ..< AmpXEQBands.bandCount, id: \.self) { index in
                         ClassicEQBandSlider(
                             value: Binding(
                                 get: { self.audioPlayer.eqBandValues[index] },
@@ -107,7 +107,7 @@ struct ClassicPanelTitleBar: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            SkinSpriteView(sprite: WinampSkinSprites.EQMain.titleBarSelected, scale: self.scale)
+            SkinSpriteView(sprite: AmpXSkinSprites.EQMain.titleBarSelected, scale: self.scale)
                 .allowsHitTesting(false)
 
             PanelTitleBarDragOverlay()
@@ -151,7 +151,7 @@ private struct ClassicPresetsButton: View {
             Button("Load EQF…") { self.audioPlayer.importEQFPresets() }
             Button("Reset") { self.audioPlayer.resetEQ() }
         } label: {
-            SkinSpriteView(sprite: WinampSkinSprites.EQMain.presets, scale: self.scale)
+            SkinSpriteView(sprite: AmpXSkinSprites.EQMain.presets, scale: self.scale)
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
@@ -176,7 +176,7 @@ private struct ClassicEQGraph: View {
             }
             context.fill(midline, with: .color(ClassicSkinColors.ledDim))
 
-            let points = WinampEQBands.responseCurvePoints(
+            let points = AmpXEQBands.responseCurvePoints(
                 bandValues: self.bandValues,
                 preampValue: self.preampValue,
                 width: size.width,
@@ -209,15 +209,15 @@ struct ClassicEQBandSlider: View {
 
     var body: some View {
         GeometryReader { geo in
-            let thumbH = WinampSkinSprites.EQMain.sliderThumb.height * self.scale
+            let thumbH = AmpXSkinSprites.EQMain.sliderThumb.height * self.scale
             let progress = (CGFloat(self.value) + 1) / 2
             let y = (1 - progress) * (geo.size.height - thumbH)
-            let track = WinampSkinSprites.EQMain.sliderBackground(forNormalized: Float(progress))
+            let track = AmpXSkinSprites.EQMain.sliderBackground(forNormalized: Float(progress))
 
             ZStack(alignment: .top) {
                 SkinSpriteView(sprite: track, scale: self.scale)
                     .frame(width: geo.size.width, height: geo.size.height)
-                SkinSpriteView(sprite: WinampSkinSprites.EQMain.sliderThumb, scale: self.scale)
+                SkinSpriteView(sprite: AmpXSkinSprites.EQMain.sliderThumb, scale: self.scale)
                     .frame(maxWidth: .infinity)
                     .offset(y: y)
             }

@@ -125,7 +125,7 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
     }
 
     /// Blanking the page does NOT stop the WebContent process — only releasing the
-    /// `WKWebView` does. `WinampPanelWindowManager.hidePanel` nils `contentViewController`
+    /// `WKWebView` does. `AmpXPanelWindowManager.hidePanel` nils `contentViewController`
     /// for `.visualizer`, which deallocates this view; this just stops work in the window
     /// between that and dealloc.
     func teardown() {

@@ -1,5 +1,15 @@
 # Recent Changes
 
+## AmpX rename
+
+- Product identity is now **AmpX** (*Modern audio player. Classic spirit.*)
+- Bundle ID `com.ampx.macos` (clean break — no prefs/playlist migration from `com.ampx.macos`)
+- Types, Xcode project, scripts, and docs renamed mechanically (`Winamp*` → `AmpX*`)
+- ENTHEA visualizer name unchanged; Classic Winamp 2.x / Webamp geometry attribution retained
+
+---
+
+
 ## Fixes Applied
 
 ### ✅ Window Sizing Fixed
@@ -20,8 +30,8 @@
 - Draggable blue title bar
 
 ### 🎨 Sprite System Created
-- Added `WinampSkinSprites.swift` for using actual graphics
-- Imported your Winamp skin image as `WinampSkin` asset
+- Added `AmpXSkinSprites.swift` for using actual graphics
+- Imported your Winamp skin image as `AmpXSkin` asset
 - Defined sprite coordinates for all UI elements:
   - Buttons (Previous, Play, Pause, Stop, Next, Eject)
   - Toggle buttons (EQ, PL, Shuffle, Repeat) 
@@ -41,7 +51,7 @@ The sprite system is ready - we just need to integrate it with the button views.
 
 ## How to Test
 
-1. Build: `xcodebuild -project Winamp.xcodeproj -scheme Winamp build`
+1. Build: `xcodebuild -project AmpX.xcodeproj -scheme AmpX build`
 2. Run: `open ~/Library/Developer/Xcode/DerivedData/Winamp-*/Build/Products/Debug/Winamp.app`
 3. Test PL button to toggle playlist
 4. Verify no black space around window edges

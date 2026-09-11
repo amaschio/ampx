@@ -70,8 +70,8 @@ final class EQSettingsStore {
 
     init(
         userDefaults: UserDefaults = .standard,
-        settingsKey: String = "WinampEQSettings",
-        presetsKey: String = "WinampEQPresets"
+        settingsKey: String = "AmpXEQSettings",
+        presetsKey: String = "AmpXEQPresets"
     ) {
         self.userDefaults = userDefaults
         self.settingsKey = settingsKey

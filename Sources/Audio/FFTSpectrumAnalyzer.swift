@@ -24,7 +24,7 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
     /// puts 0 dB at "full digital scale", matching `AnalyserNode`'s convention so its default
     /// `minDecibels`/`maxDecibels` window (−100/−30) is meaningful for `quantizedByte`.
     private let rawBinReferenceMagnitude: Float
-    private let processingQueue = DispatchQueue(label: "com.winamp.fft", qos: .userInteractive)
+    private let processingQueue = DispatchQueue(label: "com.ampx.fft", qos: .userInteractive)
     private let tapStaging = TapPCMStaging()
 
     private var windowRing = [Float](repeating: 0, count: AudioFeatures.fftSize)

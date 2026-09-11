@@ -3,7 +3,7 @@ import Combine
 import Foundation
 import os
 
-private let playlistLogger = Logger(subsystem: "com.winamp.macos", category: "Playlist")
+private let playlistLogger = Logger(subsystem: "com.ampx.macos", category: "Playlist")
 
 @MainActor
 class PlaylistManager: ObservableObject {
@@ -144,7 +144,7 @@ class PlaylistManager: ObservableObject {
         guard self.bookmarkStore.ensureAccess(for: url) else {
             self.showFileActionError(
                 title: "Cannot Remove File",
-                message: "Winamp does not have permission to modify this file. Re-add it from its folder to grant access."
+                message: "AmpX does not have permission to modify this file. Re-add it from its folder to grant access."
             )
             return false
         }
@@ -273,7 +273,7 @@ class PlaylistManager: ObservableObject {
         self.persistState()
     }
 
-    /// Keep only the given indices (Winamp crop).
+    /// Keep only the given indices (AmpX crop).
     func cropToTracks(at indices: IndexSet) {
         guard !indices.isEmpty else { return }
         let remove = IndexSet(integersIn: 0 ..< self.tracks.count).subtracting(indices)

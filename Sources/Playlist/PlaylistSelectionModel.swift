@@ -116,7 +116,7 @@ struct PlaylistSelectionModel: Equatable {
         }
     }
 
-    /// Winamp Page Up/Down step: about one fifth of the list, at least one row.
+    /// AmpX Page Up/Down step: about one fifth of the list, at least one row.
     static func pageStep(count: Int) -> Int {
         max(1, count / 5)
     }

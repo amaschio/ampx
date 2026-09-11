@@ -5,7 +5,7 @@
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_FILE="${PROJECT_DIR}/Winamp.xcodeproj/project.pbxproj"
+PROJECT_FILE="${PROJECT_DIR}/AmpX.xcodeproj/project.pbxproj"
 
 # Get current version
 CURRENT_VERSION=$(grep -A 1 "MARKETING_VERSION" "$PROJECT_FILE" | grep -oE "[0-9]+\.[0-9]+(\.[0-9]+)?" | head -n 1)

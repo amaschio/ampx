@@ -13,7 +13,7 @@ Give the app its own name and its own face, so it stands on its own rather than 
 ## Non-goals
 
 - Abandoning the compact floating-window concept, the 275 px geometry, or the detachable playlist/EQ/visualizer model
-- Rewriting the UI architecture — `WinampPanel*` types are renamed to `AmpXPanel*`, not redesigned
+- Rewriting the UI architecture — `AmpXPanel*` types are renamed to `AmpXPanel*`, not redesigned
 - Changing the MIT licence or removing upstream attribution to `mbrukman/winamp-macos`, Matt Greenwood, or Webamp
 - UserDefaults / Application Support / security-scoped bookmark migration (clean break by design)
 - New skin / visual redesign (tracked as a later work item)
@@ -29,7 +29,7 @@ Give the app its own name and its own face, so it stands on its own rather than 
 | Bundle identifier | **`com.ampx.macos`** / `com.ampx.macos.tests` |
 | Type / target prefix | **`AmpX*`** (`AmpXApp`, `AmpX.xcodeproj`, scheme `AmpX`, …) |
 | Visualizer | **ENTHEA** stays ENTHEA |
-| User-data migration | **None** — clean break; old `com.winamp.macos` data abandoned |
+| User-data migration | **None** — clean break; old `com.ampx.macos` data abandoned |
 | Rename style | **Big-bang** — one behaviour-neutral commit for in-repo surfaces |
 | Attribution | README keeps fork lineage and Webamp reference |
 | Clearance bar | **Light** — GitHub + App Store + web + Homebrew cask; no EUIPO/USPTO |
@@ -55,13 +55,13 @@ Proceed under the agreed light-check bar. Revisit if shipping commercially or to
 
 | Area | Items |
 |---|---|
-| Build | `PRODUCT_BUNDLE_IDENTIFIER` ×2, target name, scheme, `Winamp.xcodeproj` → `AmpX.xcodeproj`, `Package.swift` target/product, `build.sh` `PROJECT_NAME`, `bump-version.sh`, `create-dmg.sh` |
-| Scripts | `scripts/run-tests.sh` (`-scheme AmpX`), `scripts/shoot.sh` (matches windows by app name — **breaks silently** if missed: empty screenshots), `scripts/pyproject.toml`, `scripts/winamp_fixtures/` → `scripts/ampx_fixtures/` (+ regenerate `uv.lock`) |
+| Build | `PRODUCT_BUNDLE_IDENTIFIER` ×2, target name, scheme, `AmpX.xcodeproj` → `AmpX.xcodeproj`, `Package.swift` target/product, `build.sh` `PROJECT_NAME`, `bump-version.sh`, `create-dmg.sh` |
+| Scripts | `scripts/run-tests.sh` (`-scheme AmpX`), `scripts/shoot.sh` (matches windows by app name — **breaks silently** if missed: empty screenshots), `scripts/pyproject.toml`, `scripts/ampx_fixtures/` → `scripts/ampx_fixtures/` (+ regenerate `uv.lock`) |
 | Signing | Code-signing identity references, entitlements file name, notarization `--primary-bundle-id`, and any keychain profile named for the old bundle ID |
 | Bundle | `CFBundleName`, `CFBundleDisplayName`, `CFBundleIdentifier`, document types / UTIs, AppIcon asset names if they embed Winamp |
 | Defaults keys | **Do not migrate.** New bundle ID → fresh suite. Leave key strings alone unless they must change for another reason; no copy-from-old-suite path |
-| Source | `WinampApp`, `WinampColors`, `WinampCommands`, `WinampDockGraph`, `WinampPanelColumnPack`, `WinampPanelDescriptor`, `WinampPanelLayoutState`, `WinampPanelPlacement`, `WinampPanelPositionStore`, `WinampPanelWindowManager`, `WinampSkinSprites`, `Audio/WinampEQBands` → `AmpX*` equivalents |
-| Tests | `Tests/WinampTests/` → `Tests/AmpXTests/`, `WinampEQBandsTests` → `AmpXEQBandsTests` |
+| Source | `AmpXApp`, `AmpXColors`, `AmpXCommands`, `AmpXDockGraph`, `AmpXPanelColumnPack`, `AmpXPanelDescriptor`, `AmpXPanelLayoutState`, `AmpXPanelPlacement`, `AmpXPanelPositionStore`, `AmpXPanelWindowManager`, `AmpXSkinSprites`, `Audio/AmpXEQBands` → `AmpX*` equivalents |
+| Tests | `Tests/AmpXTests/` → `Tests/AmpXTests/`, `AmpXEQBandsTests` → `AmpXEQBandsTests` |
 | Docs | README (lead with AmpX + tagline), AGENTS.md, CLAUDE.md, USAGE.md, BUILDING.md, RELEASE.md, CHANGES.md, `docs/**` project references. Historical “Winamp 2.x / Webamp” aesthetic lineage stays where it describes geometry or upstream |
 | Repo | `gh repo rename ampx`; update `origin` remote and URLs in README/RELEASE. Local folder `winamp-macos` → `ampx` **last** (Cursor workspace path) |
 
@@ -77,7 +77,7 @@ Proceed under the agreed light-check bar. Revisit if shipping commercially or to
 
 A new bundle identifier means macOS treats AmpX as a different app: fresh `UserDefaults`, fresh Application Support, invalid security-scoped bookmarks.
 
-**Chosen behavior:** clean break. Do not implement `IdentityMigration`. Document in RELEASE.md that installing AmpX does not import state from the old `com.winamp.macos` build; both may coexist on disk as separate apps.
+**Chosen behavior:** clean break. Do not implement `IdentityMigration`. Document in RELEASE.md that installing AmpX does not import state from the old `com.ampx.macos` build; both may coexist on disk as separate apps.
 
 ### Visual independence (separate work item)
 
@@ -108,9 +108,9 @@ The rename addresses the word. The Classic UI remains a close reproduction of Wi
 
 Effectively every file that embeds the old name (prefix rename), plus:
 
-- `Winamp.xcodeproj/` → `AmpX.xcodeproj/` (including `project.pbxproj` and `AmpX.xcscheme`)
+- `AmpX.xcodeproj/` → `AmpX.xcodeproj/` (including `project.pbxproj` and `AmpX.xcscheme`)
 - `Package.swift`, `build.sh`, `bump-version.sh`, `create-dmg.sh`
-- `scripts/run-tests.sh`, `scripts/shoot.sh`, `scripts/pyproject.toml`, `scripts/winamp_fixtures/` → `ampx_fixtures/`, `scripts/uv.lock`
+- `scripts/run-tests.sh`, `scripts/shoot.sh`, `scripts/pyproject.toml`, `scripts/ampx_fixtures/` → `ampx_fixtures/`, `scripts/uv.lock`
 - `Resources/` asset catalogue names if needed
 - `README.md`, `AGENTS.md`, `CLAUDE.md`, `USAGE.md`, `BUILDING.md`, `RELEASE.md`, `CHANGES.md`
 - This spec (status → approved)

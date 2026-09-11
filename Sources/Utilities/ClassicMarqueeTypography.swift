@@ -5,7 +5,7 @@ import Foundation
 ///
 /// Kept free of SwiftUI so the glyph mapping and scroll math stay testable.
 enum ClassicMarqueeTypography {
-    /// Winamp TEXT.BMP cell coordinates, keyed by lowercased character.
+    /// AmpX TEXT.BMP cell coordinates, keyed by lowercased character.
     static let fontLookup: [Character: (row: Int, col: Int)] = [
         "a": (0, 0), "b": (0, 1), "c": (0, 2), "d": (0, 3), "e": (0, 4),
         "f": (0, 5), "g": (0, 6), "h": (0, 7), "i": (0, 8), "j": (0, 9),

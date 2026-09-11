@@ -122,7 +122,7 @@ struct ClassicVisualizerPanelView: View {
         ZStack(alignment: .topLeading) {
             HStack(spacing: 0) {
                 ClassicVisualizerTiledStrip(
-                    sprite: WinampSkinSprites.Pledit.leftTile,
+                    sprite: AmpXSkinSprites.Pledit.leftTile,
                     scale: self.s,
                     axis: .vertical
                 )
@@ -132,7 +132,7 @@ struct ClassicVisualizerPanelView: View {
                 Spacer(minLength: 0)
 
                 ClassicVisualizerTiledStrip(
-                    sprite: WinampSkinSprites.Pledit.rightTile,
+                    sprite: AmpXSkinSprites.Pledit.rightTile,
                     scale: self.s,
                     axis: .vertical
                 )
@@ -147,7 +147,7 @@ struct ClassicVisualizerPanelView: View {
                     showVisualizer: self.$showVisualizer,
                     title: "ENTHEA",
                     scale: self.s,
-                    onTheater: { WinampPanelWindowManager.shared.toggleVisualizerTheater() }
+                    onTheater: { AmpXPanelWindowManager.shared.toggleVisualizerTheater() }
                 )
 
                 HStack(spacing: 0) {
@@ -245,7 +245,7 @@ struct ClassicVisualizerPanelView: View {
             .padding(.horizontal, 2 * self.s)
 
             Button {
-                WinampPanelWindowManager.shared.toggleVisualizerTheater()
+                AmpXPanelWindowManager.shared.toggleVisualizerTheater()
             } label: {
                 Text(self.isTheater ? "▣" : "⛶")
                     .font(.system(size: 9 * self.s, weight: .bold))
@@ -292,12 +292,12 @@ struct ClassicVisualizerPanelView: View {
     private var bottomBar: some View {
         ZStack(alignment: .bottomTrailing) {
             HStack(spacing: 0) {
-                SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomLeftBorder, scale: self.s)
+                SkinSpriteView(sprite: AmpXSkinSprites.Pledit.bottomLeftBorder, scale: self.s)
 
                 ZStack(alignment: .bottomLeading) {
-                    SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomLeftInset, scale: self.s)
+                    SkinSpriteView(sprite: AmpXSkinSprites.Pledit.bottomLeftInset, scale: self.s)
                     ClassicVisualizerTiledStrip(
-                        sprite: WinampSkinSprites.Pledit.bottomTile,
+                        sprite: AmpXSkinSprites.Pledit.bottomTile,
                         scale: self.s,
                         axis: .horizontal
                     )
@@ -307,7 +307,7 @@ struct ClassicVisualizerPanelView: View {
                 .clipped()
 
                 ClassicVisualizerTiledStrip(
-                    sprite: WinampSkinSprites.Pledit.bottomTile,
+                    sprite: AmpXSkinSprites.Pledit.bottomTile,
                     scale: self.s,
                     axis: .horizontal
                 )
@@ -315,22 +315,22 @@ struct ClassicVisualizerPanelView: View {
                 .frame(height: self.bottomBarHeight * self.s)
 
                 ZStack(alignment: .topLeading) {
-                    SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomRight, scale: self.s)
+                    SkinSpriteView(sprite: AmpXSkinSprites.Pledit.bottomRight, scale: self.s)
                     ClassicVisualizerTiledStrip(
-                        sprite: WinampSkinSprites.Pledit.bottomTile,
+                        sprite: AmpXSkinSprites.Pledit.bottomTile,
                         scale: self.s,
                         axis: .horizontal
                     )
                     .frame(width: 100 * self.s, height: self.bottomBarHeight * self.s)
                     ClassicVisualizerTiledStrip(
-                        sprite: WinampSkinSprites.Pledit.bottomTile,
+                        sprite: AmpXSkinSprites.Pledit.bottomTile,
                         scale: self.s,
                         axis: .horizontal
                     )
                     .frame(width: 44 * self.s, height: 28 * self.s)
                     .offset(x: 102 * self.s, y: 5 * self.s)
                     ClassicVisualizerTiledStrip(
-                        sprite: WinampSkinSprites.Pledit.bottomTile,
+                        sprite: AmpXSkinSprites.Pledit.bottomTile,
                         scale: self.s,
                         axis: .horizontal
                     )
@@ -361,7 +361,7 @@ struct ClassicVisualizerPanelView: View {
                             self.isDraggingResize = true
                         }
                         let minWidth = ClassicSkinMetrics.windowWidth * self.s
-                        let minHeight = WinampMetrics.visualizerMinHeight * self.s
+                        let minHeight = AmpXMetrics.visualizerMinHeight * self.s
                         var transaction = Transaction()
                         transaction.disablesAnimations = true
                         withTransaction(transaction) {
@@ -388,10 +388,10 @@ private struct ClassicVisualizerTitleBar: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             HStack(spacing: 0) {
-                SkinSpriteView(sprite: WinampSkinSprites.Pledit.topLeft, scale: self.scale)
+                SkinSpriteView(sprite: AmpXSkinSprites.Pledit.topLeft, scale: self.scale)
 
                 ClassicVisualizerTiledStrip(
-                    sprite: WinampSkinSprites.Pledit.topTileSeamless,
+                    sprite: AmpXSkinSprites.Pledit.topTileSeamless,
                     scale: self.scale,
                     axis: .horizontal
                 )
@@ -402,12 +402,12 @@ private struct ClassicVisualizerTitleBar: View {
                     .padding(.horizontal, 6 * self.scale)
 
                 ClassicVisualizerTiledStrip(
-                    sprite: WinampSkinSprites.Pledit.topTileSeamless,
+                    sprite: AmpXSkinSprites.Pledit.topTileSeamless,
                     scale: self.scale,
                     axis: .horizontal
                 )
 
-                SkinSpriteView(sprite: WinampSkinSprites.Pledit.topRight, scale: self.scale)
+                SkinSpriteView(sprite: AmpXSkinSprites.Pledit.topRight, scale: self.scale)
             }
             .allowsHitTesting(false)
 
@@ -457,17 +457,17 @@ private struct ClassicVisualizerShadeBar: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             HStack(spacing: 0) {
-                SkinSpriteView(sprite: WinampSkinSprites.Pledit.shadeLeft, scale: self.scale)
+                SkinSpriteView(sprite: AmpXSkinSprites.Pledit.shadeLeft, scale: self.scale)
 
                 ClassicVisualizerTiledStrip(
-                    sprite: WinampSkinSprites.Pledit.shadeTile,
+                    sprite: AmpXSkinSprites.Pledit.shadeTile,
                     scale: self.scale,
                     axis: .horizontal
                 )
                 .frame(maxWidth: .infinity)
                 .frame(height: ClassicSkinMetrics.playlistShadeHeight * self.scale)
 
-                SkinSpriteView(sprite: WinampSkinSprites.Pledit.shadeRight, scale: self.scale)
+                SkinSpriteView(sprite: AmpXSkinSprites.Pledit.shadeRight, scale: self.scale)
             }
             .allowsHitTesting(false)
 

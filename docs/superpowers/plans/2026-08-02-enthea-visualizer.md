@@ -6,7 +6,7 @@
 
 **Licensing: nothing to do.** This repo is private and undistributed, so no AGPL obligation is active — §5/§6 attach to conveying, §13 to network interaction, and §2 permits private modification unconditionally. Task 2 vendors ENTHEA's own `LICENSE` next to its source and records the relicense trigger in `VENDOR.md`. The root `LICENSE` is not touched.
 
-**Architecture:** Keep `WinampPanelID.visualizer` / `showVisualizer` unchanged. Host a fill-bounds `WKWebView` inside Classic pledit chrome (`ClassicMilkdropPanelView` → rename later). **Do not invent a feature contract** — publish raw 512-bin linear FFT magnitudes on `AudioFeatureBus`, then impersonate `AUDIO.analyser` in `bridge.js` so ENTHEA's own DSP (bands, centroid, flux, onsets, BPM, beat grid, build envelope, drop detection) runs unmodified. Drive modes via `window.winampEnthea`. Temporary Metal|Enthea switch through Tasks 1–4, **defaulting to Metal** until Task 3; a hidden kill switch replaces it in Task 5. EQ/playlist docking untouched.
+**Architecture:** Keep `AmpXPanelID.visualizer` / `showVisualizer` unchanged. Host a fill-bounds `WKWebView` inside Classic pledit chrome (`ClassicMilkdropPanelView` → rename later). **Do not invent a feature contract** — publish raw 512-bin linear FFT magnitudes on `AudioFeatureBus`, then impersonate `AUDIO.analyser` in `bridge.js` so ENTHEA's own DSP (bands, centroid, flux, onsets, BPM, beat grid, build envelope, drop detection) runs unmodified. Drive modes via `window.winampEnthea`. Temporary Metal|Enthea switch through Tasks 1–4, **defaulting to Metal** until Task 3; a hidden kill switch replaces it in Task 5. EQ/playlist docking untouched.
 
 **Tech Stack:** Swift 6, SwiftUI + AppKit, WebKit (`WKWebView`), vendored ENTHEA HTML/JS (WebGL2), `AudioFeatureBus` + vDSP, XCTest
 
@@ -43,7 +43,7 @@
 | `Resources/Enthea/index.html` | Vendored ENTHEA (pinned commit) |
 | `Resources/Enthea/bridge.js` | Fake-analyser shim + control surface |
 | `Resources/Enthea/VENDOR.md` | Source URL, commit hash, patch notes |
-| `Winamp.xcodeproj/project.pbxproj` | **Folder reference** for `Resources/Enthea`; link WebKit if needed |
+| `AmpX.xcodeproj/project.pbxproj` | **Folder reference** for `Resources/Enthea`; link WebKit if needed |
 | `Sources/Enthea/EntheaBundleLoader.swift` | Resolve bundle directory + index URL |
 | `Sources/Enthea/EntheaWebView.swift` | `NSViewRepresentable` + fill-bounds `WKWebView` host |
 | `Sources/Enthea/EntheaAudioBridge.swift` | Gate + coalesce + encode raw bins/PCM → JS |
@@ -56,13 +56,13 @@
 | `Sources/Views/Classic/ClassicVisualizerPanelView.swift` | Rename target after Task 5 |
 | `Sources/Visualization/MetalVisualizationPlugin.swift` | Task 8 ENTHEA-styled mini plugin |
 | `Sources/Shaders/VisualizerShaders.metal` | Task 8 mini fragment shader |
-| `Sources/WinampPanelWindowManager.swift` | Theater expand/restore helper (Task 5) |
-| `Tests/WinampTests/AudioFeatureBusRawBinTests.swift` | Raw-bin channel (Task 0) |
-| `Tests/WinampTests/EntheaBundleLoaderTests.swift` | **Resource resolves from `Bundle.main`** |
-| `Tests/WinampTests/EntheaAudioPayloadCodecTests.swift` | Blob round-trip |
-| `Tests/WinampTests/EntheaAudioBridgeTests.swift` | Gate + coalescing |
-| `Tests/WinampTests/EntheaTrackAnalyzerTests.swift` | Native timeline (Task 6) |
-| `Tests/WinampTests/EntheaPreferencesTests.swift` | Defaults persistence |
+| `Sources/AmpXPanelWindowManager.swift` | Theater expand/restore helper (Task 5) |
+| `Tests/AmpXTests/AudioFeatureBusRawBinTests.swift` | Raw-bin channel (Task 0) |
+| `Tests/AmpXTests/EntheaBundleLoaderTests.swift` | **Resource resolves from `Bundle.main`** |
+| `Tests/AmpXTests/EntheaAudioPayloadCodecTests.swift` | Blob round-trip |
+| `Tests/AmpXTests/EntheaAudioBridgeTests.swift` | Gate + coalescing |
+| `Tests/AmpXTests/EntheaTrackAnalyzerTests.swift` | Native timeline (Task 6) |
+| `Tests/AmpXTests/EntheaPreferencesTests.swift` | Defaults persistence |
 
 ## Locked JS / Swift contracts
 
@@ -146,7 +146,7 @@ Write findings into the spec's *Upstream facts* / *Risks* tables. Outcomes:
 **Files:**
 - Modify: `Sources/Audio/FFTSpectrumAnalyzer.swift`
 - Modify: `Sources/Audio/AudioFeatureBus.swift`
-- Test: `Tests/WinampTests/AudioFeatureBusRawBinTests.swift`
+- Test: `Tests/AmpXTests/AudioFeatureBusRawBinTests.swift`
 
 **Produces:** 512 linear magnitudes per FFT hop, published alongside the existing 32 log bands. Pure Swift, no WebKit, independently useful — this task is worth keeping even if ENTHEA is later abandoned.
 
@@ -203,7 +203,7 @@ git commit -m "feat: publish raw linear FFT bins on AudioFeatureBus"
 - Create: `Sources/Enthea/EntheaWebView.swift`
 - Create: `Sources/Enthea/EntheaBundleLoader.swift` (stub returning placeholder HTML OK)
 - Modify: `Sources/Views/Classic/ClassicMilkdropPanelView.swift`
-- Modify: `Winamp.xcodeproj/project.pbxproj` (add Swift files to Winamp target; link `WebKit.framework` if not automatic)
+- Modify: `AmpX.xcodeproj/project.pbxproj` (add Swift files to Winamp target; link `WebKit.framework` if not automatic)
 
 **Interfaces:**
 - Produces: `struct EntheaWebView: NSViewRepresentable` with `var isActive: Bool`, `var size: CGSize`
@@ -250,7 +250,7 @@ final class EntheaWKHostView: NSView {
     }
 
     /// Blanking the page does NOT stop the WebContent process — only releasing the
-    /// WKWebView does. `WinampPanelWindowManager.hidePanel` nils `contentViewController`
+    /// WKWebView does. `AmpXPanelWindowManager.hidePanel` nils `contentViewController`
     /// for `.visualizer`, which deallocates this view; this just stops work in the
     /// window between that and dealloc.
     func teardown() {
@@ -331,10 +331,10 @@ git commit -m "feat: add WKWebView host shell in visualizer panel"
 - Create: `Resources/Enthea/VENDOR.md`
 - Modify: `Sources/Enthea/EntheaBundleLoader.swift`
 - Modify: `Sources/Enthea/EntheaWebView.swift`
-- Modify: `Winamp.xcodeproj/project.pbxproj` — **folder reference** for `Resources/Enthea`
+- Modify: `AmpX.xcodeproj/project.pbxproj` — **folder reference** for `Resources/Enthea`
 - Create: `Sources/Enthea/EntheaPreferences.swift`
-- Test: `Tests/WinampTests/EntheaBundleLoaderTests.swift`
-- Test: `Tests/WinampTests/EntheaPreferencesTests.swift`
+- Test: `Tests/AmpXTests/EntheaBundleLoaderTests.swift`
+- Test: `Tests/AmpXTests/EntheaPreferencesTests.swift`
 
 - [ ] **Step 1: Vendor source + its license**
 
@@ -504,8 +504,8 @@ git commit -m "feat: vendor ENTHEA and boot inside visualizer WebView"
 - Modify: `Resources/Enthea/bridge.js` — install the fake analyser
 - Modify: `Sources/Enthea/EntheaWebView.swift` (own the bridge; start/stop with `isActive`)
 - Modify: `ClassicMilkdropPanelView.swift` — flip `bodyMode` default to `.enthea`
-- Test: `Tests/WinampTests/EntheaAudioPayloadCodecTests.swift`
-- Test: `Tests/WinampTests/EntheaAudioBridgeTests.swift`
+- Test: `Tests/AmpXTests/EntheaAudioPayloadCodecTests.swift`
+- Test: `Tests/AmpXTests/EntheaAudioBridgeTests.swift`
 
 **The whole design in one paragraph:** ENTHEA's `updateAudio(dt)` early-returns unless `S.audio.on && AUDIO.analyser`, then reads exactly two things — `AUDIO.analyser.getByteFrequencyData(AUDIO.data)` and `getFloatTimeDomainData(AUDIO.wave)` (plus `AUDIO.anL`/`anR` for stereo). Everything else it computes itself. So `bridge.js` replaces `AUDIO.analyser` with a plain object whose two methods `.set()` from buffers Swift refreshes, stubs `AUDIO.ctx` as `{ sampleRate }`, and sets `S.audio.on = true`. ENTHEA's DSP is not modified at all.
 
@@ -622,13 +622,13 @@ git commit -m "feat: drive ENTHEA's DSP from a fake AnalyserNode shim"
 
 **Files:**
 - Modify: `ClassicMilkdropPanelView.swift` → rename to `ClassicVisualizerPanelView.swift` (update all refs + window manager `makeRoot`)
-- Modify: `WinampPanelWindowManager.swift` — theater expand/restore helper
+- Modify: `AmpXPanelWindowManager.swift` — theater expand/restore helper
 - Modify: `EntheaPreferences.swift` — `forceMetalBody` kill switch
 - Modify: `USAGE.md:150` — the fullscreen claim becomes true (or gets corrected)
 
-**Theater — `toggleFullScreen` will not work here.** `WinampWindowConfigurator.apply(to:resizable:)` builds panels as `[.borderless, .miniaturizable]` with `collectionBehavior = []`; native fullscreen needs at least `.fullScreenPrimary`, and borderless plus native fullscreen is unreliable even then. There is no `toggleFullScreen` call anywhere in `Sources/` today.
+**Theater — `toggleFullScreen` will not work here.** `AmpXWindowConfigurator.apply(to:resizable:)` builds panels as `[.borderless, .miniaturizable]` with `collectionBehavior = []`; native fullscreen needs at least `.fullScreenPrimary`, and borderless plus native fullscreen is unreliable even then. There is no `toggleFullScreen` call anywhere in `Sources/` today.
 
-- [ ] Implement theater as: expand the panel window frame to `screen.visibleFrame`, hide Classic chrome, optionally set `NSApp.presentationOptions` to hide the menu bar; restore size/position from `WinampPanelLayoutState` on exit
+- [ ] Implement theater as: expand the panel window frame to `screen.visibleFrame`, hide Classic chrome, optionally set `NSApp.presentationOptions` to hide the menu bar; restore size/position from `AmpXPanelLayoutState` on exit
 - [ ] Do not route through ENTHEA's `toggleFull()` / `requestFullscreen` — the page should not own the window
 - [ ] Remove the visible Metal|Enthea segment; body is `EntheaWebView` unless `forceMetalBody` is set
 
@@ -646,7 +646,7 @@ git commit -m "feat: drive ENTHEA's DSP from a fake AnalyserNode shim"
 - Create: `Sources/Enthea/EntheaTrackAnalyzer.swift` — offline analysis in Swift
 - Create: `Sources/Enthea/EntheaTrackBridge.swift`
 - Modify: `bridge.js` (`setTimeline`, `setPosition`, `AUDIO.fileEl` shim)
-- Test: `Tests/WinampTests/EntheaTrackAnalyzerTests.swift`
+- Test: `Tests/AmpXTests/EntheaTrackAnalyzerTests.swift`
 
 **Do the analysis natively — do not hand the file to WebKit.** The original approach (copy the track into `caches/`, let ENTHEA `decodeAudioData` it) has three problems: copying lossless files per track change is expensive for a player whose stated goal is lossless support; WebKit's `decodeAudioData` coverage for FLAC/ALAC/DSD is not something to put on the critical path; and it re-decodes audio the app has already decoded.
 

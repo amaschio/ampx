@@ -1,8 +1,8 @@
 #!/bin/bash
-# Build → relaunch → screenshot the Winamp window(s) for UI iteration.
+# Build → relaunch → screenshot the AmpX window(s) for UI iteration.
 # Usage: ./scripts/shoot.sh [--no-build]
-#   Captures each on-screen Winamp window by window ID (works even when occluded)
-#   to /tmp/winamp_shot*.png. Prints the paths so an agent can read them.
+#   Captures each on-screen AmpX window by window ID (works even when occluded)
+#   to /tmp/ampx_shot*.png. Prints the paths so an agent can read them.
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -11,43 +11,43 @@ ARCH="$(uname -m)"
 DESTINATION="platform=macOS,arch=${ARCH}"
 
 if [[ "$1" != "--no-build" ]]; then
-    xcodebuild -project "${PROJECT_DIR}/Winamp.xcodeproj" -scheme Winamp \
+    xcodebuild -project "${PROJECT_DIR}/AmpX.xcodeproj" -scheme AmpX \
         -configuration "${CONFIG}" \
         -destination "${DESTINATION}" \
         ONLY_ACTIVE_ARCH=YES \
-        build >/tmp/winamp_build.log 2>&1 \
-        || { echo "❌ build failed — see /tmp/winamp_build.log"; tail -20 /tmp/winamp_build.log; exit 1; }
+        build >/tmp/ampx_build.log 2>&1 \
+        || { echo "❌ build failed — see /tmp/ampx_build.log"; tail -20 /tmp/ampx_build.log; exit 1; }
 fi
 
 # Resolve THIS project's product via build settings (not find|head across DerivedData).
-BUILT_PRODUCTS_DIR=$(xcodebuild -project "${PROJECT_DIR}/Winamp.xcodeproj" \
-    -scheme Winamp \
+BUILT_PRODUCTS_DIR=$(xcodebuild -project "${PROJECT_DIR}/AmpX.xcodeproj" \
+    -scheme AmpX \
     -configuration "${CONFIG}" \
     -destination "${DESTINATION}" \
     ONLY_ACTIVE_ARCH=YES \
     -showBuildSettings 2>/dev/null \
     | sed -n 's/^ *BUILT_PRODUCTS_DIR = //p' | head -n 1)
-APP_PATH="${BUILT_PRODUCTS_DIR}/Winamp.app"
+APP_PATH="${BUILT_PRODUCTS_DIR}/AmpX.app"
 if [[ ! -d "$APP_PATH" ]]; then
-    echo "❌ Winamp.app not found at: $APP_PATH"
+    echo "❌ AmpX.app not found at: $APP_PATH"
     exit 1
 fi
 
 # Relaunch fresh so the screenshot reflects the new build.
 # Without -n, Launch Services reactivates a running instance from another checkout.
-osascript -e 'tell application "Winamp" to quit' >/dev/null 2>&1 || true
-killall Winamp >/dev/null 2>&1 || true
-pkill -x Winamp >/dev/null 2>&1 || true
+osascript -e 'tell application "AmpX" to quit' >/dev/null 2>&1 || true
+killall AmpX >/dev/null 2>&1 || true
+pkill -x AmpX >/dev/null 2>&1 || true
 sleep 0.5
 echo "🚀 $APP_PATH"
 open -n "$APP_PATH"
 sleep 2.5
 
-# Enumerate Winamp's on-screen windows (layer 0 = normal) and capture each by ID.
+# Enumerate AmpX's on-screen windows (layer 0 = normal) and capture each by ID.
 IDS=$(swift - <<'SWIFT'
 import CoreGraphics
 let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as! [[String: Any]]
-for w in list where (w[kCGWindowOwnerName as String] as? String ?? "").contains("Winamp") {
+for w in list where (w[kCGWindowOwnerName as String] as? String ?? "").contains("AmpX") {
     if (w[kCGWindowLayer as String] as? Int ?? 0) == 0 {
         print(w[kCGWindowNumber as String] as? Int ?? -1)
     }
@@ -57,8 +57,8 @@ SWIFT
 
 i=0
 for id in $IDS; do
-    out="/tmp/winamp_shot${i}.png"
+    out="/tmp/ampx_shot${i}.png"
     screencapture -x -o -l"$id" "$out" && echo "📸 $out"
     i=$((i + 1))
 done
-if [[ $i -eq 0 ]]; then echo "⚠️  no Winamp windows found on screen"; fi
+if [[ $i -eq 0 ]]; then echo "⚠️  no AmpX windows found on screen"; fi

@@ -7,7 +7,7 @@ import os
 import QuartzCore
 import UniformTypeIdentifiers
 
-private let audioLogger = Logger(subsystem: "com.winamp.macos", category: "AudioEngine")
+private let audioLogger = Logger(subsystem: "com.ampx.macos", category: "AudioEngine")
 
 /// Holds the high-frequency playback position on its own observable so the ~10 Hz timer
 /// updates only invalidate the small time/seek readouts that observe it — not every view
@@ -60,7 +60,7 @@ class AudioPlayer: NSObject, ObservableObject {
     private nonisolated(unsafe) var audioEngine: AVAudioEngine?
     private nonisolated(unsafe) var playerNode: AVAudioPlayerNode?
     private nonisolated(unsafe) var audioFile: AVAudioFile?
-    /// The Winamp EQ stage of the processing graph (preamp + parametric EQ).
+    /// The AmpX EQ stage of the processing graph (preamp + parametric EQ).
     private nonisolated(unsafe) var eqEffect: EQAudioEffect?
     private nonisolated(unsafe) var spectrumAnalyzer: FFTSpectrumAnalyzer?
     private nonisolated(unsafe) var spectrumTapInstalled = false
@@ -84,7 +84,7 @@ class AudioPlayer: NSObject, ObservableObject {
     /// `AVAudioPlayerNode.playerTime.sampleTime` is relative to that segment, so UI
     /// position is `playbackSegmentStartTime + sampleTime/sampleRate`.
     private nonisolated(unsafe) var playbackSegmentStartTime: TimeInterval = 0
-    private let audioQueue = DispatchQueue(label: "com.winamp.audio", qos: .userInteractive)
+    private let audioQueue = DispatchQueue(label: "com.ampx.audio", qos: .userInteractive)
 
     private nonisolated var isPlayingInternal: Bool {
         get {
@@ -158,7 +158,7 @@ class AudioPlayer: NSObject, ObservableObject {
         self.audioQueue.sync {
             // The processing pipeline is declared as an ordered effect chain rather than
             // hand-wired here, so future DSP modules are inserted via `AudioGraph`, not by
-            // editing this method. Today the chain is a single stage: the Winamp EQ.
+            // editing this method. Today the chain is a single stage: the AmpX EQ.
             let eqEffect = EQAudioEffect()
             let graph = AudioGraph()
             graph.build(effects: [eqEffect])
@@ -721,7 +721,7 @@ class AudioPlayer: NSObject, ObservableObject {
         }
     }
 
-    /// Winamp AUTO: reduce preamp when bands are boosted to limit clipping.
+    /// AmpX AUTO: reduce preamp when bands are boosted to limit clipping.
     private func applyAutoPreampCompensation() {
         guard self.eqAutoEnabled, self.eqEnabled else { return }
         let bandGainsDB = self.eqBandValues.map { $0 * 12 }
@@ -775,7 +775,7 @@ class AudioPlayer: NSObject, ObservableObject {
         panel.canChooseFiles = true
         panel.allowedContentTypes = ["eqf", "q1"].compactMap { UTType(filenameExtension: $0) }
         panel.allowsOtherFileTypes = true
-        panel.message = "Choose a Winamp equalizer preset file (.eqf or .q1)"
+        panel.message = "Choose an AmpX equalizer preset file (.eqf or .q1)"
 
         panel.begin { [weak self] response in
             guard let self, response == .OK, let url = panel.url else { return }

@@ -1,6 +1,6 @@
-# Winamp macOS — Usage Guide
+# AmpX — Usage Guide
 
-A native Classic Winamp 2.x–style player for macOS. The UI is the **Classic skin only** (275 px Webamp geometry): main player, shade mode, playlist, equalizer, and a managed ENTHEA visualizer panel. There is no modern dual UI.
+A native Classic Winamp 2.x–style player for macOS (AmpX). The UI is the **Classic skin only** (275 px Webamp geometry): main player, shade mode, playlist, equalizer, and a managed ENTHEA visualizer panel. There is no modern dual UI.
 
 **Requires macOS 26.5 (Tahoe) or later.**
 
@@ -10,7 +10,7 @@ A native Classic Winamp 2.x–style player for macOS. The UI is the **Classic sk
 
 ### Open the app
 
-1. Open `Winamp.xcodeproj` in Xcode, select the **Winamp** scheme, and run (⌘R), **or**
+1. Open `AmpX.xcodeproj` in Xcode, select the **AmpX** scheme, and run (⌘R), **or**
 2. From the repo root: `./build.sh --run`
 
 On launch you get the Classic main window (275×116). Playlist and equalizer panels open by default and dock under the main window. The visualizer starts closed.
@@ -195,7 +195,7 @@ Displayed metadata includes title, artist, duration, bitrate, and sample rate (a
 1. **Docking** — snap panels under or beside each other; connected stacks move together. Positions are the source of truth (geometry-primary docking).
 2. **Shade** — keep a thin strip on screen while listening; playlist and EQ can shade independently where supported.
 3. **Audio path** — AVAudioEngine with a 10-band `AVAudioUnitEQ` and an analysis tap feeding FFT features to the mini spectrum and ENTHEA host.
-4. **UI iteration for developers** — `./scripts/shoot.sh` builds/relaunches and screenshots each window to `/tmp/winamp_shot*.png`.
+4. **UI iteration for developers** — `./scripts/shoot.sh` builds/relaunches and screenshots each window to `/tmp/ampx_shot*.png`.
 
 ---
 
@@ -235,7 +235,7 @@ Audio file → player node → 10-band EQ → mixer → output
                               ↘ analysis tap → FFT / features → spectrum + ENTHEA
 ```
 
-Key sources: `WinampApp.swift`, `ContentView.swift`, `AudioPlayer.swift`, `PlaylistManager.swift`, `Views/Classic/*`, `WinampPanelWindowManager.swift`.
+Key sources: `AmpXApp.swift`, `ContentView.swift`, `AudioPlayer.swift`, `PlaylistManager.swift`, `Views/Classic/*`, `AmpXPanelWindowManager.swift`.
 
 ---
 

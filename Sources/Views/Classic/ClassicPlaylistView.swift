@@ -39,7 +39,7 @@ struct ClassicPlaylistView: View {
                 // Side rails run full height behind title/bottom so junctions stay covered.
                 HStack(spacing: 0) {
                     ClassicPlaylistTiledStrip(
-                        sprite: WinampSkinSprites.Pledit.leftTile,
+                        sprite: AmpXSkinSprites.Pledit.leftTile,
                         scale: self.s,
                         axis: .vertical
                     )
@@ -49,7 +49,7 @@ struct ClassicPlaylistView: View {
                     Spacer(minLength: 0)
 
                     ClassicPlaylistTiledStrip(
-                        sprite: WinampSkinSprites.Pledit.rightTile,
+                        sprite: AmpXSkinSprites.Pledit.rightTile,
                         scale: self.s,
                         axis: .vertical
                     )
@@ -94,10 +94,10 @@ struct ClassicPlaylistView: View {
                 selection: self.$selection,
                 userInitiatedPlayback: self.$userInitiatedPlayback
             )
-            WinampPlaylistKeyboard.register(self.keyboardNavigation)
+            AmpXPlaylistKeyboard.register(self.keyboardNavigation)
         }
         .onDisappear {
-            WinampPlaylistKeyboard.unregister(self.keyboardNavigation)
+            AmpXPlaylistKeyboard.unregister(self.keyboardNavigation)
             self.keyboardNavigation.unbind()
         }
         .onChange(of: self.playlistManager.tracks.map(\.id)) { ids in
@@ -179,9 +179,9 @@ struct ClassicPlaylistView: View {
         ZStack(alignment: .bottomTrailing) {
             HStack(spacing: 0) {
                 // Widen left chrome by moving the 8px border out of the button sprite.
-                SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomLeftBorder, scale: self.s)
+                SkinSpriteView(sprite: AmpXSkinSprites.Pledit.bottomLeftBorder, scale: self.s)
                 ZStack(alignment: .topLeading) {
-                    SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomLeftInset, scale: self.s)
+                    SkinSpriteView(sprite: AmpXSkinSprites.Pledit.bottomLeftInset, scale: self.s)
                         .allowsHitTesting(false)
                     HStack(spacing: 0) {
                         ClassicPlaylistMenuSlot(scale: self.s) {
@@ -250,12 +250,12 @@ struct ClassicPlaylistView: View {
                 }
                 .frame(width: 117 * self.s, height: ClassicSkinMetrics.playlistBottomBarHeight * self.s)
 
-                ClassicPlaylistTiledStrip(sprite: WinampSkinSprites.Pledit.bottomTile, scale: self.s)
+                ClassicPlaylistTiledStrip(sprite: AmpXSkinSprites.Pledit.bottomTile, scale: self.s)
                     .frame(maxWidth: .infinity)
                     .frame(height: ClassicSkinMetrics.playlistBottomBarHeight * self.s)
 
                 ZStack(alignment: .topLeading) {
-                    SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomRightInset, scale: self.s)
+                    SkinSpriteView(sprite: AmpXSkinSprites.Pledit.bottomRightInset, scale: self.s)
                         .allowsHitTesting(false)
 
                     ClassicPlaylistTimeReadout(totalDuration: self.totalDuration, scale: self.s)
@@ -290,7 +290,7 @@ struct ClassicPlaylistView: View {
                 }
                 .frame(width: 142 * self.s, height: ClassicSkinMetrics.playlistBottomBarHeight * self.s)
 
-                SkinSpriteView(sprite: WinampSkinSprites.Pledit.bottomRightBorder, scale: self.s)
+                SkinSpriteView(sprite: AmpXSkinSprites.Pledit.bottomRightBorder, scale: self.s)
             }
             // Fill the panel width so ZStack's trailing alignment can't pin a
             // content-sized HStack and clip the leading chrome when widened.
@@ -329,7 +329,7 @@ struct ClassicPlaylistView: View {
                         }
                         // Grow/shrink the NSWindow in the same turn as the SwiftUI frame so
                         // `.clipped()` doesn't chop chrome while content leads the window.
-                        WinampPanelWindowManager.shared.resizePlaylistPanel()
+                        AmpXPanelWindowManager.shared.resizePlaylistPanel()
                     }
                     .onEnded { _ in self.isDraggingResize = false }
             )
@@ -374,25 +374,25 @@ private struct ClassicPlaylistTitleBar: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             HStack(spacing: 0) {
-                SkinSpriteView(sprite: WinampSkinSprites.Pledit.topLeft, scale: self.scale)
+                SkinSpriteView(sprite: AmpXSkinSprites.Pledit.topLeft, scale: self.scale)
 
                 ClassicPlaylistTiledStrip(
-                    sprite: WinampSkinSprites.Pledit.topTileSeamless,
+                    sprite: AmpXSkinSprites.Pledit.topTileSeamless,
                     scale: self.scale,
                     axis: .horizontal
                 )
                 .frame(maxWidth: .infinity)
 
-                SkinSpriteView(sprite: WinampSkinSprites.Pledit.titleLabel, scale: self.scale)
+                SkinSpriteView(sprite: AmpXSkinSprites.Pledit.titleLabel, scale: self.scale)
 
                 ClassicPlaylistTiledStrip(
-                    sprite: WinampSkinSprites.Pledit.topTileSeamless,
+                    sprite: AmpXSkinSprites.Pledit.topTileSeamless,
                     scale: self.scale,
                     axis: .horizontal
                 )
                 .frame(maxWidth: .infinity)
 
-                SkinSpriteView(sprite: WinampSkinSprites.Pledit.topRight, scale: self.scale)
+                SkinSpriteView(sprite: AmpXSkinSprites.Pledit.topRight, scale: self.scale)
             }
             .frame(maxWidth: .infinity)
             .allowsHitTesting(false)
@@ -437,8 +437,8 @@ private struct ClassicPlaylistShadeBar: View {
     var scale: CGFloat = 1.0
 
     private var timeLabel: String {
-        let current = WinampTimeFormatting.format(self.clock.currentTime)
-        let total = WinampTimeFormatting.format(
+        let current = AmpXTimeFormatting.format(self.clock.currentTime)
+        let total = AmpXTimeFormatting.format(
             self.playlistManager.currentTrack?.duration ?? self.audioPlayer.duration
         )
         return "\(current)/\(total)"
@@ -447,10 +447,10 @@ private struct ClassicPlaylistShadeBar: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             HStack(spacing: 0) {
-                SkinSpriteView(sprite: WinampSkinSprites.Pledit.shadeLeft, scale: self.scale)
+                SkinSpriteView(sprite: AmpXSkinSprites.Pledit.shadeLeft, scale: self.scale)
 
                 ClassicPlaylistTiledStrip(
-                    sprite: WinampSkinSprites.Pledit.shadeTile,
+                    sprite: AmpXSkinSprites.Pledit.shadeTile,
                     scale: self.scale,
                     axis: .horizontal
                 )
@@ -458,7 +458,7 @@ private struct ClassicPlaylistShadeBar: View {
                 .frame(height: ClassicSkinMetrics.playlistShadeHeight * self.scale)
 
                 ZStack(alignment: .topLeading) {
-                    SkinSpriteView(sprite: WinampSkinSprites.Pledit.shadeRight, scale: self.scale)
+                    SkinSpriteView(sprite: AmpXSkinSprites.Pledit.shadeRight, scale: self.scale)
 
                     // Time sits in the shade-right black well (before the mini-viz / buttons).
                     ClassicPlaylistShadeTime(text: self.timeLabel, scale: self.scale)
@@ -597,7 +597,7 @@ private struct ClassicSkinPlaylistRow: View {
 
             Spacer(minLength: 4)
 
-            Text(WinampTimeFormatting.format(self.track.duration))
+            Text(AmpXTimeFormatting.format(self.track.duration))
                 .winampFont(size: 8, scale: self.scale)
                 .foregroundColor(self.rowForeground)
         }
@@ -646,7 +646,7 @@ private struct ClassicPlaylistTimeReadout: View {
     var scale: CGFloat = 1.0
 
     var body: some View {
-        Text("\(WinampTimeFormatting.format(self.clock.currentTime))/\(WinampTimeFormatting.format(self.totalDuration))")
+        Text("\(AmpXTimeFormatting.format(self.clock.currentTime))/\(AmpXTimeFormatting.format(self.totalDuration))")
             .winampFont(size: 7, weight: .bold, scale: self.scale)
             .foregroundColor(ClassicSkinColors.led)
             .lineLimit(1)
@@ -663,7 +663,7 @@ private struct ClassicPlaylistRemainingTimeLabel: View {
 
     var body: some View {
         let remaining = max(0, self.audioPlayer.duration - self.clock.currentTime)
-        Text(WinampTimeFormatting.format(-remaining, showNegative: true))
+        Text(AmpXTimeFormatting.format(-remaining, showNegative: true))
             .winampFont(size: 6, weight: .bold, scale: self.scale)
             .foregroundColor(ClassicSkinColors.led)
             .lineLimit(1)

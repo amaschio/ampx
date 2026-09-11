@@ -3,13 +3,13 @@ import SwiftUI
 
 struct ContentView: View {
     private static var positionedWindows = Set<ObjectIdentifier>()
-    /// The SwiftUI `WindowGroup` player window — never restyle About / open panels as Winamp chrome.
+    /// The SwiftUI `WindowGroup` player window — never restyle About / open panels as AmpX chrome.
     private static var configuredMainWindowID: ObjectIdentifier?
 
     @EnvironmentObject var audioPlayer: AudioPlayer
     @EnvironmentObject var playlistManager: PlaylistManager
-    @EnvironmentObject var uiScale: WinampUIScale
-    @EnvironmentObject var panelLayout: WinampPanelLayoutState
+    @EnvironmentObject var uiScale: AmpXUIScale
+    @EnvironmentObject var panelLayout: AmpXPanelLayoutState
     @State private var lastAppliedUIScale: CGFloat = 0
     @AppStorage("showRemainingTime") private var showRemainingTime = false
 
@@ -77,12 +77,12 @@ struct ContentView: View {
             self.lastAppliedUIScale = newScale
             self.panelLayout.ensureMinimumPlaylistWidth(self.styledPanelWidth)
             // Panels live in separate hosting controllers — resize + re-pack after Zoom.
-            WinampPanelWindowManager.shared.applyUIScale()
+            AmpXPanelWindowManager.shared.applyUIScale()
             self.syncPanelWindows()
         }
         .onChange(of: self.panelLayout.isShadeMode) { newValue in
             self.applyShadeMode(newValue)
-            WinampPanelWindowManager.shared.fitMainWindowToContent()
+            AmpXPanelWindowManager.shared.fitMainWindowToContent()
             self.syncPanelWindows()
         }
         .onChange(of: self.panelLayout.showEqualizer) { _ in
@@ -95,19 +95,19 @@ struct ContentView: View {
             self.syncPanelWindows()
         }
         .onChange(of: self.panelLayout.playlistSize) { _ in
-            WinampPanelWindowManager.shared.resizePlaylistPanel()
+            AmpXPanelWindowManager.shared.resizePlaylistPanel()
         }
         .onChange(of: self.panelLayout.playlistMinimized) { _ in
-            WinampPanelWindowManager.shared.resizePlaylistPanel()
+            AmpXPanelWindowManager.shared.resizePlaylistPanel()
         }
         .onChange(of: self.panelLayout.equalizerMinimized) { _ in
-            WinampPanelWindowManager.shared.resizeEqualizerPanel()
+            AmpXPanelWindowManager.shared.resizeEqualizerPanel()
         }
         .onChange(of: self.panelLayout.visualizerSize) { _ in
-            WinampPanelWindowManager.shared.resizeVisualizerPanel()
+            AmpXPanelWindowManager.shared.resizeVisualizerPanel()
         }
         .onChange(of: self.panelLayout.visualizerMinimized) { _ in
-            WinampPanelWindowManager.shared.resizeVisualizerPanel()
+            AmpXPanelWindowManager.shared.resizeVisualizerPanel()
         }
     }
 
@@ -134,10 +134,10 @@ struct ContentView: View {
         }
     }
 
-    /// Only the SwiftUI `WindowGroup` player may receive Winamp borderless chrome. System About /
+    /// Only the SwiftUI `WindowGroup` player may receive AmpX borderless chrome. System About /
     /// open panels are `NSPanel`s (or other titled windows) and must keep their native close button.
     private func shouldConfigureAsMainPlayerWindow(_ window: NSWindow) -> Bool {
-        if WinampPanelWindowManager.shared.isPanelWindow(window) {
+        if AmpXPanelWindowManager.shared.isPanelWindow(window) {
             return false
         }
         if window is NSPanel {
@@ -152,7 +152,7 @@ struct ContentView: View {
     private func syncPanelWindows() {
         guard let window = self.mainPlayerWindow() else { return }
 
-        WinampPanelWindowManager.shared.configure(
+        AmpXPanelWindowManager.shared.configure(
             mainWindow: window,
             layoutState: self.panelLayout,
             audioPlayer: self.audioPlayer,
@@ -205,7 +205,7 @@ struct ContentView: View {
 
         // `.resizable` keeps the borderless SwiftUI window able to become key; actual
         // resizing stays locked by `.windowResizability(.contentSize)`.
-        WinampWindowConfigurator.apply(to: window, resizable: true)
+        AmpXWindowConfigurator.apply(to: window, resizable: true)
         Self.configuredMainWindowID = ObjectIdentifier(window)
 
         let windowID = ObjectIdentifier(window)

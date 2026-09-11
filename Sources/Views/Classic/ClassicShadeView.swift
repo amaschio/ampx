@@ -22,7 +22,7 @@ struct ClassicShadeView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            SkinSpriteView(sprite: WinampSkinSprites.Titlebar.shadeBarSelected, scale: self.s)
+            SkinSpriteView(sprite: AmpXSkinSprites.Titlebar.shadeBarSelected, scale: self.s)
                 .allowsHitTesting(false)
 
             // Drag / double-click only over the marquee — transport + window icons stay clickable.
@@ -117,7 +117,7 @@ private struct ClassicShadeTime: View {
     var scale: CGFloat = 1.0
 
     private var timeText: String {
-        WinampTimeFormatting.format(
+        AmpXTimeFormatting.format(
             self.showRemainingTime
                 ? -(self.audioPlayer.duration - self.clock.currentTime)
                 : self.clock.currentTime,
@@ -152,11 +152,11 @@ private struct ClassicShadeSeek: View {
         GeometryReader { geo in
             let percent = CGFloat(self.audioPlayer.duration > 0
                 ? self.clock.currentTime / self.audioPlayer.duration : 0)
-            let thumbW = WinampSkinSprites.Titlebar.shadePositionThumb.width * self.scale
+            let thumbW = AmpXSkinSprites.Titlebar.shadePositionThumb.width * self.scale
             ZStack(alignment: .leading) {
-                SkinSpriteView(sprite: WinampSkinSprites.Titlebar.shadePositionBackground, scale: self.scale)
+                SkinSpriteView(sprite: AmpXSkinSprites.Titlebar.shadePositionBackground, scale: self.scale)
                     .frame(width: geo.size.width, height: geo.size.height)
-                SkinSpriteView(sprite: WinampSkinSprites.Titlebar.shadePositionThumb, scale: self.scale)
+                SkinSpriteView(sprite: AmpXSkinSprites.Titlebar.shadePositionThumb, scale: self.scale)
                     .offset(x: (geo.size.width - thumbW) * percent)
             }
             .contentShape(Rectangle())

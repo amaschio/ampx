@@ -125,8 +125,8 @@ Manual check: play a hot master with volume max and a smile EQ — bars should s
 - `Sources/AudioPlayer.swift` — split volume / RG application; debug probe context  
 - `Sources/Audio/FFTSpectrumAnalyzer.swift` — band energy + Classic dB map  
 - `Sources/Audio/VolumeModel.swift` — optional helpers clarifying split gains (only if it keeps call sites clearer)  
-- `Tests/WinampTests/AudioGraphTests.swift`  
-- `Tests/WinampTests/FFTSpectrumAnalyzerTests.swift`  
+- `Tests/AmpXTests/AudioGraphTests.swift`  
+- `Tests/AmpXTests/FFTSpectrumAnalyzerTests.swift`  
 - New or extended tests for fader-vs-preamp analysis isolation if a lightweight harness exists; otherwise document the manual check above
 
 ## Success criteria
