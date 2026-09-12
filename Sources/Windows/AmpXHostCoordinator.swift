@@ -389,6 +389,8 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
                     self?.toggleModuleVisibility(id)
                 }
             )
+        case .equalizer:
+            return EqualizerModuleContent(skin: skin, audioPlayer: audioPlayer)
         default:
             return AmpXModuleContent.make(moduleID: moduleID, skin: skin)
         }

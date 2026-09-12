@@ -32,7 +32,7 @@ class AmpXModuleContent: AmpXDrawingView {
         case .player:
             preconditionFailure("Player module content must be constructed by AmpXHostCoordinator")
         case .equalizer:
-            return EqualizerModuleContent(skin: skin)
+            preconditionFailure("Equalizer module content must be constructed by AmpXHostCoordinator")
         case .playlist:
             return PlaylistModuleContent(skin: skin)
         case .enthea:
