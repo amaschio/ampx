@@ -188,6 +188,14 @@ enum AmpXKeyRouter {
     ) -> NSEvent? {
         guard let window, window.isKeyWindow else { return event }
 
+        if let entheaTheater, entheaTheater.isInTheater {
+            let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
+            if flags.isEmpty, event.keyCode == 53 {
+                entheaTheater.exitTheater()
+                return nil
+            }
+        }
+
         if let command = moduleCommand(for: event) {
             moduleCommandHandler?(command)
             return nil

@@ -632,7 +632,12 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         let view = moduleViews[moduleID]
         let originalHostID = state.detached.contains(moduleID) ? moduleID : nil
         let position = state.order.firstIndex(of: moduleID) ?? 0
-        let frame = view?.frame ?? .zero
+        let frame: CGRect
+        if state.detached.contains(moduleID) {
+            frame = detachedWindowFrame(for: moduleID) ?? view?.frame ?? .zero
+        } else {
+            frame = view?.frame ?? .zero
+        }
         let scale = moduleScale(for: moduleID)
         return AmpXTheaterSnapshot(
             originalHostID: originalHostID,
@@ -655,7 +660,11 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     func reinstallModuleViewFromTheater(_ moduleID: AmpXModuleID, snapshot: AmpXTheaterSnapshot) {
         guard let view = moduleViews[moduleID] else { return }
 
-        view.exitTheaterPresentation(restoreFrame: snapshot.frame)
+        if snapshot.originalHostID != nil {
+            view.exitTheaterPresentation(restoreFrame: .zero)
+        } else {
+            view.exitTheaterPresentation(restoreFrame: snapshot.frame)
+        }
 
         if snapshot.originalHostID != nil {
             guard let controller = detachedWindowControllers[moduleID] else { return }
