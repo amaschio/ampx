@@ -15,10 +15,10 @@ protocol AmpXSkin {
     var yellow: NSColor { get }
     var orange: NSColor { get }
     var display: NSColor { get }
-    /// Sampled from PNG during static composition (Task 6).
-    var goldDeferred: NSColor { get }
-    /// Sampled from PNG during static composition (Task 6).
-    var goldLightDeferred: NSColor { get }
+    /// Sampled from PNG scrollbar thumb (ReferenceMeasurementsV1).
+    var gold: NSColor { get }
+    /// Sampled from PNG scrollbar thumb highlight (ReferenceMeasurementsV1).
+    var goldLight: NSColor { get }
 
     func font(size: CGFloat, weight: NSFont.Weight) -> NSFont
 

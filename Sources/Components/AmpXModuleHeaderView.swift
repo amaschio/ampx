@@ -35,12 +35,13 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
     }
 
     private func drawGrip(in context: CGContext, backingScale: CGFloat) {
-        let gripWidth = 12
+        let gripWidth: CGFloat = 12
+        let gripHeight: CGFloat = 16
         let gripRect = CGRect(
             x: bounds.minX + 6,
-            y: bounds.midY - 8,
-            width: CGFloat(gripWidth),
-            height: 16
+            y: AmpXPixelGrid.align(bounds.midY - gripHeight / 2, backingScale: backingScale),
+            width: gripWidth,
+            height: gripHeight
         )
         context.setFillColor(skin.border.cgColor)
         for row in 0..<3 {

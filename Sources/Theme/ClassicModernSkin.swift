@@ -15,8 +15,8 @@ struct ClassicModernSkin: AmpXSkin {
     let yellow = NSColor(hex: 0xFFD21A)
     let orange = NSColor(hex: 0xFF9D00)
     let display = NSColor(hex: 0x000000)
-    let goldDeferred = NSColor.clear
-    let goldLightDeferred = NSColor.clear
+    let gold = NSColor(srgbRed: 0.749, green: 0.627, blue: 0.322, alpha: 1)
+    let goldLight = NSColor(srgbRed: 1.0, green: 0.953, blue: 0.286, alpha: 1)
 
     func font(size: CGFloat, weight: NSFont.Weight) -> NSFont {
         AmpXFonts.font(size: size, weight: weight)
