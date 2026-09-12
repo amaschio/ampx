@@ -2,8 +2,8 @@ import Foundation
 
 /// Per-column spectrum level, color-band mapping, and peak-hold decay for the Player display.
 struct AmpXSpectrumColumnModel {
-    static let segmentCount = 16
-    static let columnCount = 19
+    static let segmentCount = AmpXMetrics.spectrumSegmentCount
+    static let columnCount = AmpXMetrics.spectrumColumnCount
 
     private static let maxBarHeight: Float = 15
     private static let peakInitialStep: Float = 3.0

@@ -8,6 +8,11 @@ final class TimeDisplayView: AmpXContinuousView {
         didSet { needsDisplay = true }
     }
 
+    /// Display-only text for deterministic reference presentation; `nil` shows the playback clock.
+    var referenceText: String? {
+        didSet { needsDisplay = true }
+    }
+
     private let segmentDigits: AmpXSegmentDigits
     private var blinkOff = false
     private var lastBlinkToggle: TimeInterval = 0
@@ -33,6 +38,10 @@ final class TimeDisplayView: AmpXContinuousView {
 
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
+        if let referenceText {
+            segmentDigits.draw(referenceText, in: bounds, context: context)
+            return
+        }
         guard let audioPlayer else { return }
 
         let duration = audioPlayer.duration

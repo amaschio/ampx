@@ -2,11 +2,36 @@ import AppKit
 import Combine
 import CoreGraphics
 
+/// Display-only values for deterministic reference captures. Never written to audio, playlist, or layout state.
+struct PlayerReferencePresentation: Equatable {
+    var trackTitle: String
+    var timeText: String
+    var bitrateText: String
+    var sampleRateText: String
+    var isMono: Bool
+    var isStereo: Bool
+    var isPlaying: Bool
+    var spectrumLevels: [Float]
+    var spectrumPeaks: [Float]
+    var volume: Double
+    var balance: Double
+    var position: Double
+    var equalizerOpen: Bool
+    var playlistOpen: Bool
+    var shuffleEnabled: Bool
+    var repeatEnabled: Bool
+}
+
 final class PlayerModuleContent: AmpXModuleContent {
     private let audioPlayer: AudioPlayer
     private let playlistManager: PlaylistManager
     private let onToggleModule: (AmpXModuleID) -> Void
     var menuAction: ((AmpXButton) -> Void)?
+
+    /// When set, rendering uses these values instead of live model state.
+    var referencePresentation: PlayerReferencePresentation? {
+        didSet { applyReferencePresentation() }
+    }
 
     private let spectrumWell: SpectrumWellView
     private let timeDisplay: TimeDisplayView
@@ -18,7 +43,7 @@ final class PlayerModuleContent: AmpXModuleContent {
     private var transportButtons: [AmpXButton] = []
     private var cancellables = Set<AnyCancellable>()
 
-    private var showPlayGlyph = true
+    private var isPlaying = false
     private var trackTitle = ""
     private var bitrateText = "128"
     private var sampleRateText = "48"
@@ -61,14 +86,19 @@ final class PlayerModuleContent: AmpXModuleContent {
         timeDisplay.audioPlayer = audioPlayer
         positionBar.audioPlayer = audioPlayer
 
-        volumeSlider.range = 0 ... 1
-        volumeSlider.showsGradient = true
+        for slider in [volumeSlider, balanceSlider] {
+            slider.range = 0 ... 1
+            slider.thumbSize = AmpXMetrics.playerSliderThumbSize
+            slider.thumbCrossOffset = AmpXMetrics.playerSliderThumbOffset
+        }
+        volumeSlider.artwork = .pill(.volume)
+        volumeSlider.accessibilityTitle = "Volume"
         volumeSlider.onChange = { [weak audioPlayer] value in
             audioPlayer?.setVolume(Float(value))
         }
 
-        balanceSlider.range = 0 ... 1
-        balanceSlider.showsGradient = true
+        balanceSlider.artwork = .pill(.balance)
+        balanceSlider.accessibilityTitle = "Balance"
         balanceSlider.onChange = { [weak audioPlayer] value in
             audioPlayer?.setBalance(Float(value * 2 - 1))
         }
@@ -77,16 +107,13 @@ final class PlayerModuleContent: AmpXModuleContent {
             audioPlayer?.seek(to: seconds)
         }
 
-        eqToggle.label = "EQ"
-        eqToggle.showsActiveIndicator = true
-        eqToggle.accessibilityTitle = "Equalizer"
+        configureToggle(eqToggle, label: "EQ", title: "Equalizer", indicator: AmpXMetrics.playerEQIndicator,
+                        labelInk: AmpXMetrics.playerEQLabelInk, leftBearing: 1.1)
         eqToggle.action = { [weak self] in
             self?.onToggleModule(.equalizer)
         }
-
-        plToggle.label = "PL"
-        plToggle.showsActiveIndicator = true
-        plToggle.accessibilityTitle = "Playlist"
+        configureToggle(plToggle, label: "PL", title: "Playlist", indicator: AmpXMetrics.playerPLIndicator,
+                        labelInk: AmpXMetrics.playerPLLabelInk, leftBearing: 1.14)
         plToggle.action = { [weak self] in
             self?.onToggleModule(.playlist)
         }
@@ -97,9 +124,19 @@ final class PlayerModuleContent: AmpXModuleContent {
         for (index, frame) in AmpXMetrics.playerTransport.enumerated() {
             let button = AmpXButton(skin: skin)
             button.frame = frame
+            if let glyph = AmpXMetrics.playerTransportGlyphs[index] {
+                button.iconRect = glyph.offsetBy(dx: -frame.minX, dy: -frame.minY)
+            }
             if index == 6 {
                 button.label = "SHUFFLE"
+                button.labelFontSize = 12.5
+                button.labelWeight = .regular
+                button.labelBaselineOrigin = CGPoint(
+                    x: AmpXMetrics.playerShuffleLabelInk.x - 0.62,
+                    y: AmpXMetrics.playerShuffleLabelInk.y
+                )
                 button.showsActiveIndicator = true
+                button.indicatorRect = AmpXMetrics.playerShuffleIndicator
                 button.accessibilityTitle = "Shuffle"
                 button.action = { [weak self] in
                     guard let self else { return }
@@ -108,6 +145,7 @@ final class PlayerModuleContent: AmpXModuleContent {
             } else if index == 8 {
                 button.style = .menu
                 button.icon = .menu
+                button.iconColor = skin.text
                 button.accessibilityTitle = "Menu"
                 button.action = { [weak self] in
                     guard let self, let button = self.transportButtons[safe: 8] else { return }
@@ -115,6 +153,7 @@ final class PlayerModuleContent: AmpXModuleContent {
                 }
             } else if let icon = transportIcons[index] {
                 button.icon = icon
+                button.showsActiveFace = icon == .play
                 button.accessibilityTitle = transportLabel(for: icon)
                 button.action = transportAction(for: icon)
             }
@@ -128,13 +167,30 @@ final class PlayerModuleContent: AmpXModuleContent {
         layoutControls()
     }
 
+    private func configureToggle(
+        _ button: AmpXButton,
+        label: String,
+        title: String,
+        indicator: CGRect,
+        labelInk: CGPoint,
+        leftBearing: CGFloat
+    ) {
+        button.label = label
+        button.labelFontSize = 13.5
+        button.labelWeight = .regular
+        button.labelBaselineOrigin = CGPoint(x: labelInk.x - leftBearing, y: labelInk.y)
+        button.showsActiveIndicator = true
+        button.indicatorRect = indicator
+        button.accessibilityTitle = title
+    }
+
     private func bindModels() {
         audioPlayer.$isPlaying
             .receive(on: DispatchQueue.main)
             .sink { [weak self] isPlaying in
-                self?.showPlayGlyph = !isPlaying
+                self?.isPlaying = isPlaying
+                self?.transportButtons[safe: 1]?.isActive = isPlaying
                 self?.needsDisplay = true
-                self?.updateTransportPlayIcon()
             }
             .store(in: &cancellables)
 
@@ -208,10 +264,25 @@ final class PlayerModuleContent: AmpXModuleContent {
         balanceSlider.setValue(Double((audioPlayer.balance + 1) / 2), sendChange: false)
         transportButtons[safe: 6]?.isActive = playlistManager.shuffleEnabled
         transportButtons[safe: 7]?.isActive = playlistManager.repeatEnabled
-        showPlayGlyph = !audioPlayer.isPlaying
-        updateTransportPlayIcon()
+        isPlaying = audioPlayer.isPlaying
+        transportButtons[safe: 1]?.isActive = isPlaying
         refreshTrackTitle()
         refreshPlaybackDisplay()
+    }
+
+    private func applyReferencePresentation() {
+        let reference = referencePresentation
+        timeDisplay.referenceText = reference?.timeText
+        spectrumWell.reference = reference.map { SpectrumWellView.Reference(levels: $0.spectrumLevels, peaks: $0.spectrumPeaks) }
+        volumeSlider.displayValueOverride = reference?.volume
+        balanceSlider.displayValueOverride = reference?.balance
+        positionBar.referenceFraction = reference?.position
+        eqToggle.displayActiveOverride = reference?.equalizerOpen
+        plToggle.displayActiveOverride = reference?.playlistOpen
+        transportButtons[safe: 1]?.displayActiveOverride = reference?.isPlaying
+        transportButtons[safe: 6]?.displayActiveOverride = reference?.shuffleEnabled
+        transportButtons[safe: 7]?.displayActiveOverride = reference?.repeatEnabled
+        needsDisplay = true
     }
 
     private func refreshPlaybackDisplay() {
@@ -245,17 +316,31 @@ final class PlayerModuleContent: AmpXModuleContent {
         layoutControls()
     }
 
+    // MARK: - Layout
+
+    /// Measured `01:51` timer ink; digit cells are right-aligned to its trailing edge.
+    static var timerFrame: CGRect {
+        AmpXMetrics.playerTimer
+    }
+
+    /// Timer view extends left of the reference ink so remaining-time signs fit without stretching.
+    static var timerViewFrame: CGRect {
+        let timer = timerFrame
+        let minX = playGlyphFrame.maxX + 3
+        return CGRect(x: minX, y: timer.minY, width: timer.maxX - minX, height: timer.height)
+    }
+
+    static var playGlyphFrame: CGRect {
+        AmpXMetrics.playerPlayGlyph
+    }
+
     private func layoutControls() {
-        let displayWell = AmpXMetrics.playerDisplayWell
-        spectrumWell.frame = displayWell
-        timeDisplay.frame = CGRect(
-            x: displayWell.minX + AmpXMetrics.playerTimer.minX,
-            y: displayWell.minY + AmpXMetrics.playerTimer.minY,
-            width: AmpXMetrics.playerTimer.width,
-            height: AmpXMetrics.playerTimer.height
-        )
+        spectrumWell.frame = AmpXMetrics.playerDisplayWell
+        timeDisplay.frame = Self.timerViewFrame
         volumeSlider.frame = AmpXMetrics.playerVolume
+        volumeSlider.trackSize = CGSize(width: AmpXMetrics.playerVolume.width, height: AmpXMetrics.playerSliderTrackHeight)
         balanceSlider.frame = AmpXMetrics.playerBalance
+        balanceSlider.trackSize = CGSize(width: AmpXMetrics.playerBalance.width, height: AmpXMetrics.playerSliderTrackHeight)
         positionBar.frame = AmpXMetrics.playerPosition
         eqToggle.frame = AmpXMetrics.playerEQToggle
         plToggle.frame = AmpXMetrics.playerPLToggle
@@ -264,27 +349,24 @@ final class PlayerModuleContent: AmpXModuleContent {
         }
     }
 
+    // MARK: - Drawing
+
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let backingScale = window?.backingScaleFactor ?? 1
 
-        skin.inset(bounds, in: context, backingScale: backingScale)
-
         skin.displayWell(AmpXMetrics.playerDisplayWell, in: context, backingScale: backingScale)
+        skin.dotGrid(AmpXMetrics.playerDisplayInterior, in: context)
         skin.displayWell(AmpXMetrics.playerTrackWell, in: context, backingScale: backingScale)
+        skin.displayWell(AmpXMetrics.playerBitrateWell, in: context, backingScale: backingScale)
+        skin.displayWell(AmpXMetrics.playerSampleRateWell, in: context, backingScale: backingScale)
 
-        if showPlayGlyph {
-            drawPlayGlyph(in: context)
+        if referencePresentation?.isPlaying ?? isPlaying {
+            AmpXIcon.play.draw(in: Self.playGlyphFrame, context: context, skin: skin, color: skin.green)
         }
 
         drawTrackTitle(in: context)
         drawMetadata(in: context)
-    }
-
-    private func updateTransportPlayIcon() {
-        if let playButton = transportButtons[safe: 1] {
-            playButton.iconColor = showPlayGlyph ? skin.green : skin.text
-        }
     }
 
     private func transportAction(for icon: AmpXIcon) -> (() -> Void)? {
@@ -323,42 +405,97 @@ final class PlayerModuleContent: AmpXModuleContent {
         }
     }
 
-    private func drawPlayGlyph(in context: CGContext) {
-        let glyph = CGRect(
-            x: AmpXMetrics.playerDisplayWell.minX + AmpXMetrics.playerPlayGlyph.minX,
-            y: AmpXMetrics.playerDisplayWell.minY + AmpXMetrics.playerPlayGlyph.minY,
-            width: AmpXMetrics.playerPlayGlyph.width,
-            height: AmpXMetrics.playerPlayGlyph.height
-        )
-        AmpXIcon.play.draw(
-            in: glyph,
-            context: context,
-            skin: skin,
-            color: skin.green
-        )
-    }
-
     private func drawTrackTitle(in context: CGContext) {
-        let inset = AmpXMetrics.playerTrackWell.insetBy(dx: 5.5, dy: 7)
-        let title = trackTitle.isEmpty ? " " : trackTitle
-        AmpXLabel(text: title, color: skin.green, fontSize: 11, weight: .medium)
-            .draw(in: inset, context: context, skin: skin)
+        let title = referencePresentation?.trackTitle ?? trackTitle
+        guard !title.isEmpty else { return }
+        let ink = AmpXMetrics.playerTrackTextInk
+        let label = AmpXLabel(text: title, color: skin.green, fontSize: 13.75, weight: .regular)
+        context.saveGState()
+        context.clip(to: AmpXMetrics.playerTrackWell.insetBy(dx: 2, dy: 2))
+        // Baseline from the parenthesis descent (0.2256 em) below the measured ink bottom.
+        label.draw(x: ink.minX - 0.44, baseline: ink.maxY - 13.75 * 0.2256, context: context, skin: skin)
+        context.restoreGState()
     }
 
     private func drawMetadata(in context: CGContext) {
-        let rect = AmpXMetrics.playerMetadata
-        AmpXLabel(text: bitrateText, color: skin.green, fontSize: 11, weight: .medium)
-            .draw(in: CGRect(x: rect.minX, y: rect.minY, width: 28, height: rect.height), context: context, skin: skin)
-        AmpXLabel(text: "kbps", color: skin.green, fontSize: 8, weight: .regular)
-            .draw(in: CGRect(x: rect.minX + 26, y: rect.minY + 2, width: 28, height: rect.height), context: context, skin: skin)
-        AmpXLabel(text: sampleRateText, color: skin.green, fontSize: 11, weight: .medium)
-            .draw(in: CGRect(x: rect.minX + 54, y: rect.minY, width: 22, height: rect.height), context: context, skin: skin)
-        AmpXLabel(text: "kHz", color: skin.green, fontSize: 8, weight: .regular)
-            .draw(in: CGRect(x: rect.minX + 72, y: rect.minY + 2, width: 24, height: rect.height), context: context, skin: skin)
-        AmpXLabel(text: "mono", color: isMono ? skin.green : skin.textDim, fontSize: 8, weight: .regular)
-            .draw(in: CGRect(x: rect.maxX - 52, y: rect.minY + 2, width: 24, height: rect.height), context: context, skin: skin)
-        AmpXLabel(text: "stereo", color: isStereo ? skin.green : skin.textDim, fontSize: 8, weight: .regular)
-            .draw(in: CGRect(x: rect.maxX - 28, y: rect.minY + 2, width: 28, height: rect.height), context: context, skin: skin)
+        let reference = referencePresentation
+        let layout = Self.metadataLayout(
+            bitrate: reference?.bitrateText ?? bitrateText,
+            sampleRate: reference?.sampleRateText ?? sampleRateText
+        )
+        let mono = reference?.isMono ?? isMono
+        let stereo = reference?.isStereo ?? isStereo
+        for item in layout.items {
+            let color: NSColor = switch item.role {
+            case .mono: mono ? skin.green : skin.textDim
+            case .stereo: stereo ? skin.green : skin.textDim
+            case .kbps, .kHz: skin.text
+            case .bitrate, .sampleRate: skin.green
+            }
+            AmpXLabel(text: item.text, color: color, fontSize: item.fontSize, weight: item.weight)
+                .draw(x: item.rect.minX, baseline: item.baseline, context: context, skin: skin)
+        }
+    }
+
+    /// Single-line metadata layout. Numeric readouts center in their wells and shrink only when a
+    /// value is wider than the well; channel labels are right-aligned to the reference ink.
+    static func metadataLayout(bitrate: String, sampleRate: String, skin: any AmpXSkin = ClassicModernSkin()) -> PlayerMetadataLayout {
+        let baseline: CGFloat = 64.5
+
+        func item(
+            _ role: PlayerMetadataLayout.Role,
+            _ text: String,
+            size: CGFloat,
+            weight: NSFont.Weight,
+            x: (CGFloat) -> CGFloat
+        ) -> PlayerMetadataLayout.Item {
+            let label = AmpXLabel(text: text, color: skin.text, fontSize: size, weight: weight)
+            let rect = label.lineRect(x: 0, baseline: baseline, skin: skin)
+            return PlayerMetadataLayout.Item(
+                role: role, text: text, fontSize: size, weight: weight, baseline: baseline,
+                rect: rect.offsetBy(dx: x(rect.width), dy: 0)
+            )
+        }
+
+        func numeric(_ role: PlayerMetadataLayout.Role, _ text: String, well: CGRect) -> PlayerMetadataLayout.Item {
+            let preferred: CGFloat = 14.5
+            let width = AmpXLabel(text: text, color: skin.text, fontSize: preferred, weight: .regular)
+                .measuredSize(skin: skin).width
+            let available = well.width - 3
+            let size = width > available ? (preferred * available / width).rounded(.down) : preferred
+            return item(role, text, size: size, weight: .regular) { well.midX - $0 / 2 }
+        }
+
+        return PlayerMetadataLayout(items: [
+            numeric(.bitrate, bitrate, well: AmpXMetrics.playerBitrateWell),
+            item(.kbps, "kbps", size: 12.5, weight: .regular) { _ in AmpXMetrics.playerKbpsInk.minX - 1.07 },
+            numeric(.sampleRate, sampleRate, well: AmpXMetrics.playerSampleRateWell),
+            item(.kHz, "kHz", size: 12.5, weight: .regular) { _ in AmpXMetrics.playerKHzInk.minX - 1.07 },
+            item(.mono, "mono", size: 12.5, weight: .regular) { AmpXMetrics.playerMonoInk.maxX + 0.75 - $0 },
+            item(.stereo, "stereo", size: 12.5, weight: .regular) { AmpXMetrics.playerStereoInk.maxX + 0.75 - $0 },
+        ])
+    }
+}
+
+struct PlayerMetadataLayout {
+    enum Role {
+        case bitrate, kbps, sampleRate, kHz, mono, stereo
+    }
+
+    struct Item {
+        var role: Role
+        var text: String
+        var fontSize: CGFloat
+        var weight: NSFont.Weight
+        var baseline: CGFloat
+        /// Typographic line box.
+        var rect: CGRect
+    }
+
+    var items: [Item]
+
+    func item(_ role: Role) -> Item? {
+        items.first { $0.role == role }
     }
 }
 

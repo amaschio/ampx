@@ -230,12 +230,37 @@ def generate(path, output):
     print(json.dumps(dict(output=str(output),rectangles=len(records),spectrum=spectrum),indent=2))
 
 
+def compare(path, result_path, output, name='player'):
+    """Export reference crop, result, side-by-side and 50% overlay at identical panel bounds."""
+    im = Image.open(path).convert('RGB')
+    x,y,w,h = PANEL
+    reference = im.crop((x,y,x+w,y+h))
+    result = Image.open(result_path).convert('RGB')
+    if result.size != reference.size:
+        raise ValueError(f'Result {result.size} must match reference panel {reference.size}; never stretch captures.')
+    output.mkdir(parents=True,exist_ok=True)
+    reference.save(output/f'{name}-reference.png')
+    result.save(output/f'{name}-result.png')
+    side = Image.new('RGB',(w,h*2+8),'#FF59E7')
+    side.paste(reference,(0,0))
+    side.paste(result,(0,h+8))
+    side.save(output/f'{name}-side-by-side.png')
+    Image.blend(reference,result,0.5).save(output/f'{name}-overlay-50.png')
+    print(json.dumps(dict(output=str(output),size=[w,h]),indent=2))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source',type=Path)
     parser.add_argument('--output',type=Path,default=Path('../docs/superpowers/plans/reference-crops/v2'))
+    parser.add_argument('--compare',type=Path,help='2x Player capture to compare against the reference panel')
     args = parser.parse_args()
-    generate(args.source,args.output)
+    if args.compare:
+        output = args.output if args.output != Path('../docs/superpowers/plans/reference-crops/v2') \
+            else Path('../docs/superpowers/plans/correction-shots')
+        compare(args.source,args.compare,output)
+    else:
+        generate(args.source,args.output)
 
 
 if __name__ == '__main__':

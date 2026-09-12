@@ -61,7 +61,19 @@ final class AmpXModuleView: NSView {
         guard presentation == .normal else { return }
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let backingScale = window?.backingScaleFactor ?? 1
-        skin.bevel(bounds, in: context, backingScale: backingScale)
+        skin.panelFrame(bounds, contentFrame: content.isHidden ? nil : contentFrameRect, in: context, backingScale: backingScale)
+    }
+
+    /// Recessed content frame shared by all modules; spans the header seam as in the reference.
+    var contentFrameRect: CGRect {
+        let scale = bounds.width / AmpXMetrics.compositionWidth
+        let insets = AmpXMetrics.contentFrameInsets
+        return CGRect(
+            x: insets.left * scale,
+            y: insets.top * scale,
+            width: bounds.width - (insets.left + insets.right) * scale,
+            height: max(0, bounds.height - (insets.top + insets.bottom) * scale)
+        )
     }
 
     private func applyNormalLayout(frame: CGRect) {

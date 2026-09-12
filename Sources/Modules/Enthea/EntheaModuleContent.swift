@@ -315,7 +315,6 @@ final class EntheaModuleContent: AmpXModuleContent {
         guard !isTheater() else { return }
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let backingScale = window?.backingScaleFactor ?? 1
-        skin.inset(bounds, in: context, backingScale: backingScale)
         let strip = CGRect(x: bounds.minX, y: bounds.minY, width: bounds.width, height: Self.controlStripHeight)
         skin.displayWell(strip, in: context, backingScale: backingScale)
     }

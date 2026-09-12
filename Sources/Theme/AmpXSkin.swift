@@ -1,6 +1,23 @@
 import AppKit
 import CoreGraphics
 
+enum AmpXFaceStyle {
+    case normal
+    case hovered
+    case pressed
+    case menu
+}
+
+enum AmpXThumbMaterial {
+    case steel
+    case gold
+}
+
+enum AmpXTrackFill {
+    case volume
+    case balance
+}
+
 protocol AmpXSkin {
     var background: NSColor { get }
     var panel: NSColor { get }
@@ -22,8 +39,27 @@ protocol AmpXSkin {
 
     func font(size: CGFloat, weight: NSFont.Weight) -> NSFont
 
+    /// Raised control face in its normal state.
     func bevel(_ rect: CGRect, in context: CGContext, backingScale: CGFloat)
     func inset(_ rect: CGRect, in context: CGContext, backingScale: CGFloat)
     func accentLine(_ rect: CGRect, in context: CGContext, backingScale: CGFloat)
+    /// Recessed black well with a steel lip.
     func displayWell(_ rect: CGRect, in context: CGContext, backingScale: CGFloat)
+
+    /// Module panel with layered outer edges and an optional recessed content frame.
+    func panelFrame(_ rect: CGRect, contentFrame: CGRect?, in context: CGContext, backingScale: CGFloat)
+    func raisedFace(_ rect: CGRect, style: AmpXFaceStyle, in context: CGContext, backingScale: CGFloat)
+    /// Paired gold header rules filling `rect` (two 3.5 pt lines, 2.5 pt apart at scale 1).
+    func headerRule(_ rect: CGRect, in context: CGContext, backingScale: CGFloat)
+    func dotGrid(_ rect: CGRect, in context: CGContext)
+    /// Pill track whose colored fill ends at `filledThroughX`.
+    func sliderTrack(
+        _ rect: CGRect,
+        fill: AmpXTrackFill,
+        filledThroughX: CGFloat,
+        in context: CGContext,
+        backingScale: CGFloat
+    )
+    func seekWell(_ well: CGRect, track: CGRect, in context: CGContext, backingScale: CGFloat)
+    func metallicThumb(_ rect: CGRect, material: AmpXThumbMaterial, in context: CGContext, backingScale: CGFloat)
 }

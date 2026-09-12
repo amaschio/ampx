@@ -18,6 +18,62 @@
 
 **Scope:** only measurement tooling and documentation changed. No production Swift rendering, model bindings, or saved layout changed. Step 2 and the Player approval gate have not started.
 
+## Revision 5 correction — Step 2: static Player reconstruction (2026-09-12)
+
+**Current visual status: NOT ACCEPTED — Player approval gate open.** Task 2 implementation is complete and awaiting explicit user approval of the concrete capture below. EQ/Playlist visual reconstruction has not started.
+
+**Baseline:** `.worktrees/ampx-ui`, `feature/ampx-ui` at `7bb9ffc` (Step 1). A previous agent had started Step 2 with uncommitted V2 metric edits and a one-test stub; that work was reviewed and carried forward (its `playerTimer`/`playerPlayGlyph` values were already content coordinates but were still offset by the display well — corrected).
+
+**Capture method:** `AmpXReferenceRenderingTests.testPlayerStaticReferenceCaptureIsDeterministic` hosts the real `AmpXModuleView` + `PlayerModuleContent` (production `draw` methods) in a retained borderless window at scale 1.0, sets `PlayerModuleContent.referencePresentation` (display-only fixture owned by the test; `nil` = live state; no audio/EQ/playlist/layout writes), and renders into a 980 × 447 px (2×) `NSBitmapImageRep` converted to sRGB. Two captures are byte-identical PNGs. The test host writes to the app container tmp directory (sandbox); the file is copied into this repository.
+
+| Evidence | Path |
+|---|---|
+| Result capture (2×) | [correction-shots/player-static.png](correction-shots/player-static.png) |
+| Reference crop, same panel bounds `(10,7,980,447)` px | [correction-shots/player-reference.png](correction-shots/player-reference.png) |
+| Side-by-side (reference top) | [correction-shots/player-side-by-side.png](correction-shots/player-side-by-side.png) |
+| 50 % overlay | [correction-shots/player-overlay-50.png](correction-shots/player-overlay-50.png) |
+
+Regenerate: `cd scripts && uv run python measure_reference.py ../screenshots/AmpX.png --compare <player-static.png>` (refuses mismatched sizes; never stretches).
+
+**Inspection:** header/title, frame edges, wells, typography, timer, metadata, tracks/thumbs, indicators, spectrum, transport faces and glyphs were inspected individually at 2–3× nearest-neighbor zoom against the reference over three correction iterations (typography weight/size, slider remainder, L/R color, peak placement, timer stroke, header pulse glyph re-traced pixel by pixel).
+
+**Structural corrections:**
+
+- Header: left pulse glyph, paired gold rules around a centered `AmpX` brand, raised 20 pt buttons in reference order (minimize, collapse, close). Previously the drawn glyph order was reversed relative to the hit frames (clicking the visible `—` closed the window); drawing and hit testing now share `headerButtonLayout()`.
+- Materials: layered module panel and recessed content frame (shared by all modules via `AmpXModuleView`), raised button faces with sampled highlight/shadow bands, pressed face for Play while playing, orange menu face, recessed wells with steel lip, dotted display grid, pill tracks with steel thumbs, recessed seek well with bevelled gold thumb.
+- Sliders: visible track, thumb size and travel are separate from interaction bounds (hit area still expands to 44 pt). Drawing and pointer mapping use the same travel; value/range/`setValue(_:sendChange:)`/`onChange`/accessibility preserved.
+- Typography: baseline-positioned Roboto Mono fitted to V2 ink (title 13.75, readouts 14.5 shrink-to-fit, units 12.5, EQ/PL 13.5, SHUFFLE 12.5, L/R 19 semibold, brand 20 semibold). Font smoothing disabled so layer and offscreen rendering match. Metadata never wraps; `mono`/`stereo` right-aligned to reference ink.
+- Timer: fixed 14.5 × 25 pt cells, 1.5 pt gap, 18 pt colon slot, right-aligned so `0:04` and `01:51` share cell geometry; remaining-time sign fits left without reaching the play glyph.
+- Spectrum: 16 columns × 6 segments at measured pitch, sampled bottom-to-top colors, partial top segments, peak dashes; model counts come from metrics.
+- Transport: individual measured widths, per-glyph ink rectangles, Shuffle indicator + label.
+
+**Logic regressions — failing before / passing after** (`AmpXReferenceRenderingTests`). Geometry was first exposed behind the new APIs with unchanged behavior, the tests run, then the fixes applied.
+
+| Test | Before (`Test-AmpX-2026.09.12_17-29-04--0300.xcresult`) | After |
+|---|---|---|
+| `testChannelLabelsDoNotIntersectNumericOrUnitLabels` | failed (kbps overlapped bitrate; `stereo` wider than its 28 pt rect → wrap) | passed |
+| `testDigitCellWidthIsStableAcrossTimeFormats` | failed (cells stretched to fill the rect) | passed |
+| `testPointerAtThumbCenterMapsToDisplayedValue` | failed (pointer mapped over full bounds, drawing over inset travel) | passed |
+| `testShortButtonTextHasPositiveUsableHeight` | failed (0 pt label height at 20.5 pt button) | passed |
+| `testSliderArtworkIsUnchangedWhenOnlyHitBoundsEnlarge` | failed (track/thumb scaled with frame) | passed |
+| `testHeaderButtonsFollowReferenceOrder` | passed (hit frames were right; drawn order was the defect) | passed |
+| `testAdjacentTransportFacesDoNotIntersect` | passed with V2 metrics (V1 faces overlapped: 14.5–58.5 vs 57.0) | passed |
+| `testPlayerStaticReferenceCaptureIsDeterministic` | — (new) | passed |
+
+**Verification:** focused `AmpXReferenceRenderingTests`, `AmpXControlsTests`, `AmpXLayoutTests`, `AmpXPlayerBindingTests`, `AmpXEQBindingTests`, `AmpXAccessibilityTests` → 53 passed after formatting. Full `./scripts/run-tests.sh` → `** TEST SUCCEEDED **`, 476 passed (468 baseline + 8 new), `Test-AmpX-2026.09.12_18-01-00--0300.xcresult`. SwiftFormat applied to changed files; SwiftLint reports 0 warnings in changed files.
+
+**Remaining deviations requiring user decision (not self-approved):**
+
+1. **Glyph proportions.** Reference labels are ~25–35 % narrower relative to their height than Roboto Mono (spec-mandated). Sizes split the difference: widths run up to ~2 pt wider and cap heights ~1–2 pt shorter than reference ink (most visible on `kbps`, `mono`, `stereo`, `SHUFFLE`, `EQ`).
+2. **Slider remainder.** The reference shows a tinted run past each thumb of inconsistent length (≈5 pt volume, ≈13 pt balance) with no model meaning; rendered as a fixed 18.75 pt tinted run from the thumb center, then an unfilled remainder.
+3. **Spectrum peaks.** Reference peak dashes sometimes sit in inter-segment gaps and some columns show two; rendered as one dash at the top of the peak segment.
+4. **Colors.** Text uses spec tokens (`green` #00FF32, `text`) rather than the slightly different sampled values (#05F50A, #F7F9FC).
+5. **Pulse glyph.** Re-traced from source pixels; stroke joins differ slightly at 2×.
+
+**Incidental effects (shared primitives, per plan):** EQ/Playlist/ENTHEA now render inside the shared panel/content frame and new header (uppercase `AmpX EQUALIZER` / `AmpX PLAYLIST`, two buttons), with the new raised faces and wells; their content-level panel fills were removed so the frame is visible. `headerHeight` 28.5 pt reduces the default Playlist viewport from 180 to 173.5 pt. Their reconstruction waits for the gate. The display play glyph now indicates playing (it previously showed while stopped), matching the reference.
+
+**Not verified in this step:** live-window capture — `./scripts/shoot.sh` built and launched the app but `screencapture` failed ("could not create image from window"), so no live screenshot was taken. Module content still does not scale with UI scale ≠ 1.0 (pre-existing; header and frame do scale) — Task 5 scale checks. 1×/3× backing not captured.
+
 ---
 
 ## Historical V1 evidence — superseded visual verdict

@@ -230,8 +230,6 @@ final class EqualizerModuleContent: AmpXModuleContent {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let backingScale = window?.backingScaleFactor ?? 1
 
-        skin.inset(bounds, in: context, backingScale: backingScale)
-
         drawCurveWell(in: context, backingScale: backingScale)
         drawDecibelScale(in: context)
         drawHorizontalGuides(in: context)
