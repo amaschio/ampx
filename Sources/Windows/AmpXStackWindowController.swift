@@ -47,7 +47,7 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
     private func setupModuleViews() {
         var views: [AmpXModuleID: AmpXModuleView] = [:]
         for moduleID in self.moduleState.order {
-            let content = AmpXModuleContent(skin: self.skin)
+            let content = AmpXModuleContent.make(moduleID: moduleID, skin: self.skin)
             views[moduleID] = AmpXModuleView(moduleID: moduleID, content: content, skin: self.skin)
         }
         self.stackView.setModuleViews(views)

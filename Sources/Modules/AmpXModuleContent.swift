@@ -7,4 +7,13 @@ class AmpXModuleContent: AmpXDrawingView {
         let backingScale = window?.backingScaleFactor ?? 1
         skin.inset(bounds, in: context, backingScale: backingScale)
     }
+
+    static func make(moduleID: AmpXModuleID, skin: any AmpXSkin) -> AmpXModuleContent {
+        switch moduleID {
+        case .player:
+            return PlayerModuleContent(skin: skin)
+        case .equalizer, .playlist, .enthea:
+            return AmpXModuleContent(skin: skin)
+        }
+    }
 }

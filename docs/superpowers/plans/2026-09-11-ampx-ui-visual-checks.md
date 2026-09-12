@@ -25,6 +25,8 @@ All content rectangles are in module-local coordinates (origin below the 22 pt h
 | Key | Source px (x, y, w, h) | Content rect (x, y, w, h) | Notes |
 |---|---|---|---|
 | `player.displayWell` | (39, 87, 331, 184) | (15.0, 10.5, 165.5, 92.0) | Timer + spectrum column |
+| `player.timer` | (81, 102, 258, 47) | (36.0, 18.0, 129.0, 23.5) | 7-segment timer within display well |
+| `player.playGlyph` | (81, 107, 25, 33) | (21.0, 20.5, 12.5, 16.5) | Green play triangle left of timer |
 | `player.trackWell` | (388, 88, 571, 56) | (189.5, 11.0, 285.5, 28.0) | Title marquee well |
 | `player.metadata` | (388, 159, 233, 43) | (189.5, 46.5, 116.5, 21.5) | kbps / kHz / mono / stereo — see crop below |
 | `player.metadata.digitStyle` | — | **mono** | Continuous Roboto Mono glyphs (see justification) |
@@ -76,7 +78,7 @@ All content rectangles are in module-local coordinates (origin below the 22 pt h
 
 ## Composition checkpoints (Tasks 6A–6C)
 
-- [ ] Task 6A: Player crop — wells, timer segments, mono metadata, transport silhouettes
+- [x] Task 6A: Player crop — wells, timer segments, mono metadata, transport silhouettes
 - [ ] Task 6B: Equalizer crop — curve well, preamp, ten band tracks, mock curve
 - [ ] Task 6C: Full three-module stack at scale 1.0 and scale bounds
 
