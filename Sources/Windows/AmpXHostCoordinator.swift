@@ -384,6 +384,9 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
             wireHeader(for: view)
             moduleViews[moduleID] = view
         }
+        if !state.closed.contains(.enthea) {
+            (moduleViews[.enthea]?.content as? EntheaModuleContent)?.reopenHost()
+        }
     }
 
     private func makeModuleContent(for moduleID: AmpXModuleID) -> AmpXModuleContent {

@@ -117,6 +117,24 @@ final class AmpXHostCoordinatorTests: XCTestCase {
         XCTAssertTrue(coordinator.isStackVisible)
     }
 
+    func testOpenEntheaStateMountsHostOnInit() {
+        var state = AmpXModuleOrder()
+        state.reopen(.enthea)
+        let coordinator = AmpXHostCoordinator(
+            state: state,
+            skin: ClassicModernSkin(),
+            screen: testScreen()
+        )
+        let content = coordinator.moduleView(for: .enthea)?.content as? EntheaModuleContent
+        XCTAssertNotNil(content?.hostViewForTesting)
+    }
+
+    func testClosedEntheaStateDoesNotMountHostOnInit() {
+        let coordinator = makeCoordinator()
+        let content = coordinator.moduleView(for: .enthea)?.content as? EntheaModuleContent
+        XCTAssertNil(content?.hostViewForTesting)
+    }
+
     private func makeCoordinator() -> AmpXHostCoordinator {
         AmpXHostCoordinator(
             state: AmpXModuleOrder(),
