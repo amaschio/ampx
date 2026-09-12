@@ -4,61 +4,75 @@
 **Source:** `screenshots/AmpX.png` (998×1576 px, 2× retina; logical canvas 499×788 pt, composition 490 pt wide)  
 **Tooling:** `cd scripts && uv run python measure_reference.py ../screenshots/AmpX.png`
 
-All content rectangles are in module-local coordinates (origin below the 22 pt header, excluding outer canvas padding).
+All content rectangles are in module-local coordinates (origin below the 22 pt header, excluding outer canvas padding). Source-pixel columns are PNG-space (2×) before logical conversion.
 
 ## Stack geometry
 
-| Key | Logical value | Notes |
-|---|---|---|
-| `compositionWidth` | 490 | Module column width at scale 1.0 |
-| `canvasPadding.left` | 4.5 | `(499 − 490) / 2` |
-| `canvasPadding.top` | 11 | `(788 − 766) / 2` |
-| `headerHeight` | 22 | Gold accent line at ~10.5 pt from module top |
-| `moduleGap` | 6 | Between Player, Equalizer, Playlist |
-| `playerHeight` | 223.5 | Module outer height |
-| `equalizerHeight` | 225.5 | Module outer height |
-| `playlistHeight` | 305 | Module outer height |
-| `playlistNonRowChrome` | 103 | Header offset + footer; viewport = 180 pt |
+| Key | Source px (x, y, w, h) | Logical value | Notes |
+|---|---|---|---|
+| `compositionWidth` | — | 490 | Module column width at scale 1.0 |
+| `canvasPadding.left` | x=9 | 4.5 | `(499 − 490) / 2` |
+| `canvasPadding.top` | y=22 | 11 | `(788 − 766) / 2` |
+| `headerHeight` | 44 | 22 | Gold accent line at ~10.5 pt from module top |
+| `moduleGap` | 12 | 6 | Between Player, Equalizer, Playlist |
+| `playerHeight` | 447 | 223.5 | Module outer height |
+| `equalizerHeight` | 451 | 225.5 | Module outer height |
+| `playlistHeight` | 610 | 305 | Module outer height |
+| `playlistNonRowChrome` | — | 103 | Header offset + footer; viewport = 180 pt |
 
 ## Player (`player.*`)
 
-| Key | Content rect (x, y, w, h) | Notes |
-|---|---|---|
-| `player.displayWell` | (15.0, 10.5, 165.5, 92.0) | Timer + spectrum column |
-| `player.trackWell` | (189.5, 11.0, 285.5, 28.0) | Title marquee well |
-| `player.metadata` | (189.5, 46.5, 116.5, 21.5) | kbps / kHz / mono / stereo |
-| `player.metadata.digitStyle` | **mono** | Roboto Mono; timer stays segment-drawn |
-| `player.volume` | (189.0, 81.5, 100.5, 20.5) | Volume slider track |
-| `player.balance` | (305.0, 81.5, 61.0, 20.5) | Balance slider track |
-| `player.position` | (15.5, 111.5, 458.5, 4.0) | Full-width seek bar |
-| `player.transport[0…8]` | See `AmpXMetrics.playerTransport` | prev, play, pause, stop, next, eject, shuffle, repeat, menu — 44×38 pt |
+| Key | Source px (x, y, w, h) | Content rect (x, y, w, h) | Notes |
+|---|---|---|---|
+| `player.displayWell` | (39, 87, 331, 184) | (15.0, 10.5, 165.5, 92.0) | Timer + spectrum column |
+| `player.trackWell` | (388, 88, 571, 56) | (189.5, 11.0, 285.5, 28.0) | Title marquee well |
+| `player.metadata` | (388, 159, 233, 43) | (189.5, 46.5, 116.5, 21.5) | kbps / kHz / mono / stereo — see crop below |
+| `player.metadata.digitStyle` | — | **mono** | Continuous Roboto Mono glyphs (see justification) |
+| `player.volume` | (387, 229, 201, 41) | (189.0, 81.5, 100.5, 20.5) | Volume slider track |
+| `player.balance` | (619, 229, 122, 41) | (305.0, 81.5, 61.0, 20.5) | Balance slider track |
+| `player.position` | (40, 289, 917, 8) | (15.5, 111.5, 458.5, 4.0) | Full-width seek bar |
+| `player.transport[0…8]` | See script output | See `AmpXMetrics.playerTransport` | prev, play, pause, stop, next, eject, shuffle, repeat, menu — 44×38 pt |
+
+### Metadata reference crop
+
+![Player metadata crop](reference-crops/player-metadata.png)
+
+**Digit style justification (`mono` vs `segments`):** The crop shows kbps/kHz/mono labels drawn with continuous monospace font strokes (curved `9`, open `4`, diagonal `k`). The timer in `player.displayWell` uses discrete 7-segment LED bars (horizontal/vertical chunks with dark gutters). Metadata therefore uses `metadataDigitStyle = .mono`; only the timer and spectrum bars stay segment-drawn.
 
 ## Equalizer (`eq.*`)
 
-| Key | Content rect (x, y, w, h) |
-|---|---|
-| `eq.curve` | (68.0, 18.0, 314.0, 24.0) |
-| `eq.preamp` | (15.0, 56.0, 18.0, 120.0) |
-| `eq.bandRow` | (34.0, 56.0, 440.0, 120.0) |
+| Key | Source px (x, y, w, h) | Content rect (x, y, w, h) |
+|---|---|---|
+| `eq.curve` | — | (68.0, 18.0, 314.0, 24.0) |
+| `eq.preamp` | — | (15.0, 56.0, 18.0, 120.0) |
+| `eq.bandRow` | — | (34.0, 56.0, 440.0, 120.0) |
 
 ## Playlist (`playlist.*`)
 
-| Key | Content rect (x, y, w, h) | Notes |
-|---|---|---|
-| `playlist.rows` | (15.5, 9.5, 424.0, 180.0) | Black row viewport |
-| `playlist.scrollbar` | (440.5, 9.5, 16.0, 180.0) | Gold thumb track |
-| `playlist.footer` | (15.5, 193.5, 441.0, 89.5) | ADD/REM/SEL/MISC + mini transport |
-| `playlist.rowHeight` | 22 | Fixed row pitch |
-| `playlist.durationColumnWidth` | 42 | Right-aligned durations |
+| Key | Source px (x, y, w, h) | Content rect (x, y, w, h) | Notes |
+|---|---|---|---|
+| `playlist.rows` | — | (15.5, 9.5, 424.0, 180.0) | Black row viewport |
+| `playlist.scrollbar` | — | (440.5, 9.5, 16.0, 180.0) | Gold thumb track |
+| `playlist.footer` | — | (15.5, 193.5, 441.0, 89.5) | ADD/REM/SEL/MISC + mini transport |
+| `playlist.rowHeight` | — | 22 | Fixed row pitch |
+| `playlist.durationColumnWidth` | — | 42 | Right-aligned durations |
 
 ## Palette & spectrum
 
-| Key | Value | Sample region |
-|---|---|---|
-| `gold` | `srgb(0.749, 0.627, 0.322)` | Playlist scrollbar thumb |
-| `goldLight` | `srgb(1.0, 0.953, 0.286)` | Thumb highlight |
-| `spectrum.segmentHeight` | 3.0 pt | L/R analyzer columns |
-| `spectrum.segmentGap` | 1.0 pt | Gap between lit segments |
+| Key | Value | Source sample | Notes |
+|---|---|---|---|
+| `gold` | `srgb(0.749, 0.627, 0.322)` | Playlist scrollbar thumb | |
+| `goldLight` | `srgb(1.0, 0.953, 0.286)` | Thumb highlight | |
+| `spectrum.segmentHeight` | 3.0 pt | L/R analyzer columns | **Frozen override** — PNG median lit run ≈ 2.2 pt (anti-aliased mock peaks); keep Winamp-canonical 3.0 pt |
+| `spectrum.segmentGap` | 1.0 pt | L/R analyzer columns below timer | Measured from left analyzer columns (median 2 src px = 1.0 pt) |
+
+### Measurement reconciliation
+
+| Key | Script (raw) | Frozen (`AmpXMetrics`) | Resolution |
+|---|---|---|---|
+| `player.metadata` | (189.5, 46.5, 116.5, 21.5) | same | Fixed: union bbox of kbps/kHz/mono black wells (`blacks[2]` ∪ `blacks[3]`) |
+| `spectrum.segmentGap` | 1.0 pt | 1.0 pt | Fixed: scan L/R columns below timer, not center timer digits |
+| `spectrum.segmentHeight` | ~2.2 pt | 3.0 pt | Intentional override — see table above; script prints override to stderr |
 
 ## Composition checkpoints (Tasks 6A–6C)
 

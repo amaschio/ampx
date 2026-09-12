@@ -24,13 +24,27 @@ def logical(value: float) -> float:
     return round(value / SCALE, 1)
 
 
-def content_rect(module_src_y: int, x: int, y: int, w: int, h: int) -> dict[str, float]:
+def content_rect(module_src_y: int, x: int, y: int, w: int, h: int) -> dict[str, float | int]:
     return {
+        "srcX": x,
+        "srcY": y,
+        "srcWidth": w,
+        "srcHeight": h,
         "x": logical(x - CANVAS_LEFT),
         "y": logical(y - (module_src_y + HEADER_HEIGHT * SCALE)),
         "width": logical(w),
         "height": logical(h),
     }
+
+
+def union_rect(
+    a: tuple[int, int, int, int], b: tuple[int, int, int, int]
+) -> tuple[int, int, int, int]:
+    left = min(a[0], b[0])
+    top = min(a[1], b[1])
+    right = max(a[0] + a[2], b[0] + b[2])
+    bottom = max(a[1] + a[3], b[1] + b[3])
+    return left, top, right - left, bottom - top
 
 
 def is_black(px: tuple[int, int, int]) -> bool:
@@ -78,28 +92,47 @@ def sample_color(img: Image.Image, x: int, y: int) -> list[float]:
 
 
 def measure_spectrum(img: Image.Image, display: tuple[int, int, int, int]) -> dict[str, float]:
-    center_x = display[0] + display[2] // 2
-    segment_heights: list[float] = []
-    segment_gaps: list[float] = []
-    in_segment = False
-    segment_start = 0
-    gap_start = 0
-    for y in range(display[1] + display[3] // 2, display[1] + display[3] - 5):
-        px = img.getpixel((center_x, y))
-        lit = px[1] > 100 and px[0] < 200
-        if lit and not in_segment:
-            if segment_heights:
-                segment_gaps.append(logical(y - gap_start))
-            in_segment = True
-            segment_start = y
-        elif not lit and in_segment:
-            segment_heights.append(logical(y - segment_start))
-            in_segment = False
-            gap_start = y
-    return {
-        "segmentHeight": round(sum(segment_heights) / len(segment_heights), 1) if segment_heights else 3.0,
-        "segmentGap": round(sum(segment_gaps) / len(segment_gaps), 1) if segment_gaps else 1.0,
-    }
+    """Measure L/R analyzer columns below the timer, not the center timer digits."""
+    x0, y0, width, height = display
+    y_start = y0 + int(35 * SCALE)
+    y_end = y0 + height - 6
+    x_end = x0 + int(75 * SCALE)
+
+    segment_heights_src: list[int] = []
+    segment_gaps_src: list[int] = []
+    for x in range(x0 + int(15 * SCALE), x_end):
+        in_segment = False
+        segment_start = 0
+        gap_start = 0
+        column_segments: list[int] = []
+        column_gaps: list[int] = []
+        for y in range(y_start, y_end):
+            px = img.getpixel((x, y))
+            lit = px[1] > 120 and px[0] < 80
+            if lit and not in_segment:
+                if column_segments:
+                    column_gaps.append(y - gap_start)
+                in_segment = True
+                segment_start = y
+            elif not lit and in_segment:
+                column_segments.append(y - segment_start)
+                in_segment = False
+                gap_start = y
+        for segment_height, segment_gap in zip(column_segments, column_gaps):
+            if 4 <= segment_height <= 8 and 1 <= segment_gap <= 4:
+                segment_heights_src.append(segment_height)
+                segment_gaps_src.append(segment_gap)
+
+    def median(values: list[int]) -> float:
+        ordered = sorted(values)
+        mid = len(ordered) // 2
+        if len(ordered) % 2:
+            return float(ordered[mid])
+        return (ordered[mid - 1] + ordered[mid]) / 2
+
+    measured_height = round(logical(median(segment_heights_src)), 1) if segment_heights_src else 3.0
+    measured_gap = round(logical(median(segment_gaps_src)), 1) if segment_gaps_src else 1.0
+    return {"segmentHeight": measured_height, "segmentGap": measured_gap}
 
 
 def transport_rects(img: Image.Image, player_src_y: int, content_y: int) -> list[dict[str, float]]:
@@ -165,7 +198,7 @@ def measure(img: Image.Image) -> dict:
     player_bottom = player_y + int(PLAYER_HEIGHT * SCALE)
     blacks = flood_black(img, CANVAS_LEFT, player_content_y, right, player_bottom, min_w=60, min_h=25)
     display, track = blacks[0], blacks[1]
-    metadata = (track[0], track[1] + track[3], track[2], blacks[2][3])
+    metadata = union_rect(blacks[2], blacks[3])
 
     eq_content_y = eq_y + int(HEADER_HEIGHT * SCALE)
     pl_content_y = pl_y + int(HEADER_HEIGHT * SCALE)
@@ -221,10 +254,48 @@ def measure(img: Image.Image) -> dict:
     }
 
 
+FROZEN_OVERRIDES: dict[str, dict[str, float | str]] = {
+    "spectrum.segmentHeight": {
+        "frozen": 3.0,
+        "reason": (
+            "Reference PNG analyzer bars are anti-aliased mock peaks; median lit run is ~2.2 pt. "
+            "AmpXMetrics keeps Winamp-canonical 3.0 pt segment height for implementation."
+        ),
+    },
+}
+
+
+def apply_overrides(payload: dict) -> tuple[dict, list[dict[str, object]]]:
+    applied: list[dict[str, object]] = []
+    spectrum = payload["ReferenceMeasurementsV1"]["spectrum"]
+    measured_height = spectrum["segmentHeight"]
+    override = FROZEN_OVERRIDES["spectrum.segmentHeight"]
+    if measured_height != override["frozen"]:
+        applied.append(
+            {
+                "key": "spectrum.segmentHeight",
+                "measured": measured_height,
+                "frozen": override["frozen"],
+                "reason": override["reason"],
+            }
+        )
+        spectrum["segmentHeight"] = override["frozen"]
+        spectrum["segmentHeightMeasured"] = measured_height
+    return payload, applied
+
+
 def main() -> int:
     png_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("../screenshots/AmpX.png")
     image = Image.open(png_path).convert("RGB")
-    print(json.dumps(measure(image), indent=2))
+    payload, overrides = apply_overrides(measure(image))
+    print(json.dumps(payload, indent=2))
+    if overrides:
+        print("\nFrozen overrides applied:", file=sys.stderr)
+        for item in overrides:
+            print(
+                f"- {item['key']}: measured={item['measured']} -> frozen={item['frozen']} ({item['reason']})",
+                file=sys.stderr,
+            )
     return 0
 
 
