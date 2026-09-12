@@ -12,7 +12,9 @@ class AmpXModuleContent: AmpXDrawingView {
         switch moduleID {
         case .player:
             return PlayerModuleContent(skin: skin)
-        case .equalizer, .playlist, .enthea:
+        case .equalizer:
+            return EqualizerModuleContent(skin: skin)
+        case .playlist, .enthea:
             return AmpXModuleContent(skin: skin)
         }
     }

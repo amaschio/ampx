@@ -43,11 +43,20 @@ All content rectangles are in module-local coordinates (origin below the 22 pt h
 
 ## Equalizer (`eq.*`)
 
-| Key | Source px (x, y, w, h) | Content rect (x, y, w, h) |
-|---|---|---|
-| `eq.curve` | — | (68.0, 18.0, 314.0, 24.0) |
-| `eq.preamp` | — | (15.0, 56.0, 18.0, 120.0) |
-| `eq.bandRow` | — | (34.0, 56.0, 440.0, 120.0) |
+| Key | Source px (x, y, w, h) | Content rect (x, y, w, h) | Notes |
+|---|---|---|---|
+| `eq.curve` | — | (68.0, 18.0, 314.0, 24.0) | Black well + dotted midline + gradient spline |
+| `eq.onToggle` | — | (15.0, 14.0, 26.0, 18.0) | Green indicator active |
+| `eq.autoToggle` | — | (43.0, 14.0, 32.0, 18.0) | Gray indicator inactive |
+| `eq.presets` | — | (418.0, 14.0, 54.0, 18.0) | Static silhouette |
+| `eq.preamp` | — | (15.0, 56.0, 18.0, 120.0) | Vertical track + thumb at 0 dB |
+| `eq.bandRow` | — | (34.0, 56.0, 440.0, 120.0) | Ten evenly spaced band tracks |
+
+### EQ reference crop
+
+![Equalizer module crop](reference-crops/eq-module.png)
+
+**Mock band values (`mockBands`, normalized −1…1):** `[0.333, 0.583, 0.167, -0.167, -0.5, -0.583, -0.083, 0.417, 0.667, 0.75]` — derived from reference PNG thumb positions; display-only, not audio settings. Preamp mock = `0.0`. Curve drawn via `AmpXEQBands.responseCurvePoints` + `CatmullRomSpline.path(…).cgPath` translated into `eq.curve` origin.
 
 ## Playlist (`playlist.*`)
 
@@ -79,7 +88,7 @@ All content rectangles are in module-local coordinates (origin below the 22 pt h
 ## Composition checkpoints (Tasks 6A–6C)
 
 - [x] Task 6A: Player crop — wells, timer segments, mono metadata, transport silhouettes
-- [ ] Task 6B: Equalizer crop — curve well, preamp, ten band tracks, mock curve
+- [x] Task 6B: Equalizer crop — curve well, preamp, ten band tracks, mock curve
 - [ ] Task 6C: Full three-module stack at scale 1.0 and scale bounds
 
 Capture: `./scripts/shoot.sh -- -AmpXNewUI YES`
