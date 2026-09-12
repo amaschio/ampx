@@ -21,9 +21,34 @@ class AmpXControlView: AmpXDrawingView {
         let became = super.becomeFirstResponder()
         if became {
             showsFocusRing = true
+            noteFocusedModuleIfNeeded()
             revealInStackViewportIfNeeded()
         }
         return became
+    }
+
+    private func noteFocusedModuleIfNeeded() {
+        var ancestor: NSView? = superview
+        while let view = ancestor {
+            if let moduleView = view as? AmpXModuleView,
+               let coordinator = findCoordinator(in: window)
+            {
+                coordinator.noteFocusedModule(moduleView.moduleID)
+                return
+            }
+            ancestor = view.superview
+        }
+    }
+
+    private func findCoordinator(in window: NSWindow?) -> AmpXHostCoordinator? {
+        guard let window else { return nil }
+        if let stack = window.windowController as? AmpXStackWindowController {
+            return stack.coordinator
+        }
+        if let detached = window.windowController as? AmpXDetachedModuleWindowController {
+            return detached.coordinator
+        }
+        return nil
     }
 
     override func resignFirstResponder() -> Bool {
@@ -43,7 +68,7 @@ class AmpXControlView: AmpXDrawingView {
         context.stroke(aligned)
     }
 
-    private func revealInStackViewportIfNeeded() {
+    func revealInStackViewportIfNeeded() {
         var ancestor: NSView? = superview
         while let view = ancestor {
             if let stackView = view as? AmpXModuleStackView,

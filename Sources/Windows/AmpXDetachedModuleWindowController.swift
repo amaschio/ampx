@@ -4,7 +4,7 @@ import AppKit
 final class AmpXDetachedModuleWindowController: NSWindowController, NSWindowDelegate {
     let moduleID: AmpXModuleID
 
-    private weak var coordinator: AmpXHostCoordinator?
+    weak var coordinator: AmpXHostCoordinator?
     private let skin: any AmpXSkin
     private let containerView = NSView()
     private var moveSaveWorkItem: DispatchWorkItem?

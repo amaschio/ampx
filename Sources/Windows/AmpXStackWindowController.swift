@@ -2,7 +2,7 @@ import AppKit
 
 @MainActor
 final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
-    private weak var coordinator: AmpXHostCoordinator?
+    weak var coordinator: AmpXHostCoordinator?
     private let skin: any AmpXSkin
     private let viewport: AmpXStackViewport
     private var preferredPlaylistViewportHeight: CGFloat

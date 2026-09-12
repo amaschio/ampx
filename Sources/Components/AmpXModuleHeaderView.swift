@@ -14,6 +14,30 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
     init(moduleID: AmpXModuleID, skin: any AmpXSkin) {
         self.moduleID = moduleID
         super.init(skin: skin)
+        setAccessibilityRole(.group)
+        setAccessibilityLabel(moduleTitle(for: moduleID))
+        setAccessibilityHelp("Module header")
+    }
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func becomeFirstResponder() -> Bool {
+        let became = super.becomeFirstResponder()
+        if became, let coordinator = findCoordinator(in: window) {
+            coordinator.noteFocusedModule(moduleID)
+        }
+        return became
+    }
+
+    private func findCoordinator(in window: NSWindow?) -> AmpXHostCoordinator? {
+        guard let window else { return nil }
+        if let stack = window.windowController as? AmpXStackWindowController {
+            return stack.coordinator
+        }
+        if let detached = window.windowController as? AmpXDetachedModuleWindowController {
+            return detached.coordinator
+        }
+        return nil
     }
 
     @available(*, unavailable)
@@ -187,6 +211,43 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
             onMinimize?()
         }
     }
+
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        var actions: [NSAccessibilityCustomAction] = []
+
+        if moduleID != .player {
+            actions.append(NSAccessibilityCustomAction(name: "Detach", target: self, selector: #selector(accessibilityDetach)))
+        } else if onMinimize != nil {
+            actions.append(NSAccessibilityCustomAction(name: "Minimize", target: self, selector: #selector(accessibilityMinimize)))
+        }
+
+        actions.append(NSAccessibilityCustomAction(name: "Collapse", target: self, selector: #selector(accessibilityCollapse)))
+        actions.append(NSAccessibilityCustomAction(name: "Close", target: self, selector: #selector(accessibilityClose)))
+
+        return actions
+    }
+
+    @objc func accessibilityCollapse() -> Bool {
+        onCollapse?()
+        return true
+    }
+
+    @objc func accessibilityClose() -> Bool {
+        onClose?()
+        return true
+    }
+
+    @objc func accessibilityMinimize() -> Bool {
+        onMinimize?()
+        return true
+    }
+
+    @objc func accessibilityDetach() -> Bool {
+        onDetach?()
+        return true
+    }
+
+    var onDetach: (() -> Void)?
 
     private func headerButtonFrames() -> (close: CGRect?, collapse: CGRect?, minimize: CGRect?) {
         let buttonSize = CGSize(width: 16, height: 14)

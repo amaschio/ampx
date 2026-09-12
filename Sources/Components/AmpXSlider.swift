@@ -133,6 +133,22 @@ final class AmpXSlider: AmpXControlView {
         return true
     }
 
+    @discardableResult
+    func handleArrowKey(_ event: NSEvent) -> Bool {
+        guard isEnabled else { return false }
+        let increment = step > 0 ? step : (range.upperBound - range.lowerBound) / 20
+        switch event.keyCode {
+        case 123, 125:
+            setValue(value - increment, sendChange: true)
+            return true
+        case 124, 126:
+            setValue(value + increment, sendChange: true)
+            return true
+        default:
+            return false
+        }
+    }
+
     private func updateValue(for point: CGPoint) {
         let fraction = isVertical
             ? AmpXControlMath.verticalFraction(point: point, track: bounds)

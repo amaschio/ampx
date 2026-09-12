@@ -6,6 +6,7 @@ final class AmpXModuleView: NSView {
     let header: AmpXModuleHeaderView
 
     private let skin: any AmpXSkin
+    private weak var rememberedContentResponder: NSView?
 
     init(moduleID: AmpXModuleID, content: AmpXModuleContent, skin: any AmpXSkin) {
         self.moduleID = moduleID
@@ -16,6 +17,9 @@ final class AmpXModuleView: NSView {
         wantsLayer = true
         addSubview(header)
         addSubview(content)
+        setAccessibilityRole(.group)
+        setAccessibilityLabel(accessibilityModuleLabel(for: moduleID))
+        wireFocusTraversal()
     }
 
     @available(*, unavailable)
@@ -49,5 +53,51 @@ final class AmpXModuleView: NSView {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let backingScale = window?.backingScaleFactor ?? 1
         skin.bevel(bounds, in: context, backingScale: backingScale)
+    }
+
+    func setContentCollapsed(_ collapsed: Bool) {
+        if collapsed {
+            if let responder = window?.firstResponder as? NSView,
+               responder.isDescendant(of: content)
+            {
+                rememberedContentResponder = responder
+            }
+            content.isHidden = true
+            window?.makeFirstResponder(header)
+        } else {
+            content.isHidden = false
+            if let rememberedContentResponder,
+               rememberedContentResponder.window === window
+            {
+                window?.makeFirstResponder(rememberedContentResponder)
+            }
+        }
+    }
+
+    func focusableViews() -> [NSView] {
+        var views: [NSView] = [header]
+        views.append(contentsOf: content.focusableControls())
+        return views
+    }
+
+    func wireFocusTraversal() {
+        let views = focusableViews()
+        guard !views.isEmpty else { return }
+        for index in views.indices {
+            views[index].nextKeyView = views[(index + 1) % views.count]
+        }
+    }
+
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        header.accessibilityCustomActions()
+    }
+
+    private func accessibilityModuleLabel(for moduleID: AmpXModuleID) -> String {
+        switch moduleID {
+        case .player: "Player"
+        case .equalizer: "Equalizer"
+        case .playlist: "Playlist"
+        case .enthea: "ENTHEA"
+        }
     }
 }

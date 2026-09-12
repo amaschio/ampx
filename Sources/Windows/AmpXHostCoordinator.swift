@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class AmpXHostCoordinator {
+final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     private(set) var state: AmpXModuleOrder
     private let skin: any AmpXSkin
     private let layoutStore: AmpXLayoutStore
@@ -15,6 +15,8 @@ final class AmpXHostCoordinator {
     private var playlistViewportHeight: CGFloat
 
     private(set) var dragController = AmpXModuleDragSession()
+    private(set) var focusedModuleID: AmpXModuleID = .player
+    private(set) var isEntheaInTheater = false
 
     private(set) var isStackVisible = false
 
@@ -75,11 +77,13 @@ final class AmpXHostCoordinator {
     }
 
     func closeModule(_ id: AmpXModuleID) {
+        let nextFocus = nextVisibleModule(after: id)
         dragController.cancelDragIfDragging(moduleID: id)
         if state.detached.contains(id) {
             tearDownDetachedWindow(for: id)
         }
         state.close(id)
+        focusModule(nextFocus)
         stackWindowController?.updateLayout()
         persistLayout()
     }
@@ -95,6 +99,7 @@ final class AmpXHostCoordinator {
             dragController.cancelDragIfDragging(moduleID: id)
         }
         state.setCollapsed(id, value)
+        moduleViews[id]?.setContentCollapsed(value)
         detachedWindowControllers[id]?.window?.contentView?.needsLayout = true
         stackWindowController?.updateLayout()
         for controller in detachedWindowControllers.values {
@@ -260,6 +265,95 @@ final class AmpXHostCoordinator {
         stackWindowController?.revealContent(rect)
     }
 
+    func performModuleCommand(_ command: AmpXModuleCommand) {
+        switch command {
+        case .moveUp:
+            moveFocusedModule(by: -1)
+        case .moveDown:
+            moveFocusedModule(by: 1)
+        case .toggleDetach:
+            toggleDetachFocusedModule()
+        case .toggleCollapse:
+            toggleCollapseFocusedModule()
+        }
+    }
+
+    func noteFocusedModule(_ id: AmpXModuleID) {
+        focusedModuleID = id
+    }
+
+    func toggleTheater() {
+        isEntheaInTheater.toggle()
+    }
+
+    func exitTheater() {
+        isEntheaInTheater = false
+    }
+
+    var isInTheater: Bool {
+        isEntheaInTheater
+    }
+
+    private func moveFocusedModule(by offset: Int) {
+        guard focusedModuleID != .player else { return }
+        guard let currentIndex = visibleModuleOrder().firstIndex(of: focusedModuleID) else { return }
+        let targetIndex = currentIndex + offset
+        guard targetIndex >= 0, targetIndex < visibleModuleOrder().count else { return }
+        let targetID = visibleModuleOrder()[targetIndex]
+        guard targetID != .player else { return }
+
+        if state.detached.contains(focusedModuleID) {
+            menuRedock(focusedModuleID, at: targetIndex)
+        } else {
+            reorder(focusedModuleID, toVisibleDropIndex: targetIndex)
+        }
+    }
+
+    private func toggleDetachFocusedModule() {
+        guard focusedModuleID != .player else { return }
+        if state.detached.contains(focusedModuleID) {
+            menuRedock(focusedModuleID, at: visibleModuleOrder().count)
+        } else if let moduleView = moduleViews[focusedModuleID], let stackWindow {
+            let windowPoint = moduleView.convert(
+                NSPoint(x: moduleView.bounds.midX, y: moduleView.bounds.maxY),
+                to: nil
+            )
+            let screenPoint = stackWindow.convertPoint(toScreen: windowPoint)
+            detach(
+                focusedModuleID,
+                at: CGPoint(x: screenPoint.x, y: screenPoint.y),
+                inheritedWidth: stackWindow.frame.width
+            )
+        }
+    }
+
+    private func toggleCollapseFocusedModule() {
+        let collapsed = state.collapsed.contains(focusedModuleID)
+        setCollapsed(focusedModuleID, !collapsed)
+    }
+
+    private func focusModule(_ id: AmpXModuleID) {
+        focusedModuleID = id
+        guard let view = moduleViews[id] else { return }
+        stackWindow?.makeFirstResponder(view.header)
+        detachedWindowControllers[id]?.window?.makeFirstResponder(view.header)
+    }
+
+    private func nextVisibleModule(after id: AmpXModuleID) -> AmpXModuleID {
+        let visible = visibleModuleOrder()
+        guard let index = visible.firstIndex(of: id) else { return .player }
+        if index + 1 < visible.count {
+            return visible[index + 1]
+        }
+        return visible.first ?? .player
+    }
+
+    private func visibleModuleOrder() -> [AmpXModuleID] {
+        state.order.filter { moduleID in
+            !state.closed.contains(moduleID) && !state.detached.contains(moduleID)
+        }
+    }
+
     private func createModuleViews() {
         for moduleID in AmpXModuleID.allCases {
             let content = AmpXModuleContent.make(moduleID: moduleID, skin: skin)
@@ -300,6 +394,12 @@ final class AmpXHostCoordinator {
 
         view.header.onGripMouseUp = { [weak self] event in
             self?.dragController.endDrag(event: event)
+        }
+
+        view.header.onDetach = { [weak self] in
+            guard let self else { return }
+            self.noteFocusedModule(moduleID)
+            self.toggleDetachFocusedModule()
         }
     }
 
