@@ -9,11 +9,7 @@
 /* Begin PBXBuildFile section */
 		A10000011 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000011 /* Assets.xcassets */; };
 		A10000012 /* startup.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A20000013 /* startup.mp3 */; };
-		A10000049 /* JetBrainsMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A20000049 /* JetBrainsMono-Regular.ttf */; };
-		A10000050 /* JetBrainsMono-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A20000050 /* JetBrainsMono-Bold.ttf */; };
-		A10000051 /* RobotoMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A20000051 /* RobotoMono-Regular.ttf */; };
-		A10000052 /* RobotoMono-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A20000052 /* RobotoMono-Medium.ttf */; };
-		A10000053 /* RobotoMono-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A20000053 /* RobotoMono-SemiBold.ttf */; };
+		A10000055 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = A20000055 /* Fonts */; };
 		A10000060 /* Enthea in Resources */ = {isa = PBXBuildFile; fileRef = A20000060 /* Enthea */; };
 		B10000007 /* sample.m3u in Resources */ = {isa = PBXBuildFile; fileRef = B20000007 /* sample.m3u */; };
 		B10000009 /* short.wav in Resources */ = {isa = PBXBuildFile; fileRef = B20000009 /* short.wav */; };
@@ -24,12 +20,7 @@
 		A20000011 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A20000012 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A20000013 /* startup.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = startup.mp3; sourceTree = "<group>"; };
-		A20000049 /* JetBrainsMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = JetBrainsMono-Regular.ttf; sourceTree = "<group>"; };
-		A20000050 /* JetBrainsMono-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "JetBrainsMono-Bold.ttf"; sourceTree = "<group>"; };
-		A20000051 /* RobotoMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = RobotoMono-Regular.ttf; sourceTree = "<group>"; };
-		A20000052 /* RobotoMono-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = RobotoMono-Medium.ttf; sourceTree = "<group>"; };
-		A20000053 /* RobotoMono-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = RobotoMono-SemiBold.ttf; sourceTree = "<group>"; };
-		A20000054 /* RobotoMono-LICENSE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = RobotoMono-LICENSE.txt; sourceTree = "<group>"; };
+		A20000055 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Fonts; sourceTree = "<group>"; };
 		A20000060 /* Enthea */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Enthea; sourceTree = "<group>"; };
 		B10000000 /* AmpXTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AmpXTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20000007 /* sample.m3u */ = {isa = PBXFileReference; lastKnownFileType = text; path = sample.m3u; sourceTree = "<group>"; };
@@ -85,27 +76,14 @@
 			);
 			sourceTree = "<group>";
 		};
-		A40000015 /* Fonts */ = {
-			isa = PBXGroup;
-			children = (
-				A20000049 /* JetBrainsMono-Regular.ttf */,
-				A20000050 /* JetBrainsMono-Bold.ttf */,
-				A20000051 /* RobotoMono-Regular.ttf */,
-				A20000052 /* RobotoMono-Medium.ttf */,
-				A20000053 /* RobotoMono-SemiBold.ttf */,
-				A20000054 /* RobotoMono-LICENSE.txt */,
-			);
-			path = Fonts;
-			sourceTree = "<group>";
-		};
 		A40000003 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 				A20000011 /* Assets.xcassets */,
 				A20000012 /* Info.plist */,
 				A20000013 /* startup.mp3 */,
+				A20000055 /* Fonts */,
 				A20000060 /* Enthea */,
-				A40000015 /* Fonts */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -216,11 +194,7 @@
 			files = (
 				A10000011 /* Assets.xcassets in Resources */,
 				A10000012 /* startup.mp3 in Resources */,
-				A10000049 /* JetBrainsMono-Regular.ttf in Resources */,
-				A10000050 /* JetBrainsMono-Bold.ttf in Resources */,
-				A10000051 /* RobotoMono-Regular.ttf in Resources */,
-				A10000052 /* RobotoMono-Medium.ttf in Resources */,
-				A10000053 /* RobotoMono-SemiBold.ttf in Resources */,
+				A10000055 /* Fonts in Resources */,
 				A10000060 /* Enthea in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
