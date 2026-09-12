@@ -14,7 +14,9 @@ class AmpXModuleContent: AmpXDrawingView {
             return PlayerModuleContent(skin: skin)
         case .equalizer:
             return EqualizerModuleContent(skin: skin)
-        case .playlist, .enthea:
+        case .playlist:
+            return PlaylistModuleContent(skin: skin)
+        case .enthea:
             return AmpXModuleContent(skin: skin)
         }
     }

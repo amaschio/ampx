@@ -63,10 +63,22 @@ All content rectangles are in module-local coordinates (origin below the 22 pt h
 | Key | Source px (x, y, w, h) | Content rect (x, y, w, h) | Notes |
 |---|---|---|---|
 | `playlist.rows` | — | (15.5, 9.5, 424.0, 180.0) | Black row viewport |
-| `playlist.scrollbar` | — | (440.5, 9.5, 16.0, 180.0) | Gold thumb track |
+| `playlist.scrollbar` | — | (440.5, 9.5, 16.0, 180.0) | Amber arrows + gold thumb |
 | `playlist.footer` | — | (15.5, 193.5, 441.0, 89.5) | ADD/REM/SEL/MISC + mini transport |
 | `playlist.rowHeight` | — | 22 | Fixed row pitch |
 | `playlist.durationColumnWidth` | — | 42 | Right-aligned durations |
+
+### Playlist reference crops
+
+![Playlist rows crop](reference-crops/playlist-rows.png)
+
+![Playlist footer crop](reference-crops/playlist-footer.png)
+
+**Mock tracks (display-only):** seven reference rows; index 4 (`Crusher-P - Echo`) selected with flat `selection` fill and `text` color. Row origins use `playlistRows.minY + 22 * index` (never distributed). Durations sit in the 42 pt right column.
+
+**Footer rects (footer-local):** ADD `(0,25,35×40.5)`, REM `(41,25,40.5×40.5)`, SEL `(87,24.5,41×41)`, MISC `(133,25,43×40.5)`, time well `(186,22,203×18.5)` → `0:00/27:45`, mini transport five 23–24 pt buttons at y≈45, remaining `(341,49,48×18)` → `-02:12`, LIST OPTS `(399.5,21,41.5×47.5)`.
+
+**Scrollbar:** 8 pt amber arrow caps; gold thumb `(2,18,12×12)` within `playlistScrollbar`.
 
 ## Palette & spectrum
 
@@ -89,6 +101,8 @@ All content rectangles are in module-local coordinates (origin below the 22 pt h
 
 - [x] Task 6A: Player crop — wells, timer segments, mono metadata, transport silhouettes
 - [x] Task 6B: Equalizer crop — curve well, preamp, ten band tracks, mock curve
-- [ ] Task 6C: Full three-module stack at scale 1.0 and scale bounds
+- [x] Task 6C: Full three-module stack at scale 1.0 and scale bounds
 
-Capture: `./scripts/shoot.sh -- -AmpXNewUI YES`
+Capture: `./scripts/shoot.sh -- -AmpXNewUI YES` (scale 1.0 default width 490 pt; bounds at 416.5 pt / 661.5 pt content width → scale 0.85 / 1.35).
+
+**Remaining deltas vs PNG (honest):** scrollbar gold is subtle in `AmpX.png` (mock uses sampled palette); row selection blue differs slightly from PNG anti-alias; footer bevel depth is approximate until Task 7 controls.
