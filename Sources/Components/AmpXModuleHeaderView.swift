@@ -103,7 +103,7 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
         switch self.moduleID {
         case .player: nil
         case .equalizer: TitlePlacement(brandInkX: 175.5, titleInkX: 243.5, baseline: 21, ruleGapBefore: 19.5, ruleGapAfter: 18)
-        case .playlist: TitlePlacement(brandInkX: 185, titleInkX: 243.5, baseline: 21, ruleGapBefore: 18.5, ruleGapAfter: 15.5)
+        case .playlist: TitlePlacement(brandInkX: 185, titleInkX: 244.5, baseline: 21, ruleGapBefore: 18.5, ruleGapAfter: 16)
         case .enthea: TitlePlacement(brandInkX: nil, titleInkX: 243.5, baseline: 21, ruleGapBefore: 19.5, ruleGapAfter: 16.5)
         }
     }

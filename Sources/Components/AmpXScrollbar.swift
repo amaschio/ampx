@@ -14,9 +14,18 @@ final class AmpXScrollbar: AmpXControlView {
         didSet { needsDisplay = true }
     }
 
+    /// Fixed thumb length (reference gold tab); `nil` sizes the thumb proportionally to the viewport.
+    var fixedThumbLength: CGFloat? {
+        didSet { needsDisplay = true }
+    }
+
     var onScroll: ((CGFloat) -> Void)?
 
-    private static let arrowHeight: CGFloat = 8
+    /// Sampled from the reference scrollbar arrows.
+    private static let arrowColor = NSColor(srgbRed: 248 / 255, green: 178 / 255, blue: 10 / 255, alpha: 1)
+    private static let arrowHighlight = NSColor(srgbRed: 1, green: 243 / 255, blue: 49 / 255, alpha: 1)
+    private static let minimumThumbLength: CGFloat = 12
+
     private var isDraggingThumb = false
     private var dragStartOffset: CGFloat = 0
     private var dragStartY: CGFloat = 0
@@ -27,38 +36,20 @@ final class AmpXScrollbar: AmpXControlView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func draw(_ dirtyRect: NSRect) {
+    override func draw(_: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let backingScale = window?.backingScaleFactor ?? 1
 
-        skin.displayWell(bounds, in: context, backingScale: backingScale)
-
-        let arrowWidth = bounds.width - 4
-        drawArrow(
-            up: true,
-            in: CGRect(x: bounds.minX + 2, y: bounds.minY + 1, width: arrowWidth, height: Self.arrowHeight),
-            context: context
-        )
-        drawArrow(
-            up: false,
-            in: CGRect(
-                x: bounds.minX + 2,
-                y: bounds.maxY - Self.arrowHeight - 1,
-                width: arrowWidth,
-                height: Self.arrowHeight
-            ),
-            context: context
-        )
-
-        let thumb = thumbRect()
-        context.setFillColor(skin.gold.cgColor)
-        context.fill(thumb)
-        context.setFillColor(skin.goldLight.cgColor)
-        context.fill(CGRect(x: thumb.minX, y: thumb.minY, width: thumb.width, height: 1))
+        skin.raisedFace(self.trackRect(), style: .normal, in: context, backingScale: backingScale)
+        skin.raisedFace(self.upArrowRect(), style: .normal, in: context, backingScale: backingScale)
+        skin.raisedFace(self.downArrowRect(), style: .normal, in: context, backingScale: backingScale)
+        self.drawArrow(up: true, in: self.glyphRect(AmpXMetrics.playlistScrollbarUpGlyph, in: self.upArrowRect()), context: context)
+        self.drawArrow(up: false, in: self.glyphRect(AmpXMetrics.playlistScrollbarDownGlyph, in: self.downArrowRect()), context: context)
+        skin.metallicThumb(self.thumbRect(), material: .goldTab, in: context, backingScale: backingScale)
 
         if !isEnabled {
             context.setFillColor(skin.background.withAlphaComponent(0.35).cgColor)
@@ -71,129 +62,162 @@ final class AmpXScrollbar: AmpXControlView {
     override func mouseDown(with event: NSEvent) {
         guard isEnabled else { return }
         let point = convert(event.locationInWindow, from: nil)
-        let thumb = thumbRect()
+        let thumb = self.thumbRect()
 
         if thumb.contains(point) {
-            isDraggingThumb = true
-            dragStartOffset = offset
-            dragStartY = point.y
+            self.isDraggingThumb = true
+            self.dragStartOffset = self.offset
+            self.dragStartY = point.y
             return
         }
 
-        if upArrowRect().contains(point) {
-            scrollBy(-viewportLength / 3)
+        if self.upArrowRect().contains(point) {
+            self.scrollBy(-self.viewportLength / 3)
             return
         }
 
-        if downArrowRect().contains(point) {
-            scrollBy(viewportLength / 3)
+        if self.downArrowRect().contains(point) {
+            self.scrollBy(self.viewportLength / 3)
             return
         }
 
-        let track = trackRect()
+        let track = self.trackRect()
         guard track.contains(point) else { return }
         if point.y < thumb.midY {
-            scrollBy(-viewportLength)
+            self.scrollBy(-self.viewportLength)
         } else {
-            scrollBy(viewportLength)
+            self.scrollBy(self.viewportLength)
         }
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard isEnabled, isDraggingThumb else { return }
+        guard isEnabled, self.isDraggingThumb else { return }
         let point = convert(event.locationInWindow, from: nil)
-        let track = trackRect()
+        let track = self.trackRect()
         guard track.height > 0 else { return }
 
-        let thumbHeight = thumbRect().height
+        let thumbHeight = self.thumbRect().height
         let travel = max(track.height - thumbHeight, 1)
-        let maxOffset = max(contentLength - viewportLength, 0)
-        let deltaY = point.y - dragStartY
+        let maxOffset = max(contentLength - self.viewportLength, 0)
+        let deltaY = point.y - self.dragStartY
         let offsetDelta = deltaY / travel * maxOffset
-        setOffset(dragStartOffset + offsetDelta)
+        self.setOffset(self.dragStartOffset + offsetDelta)
     }
 
-    override func mouseUp(with event: NSEvent) {
-        isDraggingThumb = false
+    override func mouseUp(with _: NSEvent) {
+        self.isDraggingThumb = false
     }
 
     override func scrollWheel(with event: NSEvent) {
         guard isEnabled else { return }
-        scrollBy(-event.deltaY * 8)
+        self.scrollBy(-event.deltaY * 8)
     }
 
     override func accessibilityValue() -> Any? {
-        offset
+        self.offset
     }
 
     override func accessibilityPerformIncrement() -> Bool {
         guard isEnabled else { return false }
-        scrollBy(viewportLength / 5)
+        self.scrollBy(self.viewportLength / 5)
         return true
     }
 
     override func accessibilityPerformDecrement() -> Bool {
         guard isEnabled else { return false }
-        scrollBy(-viewportLength / 5)
+        self.scrollBy(-self.viewportLength / 5)
         return true
     }
 
     private func setOffset(_ newOffset: CGFloat) {
-        let clamped = AmpXControlMath.clampedScrollOffset(newOffset, contentLength: contentLength, viewportLength: viewportLength)
-        guard clamped != offset else { return }
-        offset = clamped
-        onScroll?(clamped)
+        let clamped = AmpXControlMath.clampedScrollOffset(newOffset, contentLength: self.contentLength, viewportLength: self.viewportLength)
+        guard clamped != self.offset else { return }
+        self.offset = clamped
+        self.onScroll?(clamped)
         NSAccessibility.post(element: self, notification: .valueChanged)
     }
 
     private func scrollBy(_ delta: CGFloat) {
-        setOffset(offset + delta)
+        self.setOffset(self.offset + delta)
     }
 
-    private func trackRect() -> CGRect {
-        bounds.insetBy(dx: 0, dy: Self.arrowHeight + 2)
+    // MARK: - Geometry
+
+    private var upButtonHeight: CGFloat {
+        min(AmpXMetrics.playlistScrollbarUpButtonHeight, bounds.height / 3)
     }
 
-    private func upArrowRect() -> CGRect {
-        CGRect(x: bounds.minX + 2, y: bounds.minY + 1, width: bounds.width - 4, height: Self.arrowHeight)
+    private var downButtonHeight: CGFloat {
+        min(AmpXMetrics.playlistScrollbarDownButtonHeight, bounds.height / 3)
     }
 
-    private func downArrowRect() -> CGRect {
+    func trackRect() -> CGRect {
         CGRect(
-            x: bounds.minX + 2,
-            y: bounds.maxY - Self.arrowHeight - 1,
-            width: bounds.width - 4,
-            height: Self.arrowHeight
+            x: bounds.minX,
+            y: bounds.minY + self.upButtonHeight,
+            width: bounds.width,
+            height: max(0, bounds.height - self.upButtonHeight - self.downButtonHeight)
         )
     }
 
-    private func thumbRect() -> CGRect {
-        let track = trackRect()
-        let maxOffset = max(contentLength - viewportLength, 0)
-        let thumbHeight = max(
-            track.height * viewportLength / max(contentLength, 1),
-            12
+    func upArrowRect() -> CGRect {
+        CGRect(x: bounds.minX, y: bounds.minY, width: bounds.width, height: self.upButtonHeight)
+    }
+
+    func downArrowRect() -> CGRect {
+        CGRect(x: bounds.minX, y: bounds.maxY - self.downButtonHeight, width: bounds.width, height: self.downButtonHeight)
+    }
+
+    func thumbRect() -> CGRect {
+        let track = self.trackRect()
+        let maxOffset = max(contentLength - self.viewportLength, 0)
+        let proportional = track.height * self.viewportLength / max(self.contentLength, 1)
+        let length = min(track.height, max(self.fixedThumbLength ?? proportional, Self.minimumThumbLength))
+        let travel = max(track.height - length, 0)
+        let progress = maxOffset > 0 ? self.offset / maxOffset : 0
+        let inset = AmpXMetrics.playlistScrollbarThumbInset
+        return CGRect(
+            x: bounds.minX + inset,
+            y: track.minY + progress * travel,
+            width: bounds.width - inset * 2,
+            height: length
         )
-        let travel = max(track.height - thumbHeight, 0)
-        let progress = maxOffset > 0 ? offset / maxOffset : 0
-        let y = track.minY + progress * travel
-        return CGRect(x: bounds.minX + 2, y: y, width: bounds.width - 4, height: thumbHeight)
+    }
+
+    private func glyphRect(_ glyph: CGRect, in button: CGRect) -> CGRect {
+        glyph.offsetBy(dx: button.minX, dy: button.minY)
     }
 
     private func drawArrow(up: Bool, in rect: CGRect, context: CGContext) {
-        context.setFillColor(skin.orange.cgColor)
         let path = CGMutablePath()
         if up {
-            path.move(to: CGPoint(x: rect.midX, y: rect.minY + 1))
-            path.addLine(to: CGPoint(x: rect.maxX - 1, y: rect.maxY - 1))
-            path.addLine(to: CGPoint(x: rect.minX + 1, y: rect.maxY - 1))
+            path.addLines(between: [
+                CGPoint(x: rect.midX, y: rect.minY),
+                CGPoint(x: rect.maxX, y: rect.maxY),
+                CGPoint(x: rect.minX, y: rect.maxY),
+            ])
         } else {
-            path.move(to: CGPoint(x: rect.minX + 1, y: rect.minY + 1))
-            path.addLine(to: CGPoint(x: rect.maxX - 1, y: rect.minY + 1))
-            path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY - 1))
+            path.addLines(between: [
+                CGPoint(x: rect.minX, y: rect.minY),
+                CGPoint(x: rect.maxX, y: rect.minY),
+                CGPoint(x: rect.midX, y: rect.maxY),
+            ])
         }
         path.closeSubpath()
         context.addPath(path)
+        context.setFillColor(Self.arrowColor.cgColor)
         context.fillPath()
+
+        context.setStrokeColor(Self.arrowHighlight.withAlphaComponent(0.8).cgColor)
+        context.setLineWidth(0.5)
+        if up {
+            context.strokeLineSegments(between: [
+                CGPoint(x: rect.midX, y: rect.minY + 0.5), CGPoint(x: rect.minX + 0.5, y: rect.maxY - 0.5),
+            ])
+        } else {
+            context.strokeLineSegments(between: [
+                CGPoint(x: rect.minX + 0.5, y: rect.minY + 0.25), CGPoint(x: rect.maxX - 0.5, y: rect.minY + 0.25),
+            ])
+        }
     }
 }

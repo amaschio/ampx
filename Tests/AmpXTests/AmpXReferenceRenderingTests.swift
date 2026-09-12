@@ -2,6 +2,13 @@
 import AppKit
 import XCTest
 
+/// Flipped container matching the stack's top-down module layout.
+private final class ReferenceStackView: NSView {
+    override var isFlipped: Bool {
+        true
+    }
+}
+
 @MainActor
 final class AmpXReferenceRenderingTests: XCTestCase {
     private let skin = ClassicModernSkin()
@@ -146,6 +153,52 @@ final class AmpXReferenceRenderingTests: XCTestCase {
         }
     }
 
+    // MARK: - Playlist geometry regressions
+
+    func testPlaylistFooterFollowsRowViewportInsideContent() throws {
+        let viewports: [CGFloat] = [
+            AmpXMetrics.minimumPlaylistViewportHeight,
+            AmpXMetrics.defaultPlaylistViewportHeight,
+            300,
+        ]
+        for viewport in viewports {
+            let content = self.makePlaylistContent()
+            content.frame = CGRect(
+                x: 0,
+                y: 0,
+                width: AmpXMetrics.compositionWidth,
+                height: AmpXMetrics.playlistNonRowChrome + viewport
+            )
+            content.setRowViewportHeight(viewport)
+            let subviews = self.allSubviews(of: content)
+            let rows = try XCTUnwrap(subviews.first { $0 is PlaylistRowsView })
+            let footer = try XCTUnwrap(subviews.first { $0 is PlaylistFooterView })
+            let scrollbar = try XCTUnwrap(subviews.first { $0 is AmpXScrollbar })
+
+            XCTAssertEqual(rows.frame.height, viewport, accuracy: 0.01)
+            XCTAssertGreaterThanOrEqual(footer.frame.minY, rows.frame.maxY, "Footer overlaps rows at viewport \(viewport)")
+            XCTAssertLessThanOrEqual(footer.frame.maxY, content.bounds.maxY + 0.01, "Footer clipped at viewport \(viewport)")
+            XCTAssertLessThanOrEqual(scrollbar.frame.maxY, footer.frame.minY + 0.01, "Scrollbar overlaps footer at viewport \(viewport)")
+            for control in footer.subviews {
+                XCTAssertTrue(footer.bounds.contains(control.frame), "Footer control outside footer at viewport \(viewport)")
+            }
+        }
+    }
+
+    func testPlaylistRowTextColumnsStaySeparate() {
+        let row = PlaylistRowLayout.rowRect(index: 0, width: AmpXMetrics.playlistRows.width)
+        let column = PlaylistRowLayout.durationRect(in: row)
+        XCTAssertEqual(column.width, 42)
+        let longTitle = String(repeating: "Very Long Artist Name - ", count: 4)
+        for number in [1, 10, 100, 1000] {
+            let text = PlaylistRowLayout.textLayout(number: number, title: longTitle, duration: "59:59", in: row)
+            XCTAssertGreaterThanOrEqual(text.numberRect.minX, row.minX, "Number \(number) clipped")
+            XCTAssertLessThanOrEqual(text.numberRect.maxX, text.titleRect.minX, "Number \(number) overlaps title")
+            XCTAssertLessThanOrEqual(text.titleRect.maxX, text.durationRect.minX, "Title overlaps duration for \(number)")
+            XCTAssertTrue(column.insetBy(dx: -0.01, dy: -0.01).contains(text.durationRect), "Duration leaves its column")
+        }
+    }
+
     // MARK: - Deterministic reference capture
 
     /// Display-only values matching `screenshots/AmpX.png`. Spectrum levels/peaks are in segments (of 6).
@@ -231,6 +284,62 @@ final class AmpXReferenceRenderingTests: XCTestCase {
         withExtendedLifetime(window) {}
     }
 
+    /// Display-only rows, selection and readouts matching the reference Playlist.
+    static let playlistReference = PlaylistReferencePresentation(
+        rows: [
+            .init(title: "Mori Calliope - Go-Getters", duration: "3:15"),
+            .init(title: "CircusP - Goodbye", duration: "3:24"),
+            .init(title: "AmaLee - Siren", duration: "4:02"),
+            .init(title: "Crusher-P - Echo", duration: "3:50"),
+            .init(title: "M83 - Midnight City", duration: "4:03"),
+            .init(title: "Sunnexo - Please Wait", duration: "4:15"),
+            .init(title: "Omaru Polka - Persona", duration: "4:56"),
+        ],
+        selectedIndex: 3,
+        currentIndex: 3,
+        elapsedTotalText: "0:00/27:45",
+        remainingText: "-02:12"
+    )
+
+    func testPlaylistAndFullStackReferenceCapturesAreDeterministic() throws {
+        let playlist = self.makePlaylistContent()
+        playlist.referencePresentation = Self.playlistReference
+        let single = AmpXModuleView(moduleID: .playlist, content: playlist, skin: self.skin)
+        let singleFrame = CGRect(x: 0, y: 0, width: AmpXMetrics.compositionWidth, height: AmpXMetrics.playlistHeight)
+        let singleWindow = NSWindow(contentRect: singleFrame, styleMask: .borderless, backing: .buffered, defer: false)
+        singleWindow.contentView?.addSubview(single)
+        single.applyLayout(frame: singleFrame)
+        playlist.setRowViewportHeight(AmpXMetrics.defaultPlaylistViewportHeight)
+        try self.export(self.deterministicPNG(of: single), named: "playlist-static.png", backingScale: singleWindow.backingScaleFactor)
+
+        let layout = AmpXLayout.calculate(
+            state: AmpXModuleOrder(),
+            width: AmpXMetrics.compositionWidth,
+            playlistViewportHeight: AmpXMetrics.defaultPlaylistViewportHeight,
+            availableHeight: 10000
+        )
+        let stack = ReferenceStackView(frame: CGRect(x: 0, y: 0, width: AmpXMetrics.compositionWidth, height: layout.contentHeight))
+        let window = NSWindow(contentRect: stack.frame, styleMask: .borderless, backing: .buffered, defer: false)
+        window.contentView?.addSubview(stack)
+
+        let player = self.makePlayerContent()
+        player.referencePresentation = Self.playerReference
+        let equalizer = self.makeEqualizerContent()
+        equalizer.referencePresentation = Self.equalizerReference
+        let stackPlaylist = self.makePlaylistContent()
+        stackPlaylist.referencePresentation = Self.playlistReference
+        let contents: [(AmpXModuleID, AmpXModuleContent)] = [(.player, player), (.equalizer, equalizer), (.playlist, stackPlaylist)]
+        for (id, content) in contents {
+            let module = AmpXModuleView(moduleID: id, content: content, skin: self.skin)
+            stack.addSubview(module)
+            try module.applyLayout(frame: XCTUnwrap(layout.frames[id]))
+        }
+        stackPlaylist.setRowViewportHeight(layout.playlistViewportHeight)
+        XCTAssertEqual(layout.contentHeight, 766, accuracy: 0.01)
+        try self.export(self.deterministicPNG(of: stack), named: "stack-static.png", backingScale: window.backingScaleFactor)
+        withExtendedLifetime([singleWindow, window]) {}
+    }
+
     private func deterministicPNG(of view: NSView) throws -> Data {
         let first = try capture(view)
         let second = try capture(view)
@@ -293,6 +402,21 @@ final class AmpXReferenceRenderingTests: XCTestCase {
             height: AmpXMetrics.playerHeight - AmpXMetrics.headerHeight
         )
         return content
+    }
+
+    private func makePlaylistContent() -> PlaylistModuleContent {
+        let audioPlayer = AudioPlayer(installRemoteCommands: false)
+        self.retainedPlayers.append(audioPlayer)
+        return PlaylistModuleContent(
+            skin: self.skin,
+            manager: PlaylistManager(
+                audioPlayer: MockAudioPlayer(),
+                restoreBookmarks: false,
+                restorePlaylist: false,
+                alertPresenter: SilentPlaylistAlertPresenter()
+            ),
+            audioPlayer: audioPlayer
+        )
     }
 
     private func makeEqualizerContent() -> EqualizerModuleContent {

@@ -11,7 +11,8 @@ enum AmpXMetrics {
     static let moduleGap: CGFloat = 6
 
     static let headerHeight: CGFloat = 28.5
-    static let playlistNonRowChrome: CGFloat = 103
+    /// Row-area top (10) + footer gap (2) + footer (68.5); reference Playlist 305 pt with a 196 pt viewport.
+    static let playlistNonRowChrome: CGFloat = 80.5
     static let playlistRowHeight: CGFloat = 22
     static let minimumPlaylistViewportHeight: CGFloat = playlistRowHeight * 3
     static let defaultPlaylistViewportHeight: CGFloat = playlistHeight - headerHeight - playlistNonRowChrome
@@ -157,12 +158,52 @@ enum AmpXMetrics {
     static let eqPreampLabelInkX: CGFloat = 20
     static let eqBandLabelBaseline: CGFloat = 180.5
 
-    // MARK: - Playlist (ReferenceMeasurementsV1, unvalidated)
+    // MARK: - Playlist (content coordinates, playlist-measurements-v2)
 
-    static let playlistRows = CGRect(x: 15.5, y: 9.5, width: 424.0, height: 180.0)
-    static let playlistScrollbar = CGRect(x: 440.5, y: 9.5, width: 16.0, height: 180.0)
-    static let playlistFooter = CGRect(x: 15.5, y: 193.5, width: 441.0, height: 89.5)
+    /// Black row area inside the rows well; its height is the default viewport (reference: 196 pt).
+    static let playlistRows = CGRect(x: 15, y: 10, width: 440.5, height: 196)
+    /// Well lip around the row area: left, top, right, bottom.
+    static let playlistRowsWellOutsets = (left: CGFloat(2), top: CGFloat(1.5), right: CGFloat(2.5), bottom: CGFloat(2))
+    /// Scrollbar x/width; it starts 1.5 pt above the row area and is 1 pt shorter than the viewport.
+    static let playlistScrollbar = CGRect(x: 461, y: 8.5, width: 15, height: 195)
+    static let playlistScrollbarUpButtonHeight: CGFloat = 18.5
+    static let playlistScrollbarDownButtonHeight: CGFloat = 21
+    static let playlistScrollbarThumbLength: CGFloat = 33
+    static let playlistScrollbarThumbInset: CGFloat = 1
+    static let playlistScrollbarUpGlyph = CGRect(x: 3.5, y: 4.5, width: 8.5, height: 9.5)
+    static let playlistScrollbarDownGlyph = CGRect(x: 3.5, y: 6, width: 8.5, height: 9.5)
+    /// Footer frame starts this far below the row area and follows the viewport.
+    static let playlistFooterGap: CGFloat = 2
+    static let playlistFooterHeight: CGFloat = 68.5
     static let playlistDurationColumnWidth: CGFloat = 42
+    /// Row text in row coordinates: number advance ends at 27, titles start at 38, durations end 12.75 pt
+    /// before the row's trailing edge (reference ink: number 27 pt, title 53.5 pt, duration 442 pt in content).
+    static let playlistRowNumberMaxX: CGFloat = 27
+    static let playlistRowTitleX: CGFloat = 38
+    static let playlistDurationTrailingInset: CGFloat = 12.75
+    static let playlistRowFontSize: CGFloat = 13.75
+
+    /// Footer-local frames (footer origin at the row area's left content edge x = 0).
+    static let playlistFooterButtons: [(label: String, rect: CGRect)] = [
+        ("ADD", CGRect(x: 12.5, y: 8.5, width: 43, height: 44)),
+        ("REM", CGRect(x: 58, y: 8.5, width: 44, height: 44)),
+        ("SEL", CGRect(x: 104.5, y: 8.5, width: 44, height: 44)),
+        ("MISC", CGRect(x: 151, y: 8.5, width: 45.5, height: 44)),
+        ("LIST\nOPTS", CGRect(x: 419, y: 7, width: 58, height: 48.5)),
+    ]
+    static let playlistFooterCounterWell = CGRect(x: 204.5, y: 6.5, width: 205, height: 21)
+    /// Counter text ink left edge and baseline, relative to the counter well.
+    static let playlistFooterCounterInk = CGPoint(x: 64.5, y: 15.5)
+    static let playlistFooterRemainingWell = CGRect(x: 358, y: 34, width: 52, height: 20)
+    static let playlistFooterRemainingBaseline: CGFloat = 14.5
+    static let playlistFooterReadoutFontSize: CGFloat = 12
+    static let playlistFooterTransport: [(frame: CGRect, glyph: CGRect)] = [
+        (CGRect(x: 204.5, y: 29.5, width: 26.5, height: 26.5), CGRect(x: 8.5, y: 7.5, width: 9.5, height: 11.5)),
+        (CGRect(x: 234.5, y: 29.5, width: 26.5, height: 26.5), CGRect(x: 9.5, y: 7.5, width: 8.5, height: 12)),
+        (CGRect(x: 264.5, y: 29.5, width: 26, height: 26.5), CGRect(x: 9, y: 7.5, width: 8, height: 11.5)),
+        (CGRect(x: 294, y: 29.5, width: 26.5, height: 26.5), CGRect(x: 8.5, y: 8, width: 9, height: 10.5)),
+        (CGRect(x: 324, y: 29.5, width: 27, height: 26.5), CGRect(x: 9, y: 7.5, width: 9.5, height: 11.5)),
+    ]
 
     enum MetadataDigitStyle: String {
         case mono

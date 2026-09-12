@@ -257,6 +257,8 @@ struct ClassicModernSkin: AmpXSkin {
             drawSteelLevelThumb(thumb, context: context)
         case .gold:
             self.drawGoldThumb(thumb, context: context)
+        case .goldTab:
+            self.drawGoldTab(thumb, context: context)
         }
     }
 
@@ -414,6 +416,32 @@ struct ClassicModernSkin: AmpXSkin {
             width: AmpXPixelGrid.align(rect.maxX, backingScale: backingScale) - minX,
             height: AmpXPixelGrid.align(rect.maxY, backingScale: backingScale) - minY
         )
+    }
+}
+
+// MARK: - Playlist scrollbar tab
+
+extension ClassicModernSkin {
+    /// Gold tab sampled from the reference Playlist scrollbar thumb.
+    func drawGoldTab(_ tab: CGRect, context: CGContext) {
+        context.addPath(CGPath(roundedRect: tab, cornerWidth: 1, cornerHeight: 1, transform: nil))
+        context.setFillColor(rgb(3, 2, 6).cgColor)
+        context.fillPath()
+
+        let face = tab.insetBy(dx: 0.5, dy: 0.5)
+        self.drawVerticalGradient(in: face, stops: [
+            (0, rgb(209, 201, 150)), (0.02, rgb(255, 243, 181)), (0.04, rgb(239, 220, 155)),
+            (0.07, rgb(198, 168, 93)), (0.5, rgb(193, 162, 84)), (0.9, rgb(188, 157, 79)),
+            (0.93, rgb(143, 117, 58)), (0.97, rgb(115, 92, 44)), (1, rgb(67, 56, 29)),
+        ], context: context)
+        context.setFillColor(rgb(255, 255, 247).cgColor)
+        context.fill(CGRect(x: face.minX + 0.5, y: face.minY + 1, width: 0.5, height: face.height - 2))
+        context.setFillColor(rgb(230, 219, 174).cgColor)
+        context.fill(CGRect(x: face.minX + 1, y: face.minY + 1, width: 0.5, height: face.height - 2))
+        context.setFillColor(rgb(118, 97, 48).cgColor)
+        context.fill(CGRect(x: face.maxX - 1.5, y: face.minY + 1, width: 1, height: face.height - 2))
+        context.setFillColor(rgb(78, 62, 33).cgColor)
+        context.fill(CGRect(x: face.maxX - 0.5, y: face.minY + 1, width: 0.5, height: face.height - 2))
     }
 }
 

@@ -14,6 +14,8 @@ enum AmpXThumbMaterial {
     /// Steel handle with two horizontal grooves (vertical EQ sliders).
     case steelLevel
     case gold
+    /// Plain bevelled gold tab (Playlist scrollbar).
+    case goldTab
 }
 
 enum AmpXTrackFill {

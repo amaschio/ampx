@@ -2,6 +2,20 @@ import AppKit
 import Combine
 import CoreGraphics
 
+/// Display-only Playlist values for deterministic reference captures. Never written to the playlist model.
+struct PlaylistReferencePresentation: Equatable {
+    struct Row: Equatable {
+        var title: String
+        var duration: String
+    }
+
+    var rows: [Row]
+    var selectedIndex: Int?
+    var currentIndex: Int?
+    var elapsedTotalText: String
+    var remainingText: String
+}
+
 final class PlaylistModuleContent: AmpXModuleContent {
     private let manager: PlaylistManager
     private let audioPlayer: AudioPlayer
@@ -14,8 +28,19 @@ final class PlaylistModuleContent: AmpXModuleContent {
     private var cancellables = Set<AnyCancellable>()
     private var playlistIsActive = false
 
+    /// When set, rows and footer readouts render these values instead of live playlist state.
+    var referencePresentation: PlaylistReferencePresentation? {
+        didSet {
+            self.rowsView.reference = self.referencePresentation
+            self.footerView.setReferenceReadouts(
+                elapsedTotal: self.referencePresentation?.elapsedTotalText,
+                remaining: self.referencePresentation?.remainingText
+            )
+        }
+    }
+
     var canScrollVertically: Bool {
-        scrollbar.contentLength > scrollbar.viewportLength
+        self.scrollbar.contentLength > self.scrollbar.viewportLength
     }
 
     init(
@@ -31,16 +56,16 @@ final class PlaylistModuleContent: AmpXModuleContent {
             skin: skin,
             manager: manager,
             audioPlayer: audioPlayer,
-            keyboardAdapter: keyboardAdapter
+            keyboardAdapter: self.keyboardAdapter
         )
         self.scrollbar = AmpXScrollbar(skin: skin)
         super.init(skin: skin)
-        configureControls()
-        bindModels()
+        self.configureControls()
+        self.bindModels()
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -54,26 +79,26 @@ final class PlaylistModuleContent: AmpXModuleContent {
 
     override func setEffectivelyVisible(_ visible: Bool) {
         super.setEffectivelyVisible(visible)
-        footerView.setEffectivelyVisible(visible)
-        guard visible != playlistIsActive else { return }
-        playlistIsActive = visible
+        self.footerView.setEffectivelyVisible(visible)
+        guard visible != self.playlistIsActive else { return }
+        self.playlistIsActive = visible
         if visible {
-            AmpXPlaylistKeyboard.register(keyboardAdapter)
+            AmpXPlaylistKeyboard.register(self.keyboardAdapter)
         } else {
-            AmpXPlaylistKeyboard.unregister(keyboardAdapter)
+            AmpXPlaylistKeyboard.unregister(self.keyboardAdapter)
         }
     }
 
     func setRowViewportHeight(_ height: CGFloat) {
-        rowViewportHeight = max(height, AmpXMetrics.minimumPlaylistViewportHeight)
-        scrollbar.viewportLength = rowViewportHeight
-        layoutControls()
+        self.rowViewportHeight = max(height, AmpXMetrics.minimumPlaylistViewportHeight)
+        self.scrollbar.viewportLength = self.rowViewportHeight
+        self.layoutControls()
         needsDisplay = true
     }
 
     override func scrollWheel(with event: NSEvent) {
-        if canScrollVertically {
-            scrollbar.scrollWheel(with: event)
+        if self.canScrollVertically {
+            self.scrollbar.scrollWheel(with: event)
         } else {
             nextResponder?.scrollWheel(with: event)
         }
@@ -81,36 +106,37 @@ final class PlaylistModuleContent: AmpXModuleContent {
 
     override func resizeSubviews(withOldSize oldSize: NSSize) {
         super.resizeSubviews(withOldSize: oldSize)
-        layoutControls()
+        self.layoutControls()
     }
 
     private func configureControls() {
-        rowsView.manager = manager
-        rowsView.keyboardAdapter = keyboardAdapter
-        rowsView.onScrollOffsetChange = { [weak self] offset in
+        self.rowsView.manager = self.manager
+        self.rowsView.keyboardAdapter = self.keyboardAdapter
+        self.rowsView.onScrollOffsetChange = { [weak self] offset in
             self?.setScrollOffset(offset)
         }
 
-        keyboardAdapter.onSelectionChanged = { [weak self] in
+        self.keyboardAdapter.onSelectionChanged = { [weak self] in
             self?.rowsView.needsDisplay = true
         }
-        keyboardAdapter.onRevealCursor = { [weak self] in
+        self.keyboardAdapter.onRevealCursor = { [weak self] in
             self?.rowsView.revealCursor()
         }
 
-        scrollbar.onScroll = { [weak self] offset in
+        self.scrollbar.fixedThumbLength = AmpXMetrics.playlistScrollbarThumbLength
+        self.scrollbar.onScroll = { [weak self] offset in
             self?.setScrollOffset(offset)
         }
 
-        addSubview(rowsView)
-        addSubview(footerView)
-        addSubview(scrollbar)
-        updateScrollbarMetrics()
-        layoutControls()
+        addSubview(self.rowsView)
+        addSubview(self.footerView)
+        addSubview(self.scrollbar)
+        self.updateScrollbarMetrics()
+        self.layoutControls()
     }
 
     private func bindModels() {
-        manager.$tracks
+        self.manager.$tracks
             .receive(on: DispatchQueue.main)
             .sink { [weak self] tracks in
                 guard let self else { return }
@@ -118,48 +144,88 @@ final class PlaylistModuleContent: AmpXModuleContent {
                 self.updateScrollbarMetrics()
                 self.rowsView.needsDisplay = true
             }
-            .store(in: &cancellables)
+            .store(in: &self.cancellables)
 
-        manager.$currentIndex
+        self.manager.$currentIndex
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.rowsView.needsDisplay = true
             }
-            .store(in: &cancellables)
+            .store(in: &self.cancellables)
     }
 
     private func setScrollOffset(_ offset: CGFloat) {
-        scrollbar.offset = offset
-        rowsView.scrollOffset = offset
+        self.scrollbar.offset = offset
+        self.rowsView.scrollOffset = offset
     }
 
     private func updateScrollbarMetrics() {
-        scrollbar.contentLength = CGFloat(manager.tracks.count) * PlaylistRowLayout.rowHeight
-        scrollbar.viewportLength = rowViewportHeight
+        self.scrollbar.contentLength = CGFloat(self.manager.tracks.count) * PlaylistRowLayout.rowHeight
+        self.scrollbar.viewportLength = self.rowViewportHeight
         let clamped = AmpXControlMath.clampedScrollOffset(
-            scrollbar.offset,
-            contentLength: scrollbar.contentLength,
-            viewportLength: scrollbar.viewportLength
+            self.scrollbar.offset,
+            contentLength: self.scrollbar.contentLength,
+            viewportLength: self.scrollbar.viewportLength
         )
-        if clamped != scrollbar.offset {
-            setScrollOffset(clamped)
+        if clamped != self.scrollbar.offset {
+            self.setScrollOffset(clamped)
         }
     }
 
-    private func layoutControls() {
-        let rowsFrame = CGRect(
+    // MARK: - Layout
+
+    struct Frames {
+        var rows: CGRect
+        var scrollbar: CGRect
+        var footer: CGRect
+    }
+
+    /// Row area, scrollbar and footer for a viewport height; the footer always follows the rows.
+    static func layout(viewportHeight: CGFloat) -> Frames {
+        let rows = CGRect(
             x: AmpXMetrics.playlistRows.minX,
             y: AmpXMetrics.playlistRows.minY,
             width: AmpXMetrics.playlistRows.width,
-            height: rowViewportHeight
+            height: viewportHeight
         )
-        rowsView.frame = rowsFrame
-        scrollbar.frame = CGRect(
+        let scrollbarTop = AmpXMetrics.playlistRows.minY - AmpXMetrics.playlistScrollbar.minY
+        let scrollbarShortfall = AmpXMetrics.playlistRows.height - AmpXMetrics.playlistScrollbar.height
+        let scrollbar = CGRect(
             x: AmpXMetrics.playlistScrollbar.minX,
-            y: rowsFrame.minY,
+            y: rows.minY - scrollbarTop,
             width: AmpXMetrics.playlistScrollbar.width,
-            height: rowViewportHeight
+            height: max(0, viewportHeight - scrollbarShortfall)
         )
-        footerView.frame = AmpXMetrics.playlistFooter
+        let footer = CGRect(
+            x: 0,
+            y: rows.maxY + AmpXMetrics.playlistFooterGap,
+            width: AmpXMetrics.compositionWidth,
+            height: AmpXMetrics.playlistFooterHeight
+        )
+        return Frames(rows: rows, scrollbar: scrollbar, footer: footer)
+    }
+
+    static func rowsWellRect(for rows: CGRect) -> CGRect {
+        let outsets = AmpXMetrics.playlistRowsWellOutsets
+        return CGRect(
+            x: rows.minX - outsets.left,
+            y: rows.minY - outsets.top,
+            width: rows.width + outsets.left + outsets.right,
+            height: rows.height + outsets.top + outsets.bottom
+        )
+    }
+
+    private func layoutControls() {
+        let frames = Self.layout(viewportHeight: self.rowViewportHeight)
+        self.rowsView.frame = frames.rows
+        self.scrollbar.frame = frames.scrollbar
+        self.footerView.frame = frames.footer
+        needsDisplay = true
+    }
+
+    override func draw(_: NSRect) {
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        let backingScale = window?.backingScaleFactor ?? 1
+        skin.displayWell(Self.rowsWellRect(for: self.rowsView.frame), in: context, backingScale: backingScale)
     }
 }
