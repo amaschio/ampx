@@ -2,6 +2,7 @@ import AppKit
 
 final class AmpXModuleStackView: NSView {
     private var moduleViews: [AmpXModuleID: AmpXModuleView] = [:]
+    private var insertionMarkerView: NSView?
 
     override var isFlipped: Bool { true }
 
@@ -16,8 +17,38 @@ final class AmpXModuleStackView: NSView {
         }
     }
 
+    func addModuleView(_ view: AmpXModuleView) {
+        moduleViews[view.moduleID] = view
+        if view.superview !== self {
+            addSubview(view)
+        }
+    }
+
     func moduleView(for moduleID: AmpXModuleID) -> AmpXModuleView? {
         moduleViews[moduleID]
+    }
+
+    func setInsertionMarker(at contentY: CGFloat?, width: CGFloat) {
+        guard let contentY else {
+            insertionMarkerView?.isHidden = true
+            return
+        }
+
+        if insertionMarkerView == nil {
+            let marker = NSView(frame: .zero)
+            marker.wantsLayer = true
+            marker.layer?.backgroundColor = NSColor.systemYellow.cgColor
+            addSubview(marker)
+            insertionMarkerView = marker
+        }
+
+        insertionMarkerView?.isHidden = false
+        insertionMarkerView?.frame = CGRect(
+            x: 0,
+            y: contentY - AmpXModuleDragController.insertionMarkerHeight / 2,
+            width: width,
+            height: AmpXModuleDragController.insertionMarkerHeight
+        )
     }
 
     func applyLayout(

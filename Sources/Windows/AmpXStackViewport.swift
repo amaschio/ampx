@@ -8,6 +8,9 @@ final class AmpXStackViewport: NSView {
 
     private(set) var scrollOffset: CGFloat = 0
 
+    var pendingAutoScrollSpeed: CGFloat = 0
+    var lastDragContentPoint: CGPoint?
+
     private let scrollbar: AmpXScrollbar
     private var contentHeight: CGFloat = 0
     private var viewportHeight: CGFloat = 0
@@ -101,6 +104,32 @@ final class AmpXStackViewport: NSView {
         }
 
         setScrollOffset(target)
+    }
+
+    func stackContentPoint(fromWindowPoint windowPoint: NSPoint) -> CGPoint {
+        let viewportPoint = convert(windowPoint, from: nil)
+        let contentPoint = CGPoint(x: viewportPoint.x, y: viewportPoint.y + scrollOffset)
+        lastDragContentPoint = contentPoint
+        return contentPoint
+    }
+
+    func autoScrollSpeed(for viewportPoint: NSPoint) -> CGFloat {
+        guard scrolls else { return 0 }
+
+        let topZone = bounds.minY + AmpXModuleDragController.autoScrollEdgeInset
+        let bottomZone = bounds.maxY - AmpXModuleDragController.autoScrollEdgeInset
+
+        if viewportPoint.y < topZone {
+            let amount = (topZone - viewportPoint.y) / AmpXModuleDragController.autoScrollEdgeInset
+            return -AmpXModuleDragController.autoScrollMaxSpeed * min(1, amount)
+        }
+
+        if viewportPoint.y > bottomZone {
+            let amount = (viewportPoint.y - bottomZone) / AmpXModuleDragController.autoScrollEdgeInset
+            return AmpXModuleDragController.autoScrollMaxSpeed * min(1, amount)
+        }
+
+        return 0
     }
 
     override func scrollWheel(with event: NSEvent) {

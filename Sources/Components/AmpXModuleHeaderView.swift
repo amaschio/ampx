@@ -5,6 +5,11 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
     var onCollapse: (() -> Void)?
     var onClose: (() -> Void)?
     var onMinimize: (() -> Void)?
+    var onGripMouseDown: ((NSEvent) -> Void)?
+    var onGripMouseDragged: ((NSEvent) -> Void)?
+    var onGripMouseUp: ((NSEvent) -> Void)?
+
+    private var gripTracking = false
 
     init(moduleID: AmpXModuleID, skin: any AmpXSkin) {
         self.moduleID = moduleID
@@ -14,6 +19,18 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    var gripFrame: CGRect {
+        let backingScale = window?.backingScaleFactor ?? 1
+        let gripWidth: CGFloat = 12
+        let gripHeight: CGFloat = 16
+        return CGRect(
+            x: bounds.minX + 6,
+            y: AmpXPixelGrid.align(bounds.midY - gripHeight / 2, backingScale: backingScale),
+            width: gripWidth,
+            height: gripHeight
+        )
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -35,14 +52,7 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
     }
 
     private func drawGrip(in context: CGContext, backingScale: CGFloat) {
-        let gripWidth: CGFloat = 12
-        let gripHeight: CGFloat = 16
-        let gripRect = CGRect(
-            x: bounds.minX + 6,
-            y: AmpXPixelGrid.align(bounds.midY - gripHeight / 2, backingScale: backingScale),
-            width: gripWidth,
-            height: gripHeight
-        )
+        let gripRect = gripFrame
         context.setFillColor(skin.border.cgColor)
         for row in 0..<3 {
             let y = gripRect.minY + CGFloat(row) * 5
@@ -127,7 +137,41 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
         }
     }
 
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+
+        if gripFrame.contains(point) {
+            gripTracking = true
+            onGripMouseDown?(event)
+            return
+        }
+
+        let buttonFrames = headerButtonFrames()
+        if let closeFrame = buttonFrames.close, closeFrame.contains(point) {
+            return
+        }
+        if let collapseFrame = buttonFrames.collapse, collapseFrame.contains(point) {
+            return
+        }
+        if let minimizeFrame = buttonFrames.minimize, minimizeFrame.contains(point) {
+            return
+        }
+
+        window?.performDrag(with: event)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard gripTracking else { return }
+        onGripMouseDragged?(event)
+    }
+
     override func mouseUp(with event: NSEvent) {
+        if gripTracking {
+            gripTracking = false
+            onGripMouseUp?(event)
+            return
+        }
+
         let point = convert(event.locationInWindow, from: nil)
         let buttonFrames = headerButtonFrames()
 
