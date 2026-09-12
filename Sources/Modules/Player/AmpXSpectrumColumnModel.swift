@@ -32,11 +32,10 @@ struct AmpXSpectrumColumnModel {
 
     mutating func updatePeak(level: Float, at time: TimeInterval) -> Float {
         let clamped = min(max(level, 0), 1)
-        let deltaTime: Float
-        if let lastTimestamp {
-            deltaTime = Float(max(time - lastTimestamp, 0))
+        let deltaTime: Float = if let lastTimestamp {
+            Float(max(time - lastTimestamp, 0))
         } else {
-            deltaTime = 1.0 / 60.0
+            1.0 / 60.0
         }
         self.lastTimestamp = time
 

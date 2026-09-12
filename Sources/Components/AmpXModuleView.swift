@@ -18,50 +18,57 @@ final class AmpXModuleView: NSView {
         self.header = AmpXModuleHeaderView(moduleID: moduleID, skin: skin)
         super.init(frame: .zero)
         wantsLayer = true
-        addSubview(header)
+        addSubview(self.header)
         addSubview(content)
         setAccessibilityRole(.group)
-        setAccessibilityLabel(accessibilityModuleLabel(for: moduleID))
-        wireFocusTraversal()
+        setAccessibilityLabel(self.accessibilityModuleLabel(for: moduleID))
+        self.wireFocusTraversal()
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var isFlipped: Bool { true }
+    override var isFlipped: Bool {
+        true
+    }
 
     func applyLayout(frame: CGRect) {
-        savedNormalFrame = frame
-        guard presentation == .normal else { return }
-        applyNormalLayout(frame: frame)
+        self.savedNormalFrame = frame
+        guard self.presentation == .normal else { return }
+        self.applyNormalLayout(frame: frame)
     }
 
     func enterTheaterPresentation(containerSize: CGSize) {
-        presentation = .theater
-        header.isHidden = true
+        self.presentation = .theater
+        self.header.isHidden = true
         frame = CGRect(origin: .zero, size: containerSize)
-        content.frame = bounds
+        self.content.frame = bounds
         needsDisplay = true
     }
 
     func exitTheaterPresentation(restoreFrame: CGRect) {
-        presentation = .normal
-        header.isHidden = false
-        let targetFrame = restoreFrame == .zero ? savedNormalFrame : restoreFrame
+        self.presentation = .normal
+        self.header.isHidden = false
+        let targetFrame = restoreFrame == .zero ? self.savedNormalFrame : restoreFrame
         if targetFrame == .zero {
             frame = restoreFrame
             return
         }
-        applyNormalLayout(frame: targetFrame)
+        self.applyNormalLayout(frame: targetFrame)
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        guard presentation == .normal else { return }
+    override func draw(_: NSRect) {
+        guard self.presentation == .normal else { return }
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let backingScale = window?.backingScaleFactor ?? 1
-        skin.panelFrame(bounds, contentFrame: content.isHidden ? nil : contentFrameRect, in: context, backingScale: backingScale)
+        self.skin.panelFrame(
+            bounds,
+            contentFrame: self.content.isHidden ? nil : self.contentFrameRect,
+            in: context,
+            backingScale: backingScale
+        )
     }
 
     /// Recessed content frame shared by all modules; spans the header seam as in the reference.
@@ -87,8 +94,8 @@ final class AmpXModuleView: NSView {
         self.frame = snappedFrame
 
         let headerHeight = AmpXMetrics.headerHeight * (frame.width / AmpXMetrics.compositionWidth)
-        header.frame = CGRect(x: 0, y: 0, width: snappedFrame.width, height: headerHeight)
-        content.frame = CGRect(
+        self.header.frame = CGRect(x: 0, y: 0, width: snappedFrame.width, height: headerHeight)
+        self.content.frame = CGRect(
             x: 0,
             y: headerHeight,
             width: snappedFrame.width,
@@ -101,12 +108,12 @@ final class AmpXModuleView: NSView {
             if let responder = window?.firstResponder as? NSView,
                responder.isDescendant(of: content)
             {
-                rememberedContentResponder = responder
+                self.rememberedContentResponder = responder
             }
-            content.isHidden = true
-            window?.makeFirstResponder(header)
+            self.content.isHidden = true
+            window?.makeFirstResponder(self.header)
         } else {
-            content.isHidden = false
+            self.content.isHidden = false
             if let rememberedContentResponder,
                rememberedContentResponder.window === window
             {
@@ -117,12 +124,12 @@ final class AmpXModuleView: NSView {
 
     func focusableViews() -> [NSView] {
         var views: [NSView] = [header]
-        views.append(contentsOf: content.focusableControls())
+        views.append(contentsOf: self.content.focusableControls())
         return views
     }
 
     func wireFocusTraversal() {
-        let views = focusableViews()
+        let views = self.focusableViews()
         guard !views.isEmpty else { return }
         for index in views.indices {
             views[index].nextKeyView = views[(index + 1) % views.count]
@@ -130,7 +137,7 @@ final class AmpXModuleView: NSView {
     }
 
     override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
-        header.accessibilityCustomActions()
+        self.header.accessibilityCustomActions()
     }
 
     private func accessibilityModuleLabel(for moduleID: AmpXModuleID) -> String {

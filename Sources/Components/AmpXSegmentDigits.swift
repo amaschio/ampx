@@ -50,42 +50,56 @@ struct AmpXSegmentDigits {
     }
 
     func draw(_ text: String, in rect: CGRect, context: CGContext) {
-        context.setFillColor(skin.green.cgColor)
-        for cell in Self.cells(for: text, in: rect, metrics: metrics) {
+        context.setFillColor(self.skin.green.cgColor)
+        for cell in Self.cells(for: text, in: rect, metrics: self.metrics) {
             switch cell.character {
             case ":":
-                drawColon(in: cell.rect, context: context)
+                self.drawColon(in: cell.rect, context: context)
             case "-":
-                context.addPath(horizontalSegment(in: cell.rect, centerY: cell.rect.midY))
+                context.addPath(self.horizontalSegment(in: cell.rect, centerY: cell.rect.midY))
                 context.fillPath()
             default:
-                drawDigit(cell.character, in: cell.rect, context: context)
+                self.drawDigit(cell.character, in: cell.rect, context: context)
             }
         }
     }
 
     private func drawDigit(_ character: Character, in rect: CGRect, context: CGContext) {
-        let lit = segments(for: character)
-        let t = metrics.stroke
+        let lit = self.segments(for: character)
+        let t = self.metrics.stroke
         let path = CGMutablePath()
-        if lit.contains("a") { path.addPath(horizontalSegment(in: rect, centerY: rect.minY + t / 2)) }
-        if lit.contains("g") { path.addPath(horizontalSegment(in: rect, centerY: rect.midY)) }
-        if lit.contains("d") { path.addPath(horizontalSegment(in: rect, centerY: rect.maxY - t / 2)) }
+        if lit.contains("a") {
+            path.addPath(self.horizontalSegment(in: rect, centerY: rect.minY + t / 2))
+        }
+        if lit.contains("g") {
+            path.addPath(self.horizontalSegment(in: rect, centerY: rect.midY))
+        }
+        if lit.contains("d") {
+            path.addPath(self.horizontalSegment(in: rect, centerY: rect.maxY - t / 2))
+        }
         let upper = (rect.minY, rect.midY)
         let lower = (rect.midY, rect.maxY)
-        if lit.contains("f") { path.addPath(verticalSegment(centerX: rect.minX + t / 2, span: upper)) }
-        if lit.contains("b") { path.addPath(verticalSegment(centerX: rect.maxX - t / 2, span: upper)) }
-        if lit.contains("e") { path.addPath(verticalSegment(centerX: rect.minX + t / 2, span: lower)) }
-        if lit.contains("c") { path.addPath(verticalSegment(centerX: rect.maxX - t / 2, span: lower)) }
+        if lit.contains("f") {
+            path.addPath(self.verticalSegment(centerX: rect.minX + t / 2, span: upper))
+        }
+        if lit.contains("b") {
+            path.addPath(self.verticalSegment(centerX: rect.maxX - t / 2, span: upper))
+        }
+        if lit.contains("e") {
+            path.addPath(self.verticalSegment(centerX: rect.minX + t / 2, span: lower))
+        }
+        if lit.contains("c") {
+            path.addPath(self.verticalSegment(centerX: rect.maxX - t / 2, span: lower))
+        }
         context.addPath(path)
         context.fillPath()
     }
 
     /// Hexagonal segment with pointed ends, leaving `joint` clearance at each corner.
     private func horizontalSegment(in rect: CGRect, centerY: CGFloat) -> CGPath {
-        let half = metrics.stroke / 2
-        let x0 = rect.minX + metrics.joint
-        let x1 = rect.maxX - metrics.joint
+        let half = self.metrics.stroke / 2
+        let x0 = rect.minX + self.metrics.joint
+        let x1 = rect.maxX - self.metrics.joint
         let path = CGMutablePath()
         path.addLines(between: [
             CGPoint(x: x0, y: centerY),
@@ -100,9 +114,9 @@ struct AmpXSegmentDigits {
     }
 
     private func verticalSegment(centerX: CGFloat, span: (CGFloat, CGFloat)) -> CGPath {
-        let half = metrics.stroke / 2
-        let y0 = span.0 + metrics.joint
-        let y1 = span.1 - metrics.joint
+        let half = self.metrics.stroke / 2
+        let y0 = span.0 + self.metrics.joint
+        let y1 = span.1 - self.metrics.joint
         let path = CGMutablePath()
         path.addLines(between: [
             CGPoint(x: centerX, y: y0),
@@ -117,7 +131,7 @@ struct AmpXSegmentDigits {
     }
 
     private func drawColon(in rect: CGRect, context: CGContext) {
-        let dot = metrics.colonDot
+        let dot = self.metrics.colonDot
         let x = rect.midX - dot.width / 2
         for fraction in [0.29, 0.71] {
             let centerY = rect.minY + rect.height * fraction

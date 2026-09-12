@@ -21,7 +21,7 @@ class AmpXModuleContent: AmpXDrawingView {
         }
     }
 
-    static func make(moduleID: AmpXModuleID, skin: any AmpXSkin) -> AmpXModuleContent {
+    static func make(moduleID: AmpXModuleID, skin _: any AmpXSkin) -> AmpXModuleContent {
         switch moduleID {
         case .player:
             preconditionFailure("Player module content must be constructed by AmpXHostCoordinator")

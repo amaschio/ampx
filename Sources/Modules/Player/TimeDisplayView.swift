@@ -23,56 +23,55 @@ final class TimeDisplayView: AmpXContinuousView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
     override func tick(at time: TimeInterval) {
-        updateBlinkState(at: time)
+        self.updateBlinkState(at: time)
         setNeedsDisplay(bounds)
     }
 
-    override func mouseDown(with event: NSEvent) {
-        showRemainingTime.toggle()
+    override func mouseDown(with _: NSEvent) {
+        self.showRemainingTime.toggle()
     }
 
-    override func draw(_ dirtyRect: NSRect) {
+    override func draw(_: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         if let referenceText {
-            segmentDigits.draw(referenceText, in: bounds, context: context)
+            self.segmentDigits.draw(referenceText, in: bounds, context: context)
             return
         }
         guard let audioPlayer else { return }
 
         let duration = audioPlayer.duration
         let current = audioPlayer.playbackClock.currentTime
-        let displayTime: TimeInterval
-        if showRemainingTime {
-            displayTime = duration > 0 ? -(duration - current) : 0
+        let displayTime: TimeInterval = if self.showRemainingTime {
+            duration > 0 ? -(duration - current) : 0
         } else {
-            displayTime = current
+            current
         }
 
-        let text = AmpXTimeFormatting.format(displayTime, showNegative: showRemainingTime)
-        if blinkOff {
+        let text = AmpXTimeFormatting.format(displayTime, showNegative: self.showRemainingTime)
+        if self.blinkOff {
             return
         }
-        segmentDigits.draw(text, in: bounds, context: context)
+        self.segmentDigits.draw(text, in: bounds, context: context)
     }
 
     private func updateBlinkState(at time: TimeInterval) {
         guard let audioPlayer else {
-            blinkOff = false
+            self.blinkOff = false
             return
         }
         let paused = !audioPlayer.isPlaying && audioPlayer.duration > 0
         guard paused else {
-            blinkOff = false
+            self.blinkOff = false
             return
         }
-        if time - lastBlinkToggle >= 0.5 {
-            blinkOff.toggle()
-            lastBlinkToggle = time
+        if time - self.lastBlinkToggle >= 0.5 {
+            self.blinkOff.toggle()
+            self.lastBlinkToggle = time
         }
     }
 }

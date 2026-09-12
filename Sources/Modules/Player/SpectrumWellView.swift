@@ -35,26 +35,25 @@ final class SpectrumWellView: AmpXContinuousView {
     ]
 
     override func tick(at time: TimeInterval) {
-        let deltaTime: Float
-        if let lastTimestamp {
-            deltaTime = Float(max(time - lastTimestamp, 0))
+        let deltaTime: Float = if let lastTimestamp {
+            Float(max(time - lastTimestamp, 0))
         } else {
-            deltaTime = 1.0 / 60.0
+            1.0 / 60.0
         }
         self.lastTimestamp = time
 
         let snapshot = AudioFeatureBus.shared.spectrumSnapshot(at: time)
-        let smoothed = peakTracker.update(
+        let smoothed = self.peakTracker.update(
             targets: snapshot.targets,
             isPlaying: snapshot.isPlaying,
             deltaTime: deltaTime
         )
 
-        for column in 0 ..< columnCount {
+        for column in 0 ..< self.columnCount {
             let bandIndex = Self.bandIndex(forColumn: column)
             let level = smoothed.bars[bandIndex]
-            columnLevels[column] = level
-            columnPeakLevels[column] = columnPeaks[column].updatePeak(level: level, at: time)
+            self.columnLevels[column] = level
+            self.columnPeakLevels[column] = self.columnPeaks[column].updatePeak(level: level, at: time)
         }
 
         setNeedsDisplay(bounds)
@@ -66,8 +65,8 @@ final class SpectrumWellView: AmpXContinuousView {
     }
 
     func segmentRect(column: Int, segment: Int) -> CGRect {
-        let area = spectrumRect
-        let top = area.minY + CGFloat(segmentCount - 1 - segment) * AmpXMetrics.spectrumSegmentPitch
+        let area = self.spectrumRect
+        let top = area.minY + CGFloat(self.segmentCount - 1 - segment) * AmpXMetrics.spectrumSegmentPitch
         return CGRect(
             x: area.minX + CGFloat(column) * AmpXMetrics.spectrumColumnPitch,
             y: top,
@@ -76,13 +75,13 @@ final class SpectrumWellView: AmpXContinuousView {
         )
     }
 
-    override func draw(_ dirtyRect: NSRect) {
+    override func draw(_: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
-        let levels = reference?.levels ?? columnLevels
-        let peaks = reference?.peaks ?? columnPeakLevels
+        let levels = self.reference?.levels ?? self.columnLevels
+        let peaks = self.reference?.peaks ?? self.columnPeakLevels
 
-        for column in 0 ..< min(columnCount, levels.count) {
-            drawColumn(column, level: levels[column], peak: column < peaks.count ? peaks[column] : 0, context: context)
+        for column in 0 ..< min(self.columnCount, levels.count) {
+            self.drawColumn(column, level: levels[column], peak: column < peaks.count ? peaks[column] : 0, context: context)
         }
 
         let labelColor = NSColor(srgbRed: 133 / 255, green: 148 / 255, blue: 179 / 255, alpha: 1)
@@ -100,25 +99,25 @@ final class SpectrumWellView: AmpXContinuousView {
     }
 
     private func drawColumn(_ column: Int, level: Float, peak: Float, context: CGContext) {
-        let lit = CGFloat(min(max(level, 0), 1)) * CGFloat(segmentCount)
+        let lit = CGFloat(min(max(level, 0), 1)) * CGFloat(self.segmentCount)
         let fullSegments = Int(lit)
-        for segment in 0 ..< min(fullSegments, segmentCount) {
+        for segment in 0 ..< min(fullSegments, self.segmentCount) {
             context.setFillColor(Self.segmentColors[segment].cgColor)
-            context.fill(segmentRect(column: column, segment: segment))
+            context.fill(self.segmentRect(column: column, segment: segment))
         }
 
         let partial = lit - CGFloat(fullSegments)
-        if fullSegments < segmentCount, partial > 0.08 {
-            let slot = segmentRect(column: column, segment: fullSegments)
+        if fullSegments < self.segmentCount, partial > 0.08 {
+            let slot = self.segmentRect(column: column, segment: fullSegments)
             let height = max(1, slot.height * partial)
             context.setFillColor(Self.segmentColors[fullSegments].cgColor)
             context.fill(CGRect(x: slot.minX, y: slot.maxY - height, width: slot.width, height: height))
         }
 
-        let peakLevel = CGFloat(min(max(peak, 0), 1)) * CGFloat(segmentCount)
+        let peakLevel = CGFloat(min(max(peak, 0), 1)) * CGFloat(self.segmentCount)
         guard peakLevel > lit + 0.25 else { return }
         let peakSegment = min(segmentCount - 1, max(0, Int(peakLevel.rounded(.up)) - 1))
-        let slot = segmentRect(column: column, segment: peakSegment)
+        let slot = self.segmentRect(column: column, segment: peakSegment)
         context.setFillColor(Self.segmentColors[peakSegment].withAlphaComponent(0.8).cgColor)
         context.fill(CGRect(x: slot.minX + 0.25, y: slot.minY, width: 2, height: 1.5))
         context.fill(CGRect(x: slot.maxX - 2.25, y: slot.minY, width: 2, height: 1.5))
