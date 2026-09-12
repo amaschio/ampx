@@ -391,6 +391,12 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
             )
         case .equalizer:
             return EqualizerModuleContent(skin: skin, audioPlayer: audioPlayer)
+        case .playlist:
+            return PlaylistModuleContent(
+                skin: skin,
+                manager: playlistManager,
+                audioPlayer: audioPlayer
+            )
         default:
             return AmpXModuleContent.make(moduleID: moduleID, skin: skin)
         }
