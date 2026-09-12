@@ -146,7 +146,7 @@ Key UI suites exercised: `AmpXLayoutTests`, `AmpXStackViewportTests`, `AmpXHostC
 | Detached EQ | stack 490×420 + detached 490×280 | 1.0 / inherited | [stack](acceptance-shots/detached-eq-stack.png) · [window](acceptance-shots/detached-eq-window.png) |
 | All-four overflow | 662×480, all modules open | 1.35 | [all-four-overflow-1.35](acceptance-shots/all-four-overflow-1.35.png) |
 
-Hit-area alignment after resize: stack width maps to `AmpXLayout.scale(width:)` (clamped 0.85–1.35); module frames and control rects scale with layout (`AmpXLayoutTests`, live resize via System Events).
+Hit-area alignment after resize: stack width maps to `AmpXLayout.scale(width:)` (clamped 0.85–1.35); module frames and control rects scale with layout (`AmpXLayoutTests`). Live interactive resize was not exercised — scale bounds verified via layout-import screenshots and unit tests only.
 
 ### PNG comparison — accepted deltas
 
@@ -167,35 +167,36 @@ Compared panel bounds to `screenshots/AmpX.png` / reference crops above:
 | Module state and persistence | **Pass** | `AmpXModuleOrderTests`, `AmpXLayoutStoreTests`, `AmpXHostCoordinatorTests`; layout import round-trip |
 | Overflow | **Pass** | `AmpXStackViewportTests.testMaximumScaleShortScreenOverflowLayout`; overflow screenshot (playlist shrinks, stack scrolls) |
 | Drawing models | **Pass** | `AmpXSpectrumColumnModelTests`, `PlaylistRowLayoutTests`, `AmpXControlsTests` |
-| Input and accessibility | **Pass** (automated) | `AmpXAccessibilityTests`, `AmpXKeyRouterTests`, `PlaylistKeyboardAdapterTests` |
-| Visibility and lifecycle | **Pass** | `AmpXEffectiveVisibilityTests` (display-link start/stop counters); `EntheaHostLifecycleTests` |
+| Input and accessibility | **Partial** | `AmpXAccessibilityTests`, `AmpXKeyRouterTests`, `PlaylistKeyboardAdapterTests` (automated only; VoiceOver walk deferred). Detached-host accessibility/VO not exercised. |
+| Visibility and lifecycle | **Pass** (automated) | `AmpXEffectiveVisibilityTests` (display-link start/stop counters); `EntheaHostLifecycleTests`. Occlusion: predicate-only — see Visibility section. |
 | Theater | **Pass** | `AmpXTheaterTests` (view identity, frame/presentation restore) |
 | Regression and cutover | **Pass** | Full suite green; `PlaylistChromeActionsTests` unchanged; Classic removed |
 
-### Exercise sequence (manual + automated)
+### Exercise sequence
 
-| Step | Observation | Automated backing |
+| Step | Manual | Automated |
 |---|---|---|
-| Play fixture (`startup.mp3`) | Startup sound loads and plays on launch | `AmpXApplicationControllerTests`, `AmpXPlayerBindingTests` |
-| EQ + volume | Sliders reach `AudioPlayer` / EQ store | `AmpXEQBindingTests`, `AmpXPlayerBindingTests` |
-| Playlist add/reorder/select/crop | Selection + manager ops | `PlaylistKeyboardAdapterTests`, `PlaylistManagerTests` |
-| Detach Playlist / EQ | Second host window at saved frame; stack omits module | Layout import screenshots; `AmpXTheaterTests` (detach path) |
-| Resize hosts differently | Tear-off keeps source scale; stack reclamps playlist viewport on grow | `AmpXLayoutTests`, `AmpXStackViewportTests` |
-| Re-dock | `redock` restores stack order | `AmpXModuleOrderTests` |
-| Close / reopen stack | Window hidden; state retained; dock icon restores | `AmpXHostCoordinatorTests`, `AmpXApplicationControllerTests` |
-| Theater enter/exit | Same `EntheaModuleContent` instance; presentation options restored | `AmpXTheaterTests` |
-| Close ENTHEA | WebView teardown, host released | `EntheaHostLifecycleTests` |
-| Relaunch persistence | JSON layout round-trip | `AmpXLayoutStoreTests` |
+| Play fixture (`startup.mp3`) | **Live:** app launch; startup sound audible | `AmpXApplicationControllerTests`, `AmpXPlayerBindingTests` |
+| EQ + volume | — | `AmpXEQBindingTests`, `AmpXPlayerBindingTests` |
+| Playlist add/reorder/select/crop | — | `PlaylistKeyboardAdapterTests`, `PlaylistManagerTests` |
+| Detach Playlist / EQ | **Layout-import** screenshots (test-proxy; not live menu clicks) | `AmpXTheaterTests`; `AmpXHostCoordinatorTests` |
+| Resize at scale bounds | **Layout-import** at 0.85 / 1.35 widths (test-proxy; no live resize) | `AmpXLayoutTests`, `AmpXStackViewportTests` |
+| Re-dock | — | `AmpXModuleOrderTests` |
+| Close / reopen stack | — | `AmpXHostCoordinatorTests`, `AmpXApplicationControllerTests` |
+| Theater enter/exit | — | `AmpXTheaterTests` |
+| Close ENTHEA | — | `EntheaHostLifecycleTests` |
+| Relaunch persistence | — | `AmpXLayoutStoreTests` |
 
-**Environmental note:** Interactive detach/collapse via System Events menu clicks was unreliable in the agent session (focus not always reaching module headers). Behavior verified via layout-import screenshots plus coordinator/theater unit tests.
+**Scope note:** Only startup playback was exercised live. Detach, collapse, and scale-bound states were verified via `defaults import` layout-import screenshots plus unit/coordinator tests — not interactive System Events menu clicks or live window resize.
 
 ### Keyboard, VoiceOver, shortcuts
 
-- **Keyboard-only (automated):** `AmpXAccessibilityTests` — button press, slider increment/decrement, module-header custom actions (Collapse/Close/Detach), tab traversal, collapse focus fallback, stack scroll-on-focus.
+- **Keyboard-only (automated):** `AmpXAccessibilityTests` — button press, slider increment/decrement, module-header custom actions (Collapse/Close/Detach), tab traversal within a module, collapse focus fallback, programmatic focus-reveal scroll (`testFocusRevealScrollsStackViewport`).
+- **Overflow traversal:** Tab order and focus-reveal scroll tested in default stack layout only. All-four-overflow at scale 1.35 (screenshot) not exercised for keyboard traversal.
 - **Playlist keys:** arrow/Page Up/Down, Return, Delete, ⌘A/I/R, crop — `AmpXKeyRouterTests`, `PlaylistKeyboardAdapterTests`.
 - **Module commands:** ⌘⌥↑/↓ (reorder), ⌘⌥D (detach), ⌘⌥C (collapse) — `AmpXKeyRouterTests`; mirrored in **Window** menu (`AmpXMenuBuilder`).
 - **OS-reserved conflicts:** ⌘W → **Close Stack** (not Stop); ⌘Q → Quit (native). Global playback keys (Space, Z/B, arrows when no control focused) route through `AmpXKeyRouter` without overriding menu equivalents.
-- **VoiceOver:** Custom actions and value ranges wired on `AmpXButton`/`AmpXSlider`/headers; full VO walk not recorded in CI — manual spot-check deferred.
+- **VoiceOver:** Custom actions and value ranges wired on `AmpXButton`/`AmpXSlider`/headers; full VO walk deferred. Detached-host windows not covered.
 
 ### Visibility counters
 
@@ -203,11 +204,12 @@ Compared panel bounds to `screenshots/AmpX.png` / reference crops above:
 
 - Collapse, viewport clip, hide, and close each stop the display link once (idempotent repeats).
 - ENTHEA audio bridge follows `EntheaHostLifecycle.setVisible` / `close()` (`EntheaHostLifecycleTests`).
+- **Occlusion gap:** `occluded` is derived from `window.occlusionState` in production (`AmpXEffectiveVisibility.windowState`) but tests only feed the predicate directly (`testEachInputIndependentlyBlocksVisibility` with `occluded: true`). No live multi-window occlusion integration test.
 
 ### Task 20 checklist
 
 - [x] Environment, scales, window sizes, commit recorded; full suite with paths/counts
-- [x] Screenshots: 0.85 / 1.0 / 1.35, collapsed EQ, detached Playlist/EQ, all-four overflow
-- [x] Exercise sequence traced to tests + manual launch observations
-- [x] Keyboard/a11y/visibility documented; 3× labeled offscreen-only
-- [x] No acceptance defects found — no implementation changes required
+- [x] Screenshots: 0.85 / 1.0 / 1.35, collapsed EQ, detached Playlist/EQ, all-four overflow (layout-import; not live interactive)
+- [x] Exercise sequence split manual vs automated; live scope limited to startup playback
+- [x] Keyboard/a11y/visibility documented with known gaps (VO deferred, detached-host a11y, occlusion predicate-only, overflow traversal untested)
+- [x] 3× labeled offscreen-only; no implementation defects found in automated scope
