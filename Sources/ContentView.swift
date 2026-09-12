@@ -51,7 +51,9 @@ struct ContentView: View {
         .fixedSize()
         .ignoresSafeArea(.all)
         .onAppear {
+            self.bindPlaybackCoordination()
             self.setupWindow()
+            self.loadStartupSound()
             self.lastAppliedUIScale = self.uiScale.scale
             self.panelLayout.alignPlaylistWidthToStyle(
                 baseWidth: self.styledPanelWidth,
@@ -159,12 +161,42 @@ struct ContentView: View {
         )
     }
 
+    private func bindPlaybackCoordination() {
+        self.audioPlayer.onTrackFinished = { [weak playlistManager] in
+            playlistManager?.next()
+        }
+        self.audioPlayer.onNextTrackRequested = { [weak playlistManager] in
+            playlistManager?.next()
+        }
+        self.audioPlayer.onPreviousTrackRequested = { [weak playlistManager] in
+            playlistManager?.previous()
+        }
+    }
+
     private func setupWindow() {
         Task { @MainActor in
             if let window = self.mainPlayerWindow() {
                 self.configureWindow(window)
             }
             self.syncPanelWindows()
+        }
+    }
+
+    private func loadStartupSound() {
+        guard self.playlistManager.shouldPlayStartupSoundOnLaunch else { return }
+
+        guard let startupURL = Bundle.main.url(forResource: "startup", withExtension: "mp3") else {
+            return
+        }
+
+        Task { @MainActor in
+            let startupTrack = await Track.load(from: startupURL)
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            self.audioPlayer.loadTrack(startupTrack) { success in
+                if success {
+                    self.audioPlayer.play()
+                }
+            }
         }
     }
 
