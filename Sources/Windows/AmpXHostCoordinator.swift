@@ -113,6 +113,22 @@ final class AmpXHostCoordinator {
         stackWindowController?.window?.miniaturize(nil)
     }
 
+    func adjustPlaylistViewport(byHeightDelta delta: CGFloat, width: CGFloat) {
+        let scale = AmpXLayout.scale(width: width)
+        playlistViewportHeight = AmpXLayout.adjustedPlaylistViewportHeight(
+            preferred: playlistViewportHeight,
+            heightDelta: delta,
+            scale: scale
+        )
+        stackWindowController?.setPreferredPlaylistViewportHeight(playlistViewportHeight)
+        stackWindowController?.updateLayout()
+        persistLayout()
+    }
+
+    func revealStackContent(_ rect: CGRect) {
+        stackWindowController?.revealContent(rect)
+    }
+
     private func createModuleViews() {
         for moduleID in AmpXModuleID.allCases {
             let content = AmpXModuleContent.make(moduleID: moduleID, skin: skin)

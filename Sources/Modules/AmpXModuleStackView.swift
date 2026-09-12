@@ -16,7 +16,15 @@ final class AmpXModuleStackView: NSView {
         }
     }
 
-    func applyLayout(_ result: AmpXLayoutResult, state: AmpXModuleOrder) {
+    func moduleView(for moduleID: AmpXModuleID) -> AmpXModuleView? {
+        moduleViews[moduleID]
+    }
+
+    func applyLayout(
+        _ result: AmpXLayoutResult,
+        state: AmpXModuleOrder,
+        playlistViewportHeight: CGFloat
+    ) {
         let visibleModules = state.order.filter { moduleID in
             !state.closed.contains(moduleID) && !state.detached.contains(moduleID)
         }
@@ -26,6 +34,12 @@ final class AmpXModuleStackView: NSView {
                   let moduleView = moduleViews[moduleID]
             else { continue }
             moduleView.applyLayout(frame: frame)
+
+            if moduleID == .playlist,
+               let playlist = moduleView.content as? PlaylistModuleContent
+            {
+                playlist.setRowViewportHeight(playlistViewportHeight)
+            }
         }
     }
 }

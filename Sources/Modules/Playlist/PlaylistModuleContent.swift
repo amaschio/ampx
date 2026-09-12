@@ -39,8 +39,13 @@ final class PlaylistModuleContent: AmpXModuleContent {
     ]
 
     private let scrollbar: AmpXScrollbar
+    private var rowViewportHeight = AmpXMetrics.playlistRows.height
     private var footerButtonsViews: [AmpXButton] = []
     private var miniTransportButtons: [AmpXButton] = []
+
+    var canScrollVertically: Bool {
+        scrollbar.contentLength > scrollbar.viewportLength
+    }
 
     override init(skin: any AmpXSkin) {
         self.scrollbar = AmpXScrollbar(skin: skin)
@@ -55,8 +60,11 @@ final class PlaylistModuleContent: AmpXModuleContent {
 
     private func configureControls() {
         scrollbar.contentLength = CGFloat(Self.mockTracks.count) * AmpXMetrics.playlistRowHeight
-        scrollbar.viewportLength = AmpXMetrics.playlistRows.height
+        scrollbar.viewportLength = rowViewportHeight
         scrollbar.offset = 0
+        scrollbar.onScroll = { [weak self] _ in
+            self?.needsDisplay = true
+        }
 
         for (label, localRect) in Self.footerButtons {
             let button = AmpXButton(skin: skin)
@@ -85,8 +93,30 @@ final class PlaylistModuleContent: AmpXModuleContent {
         layoutControls()
     }
 
+    func setRowViewportHeight(_ height: CGFloat) {
+        rowViewportHeight = max(height, AmpXMetrics.minimumPlaylistViewportHeight)
+        scrollbar.viewportLength = rowViewportHeight
+        needsDisplay = true
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        guard canScrollVertically else { return }
+        scrollbar.scrollWheel(with: event)
+    }
+
     private func layoutControls() {
-        scrollbar.frame = AmpXMetrics.playlistScrollbar
+        let rows = CGRect(
+            x: AmpXMetrics.playlistRows.minX,
+            y: AmpXMetrics.playlistRows.minY,
+            width: AmpXMetrics.playlistRows.width,
+            height: rowViewportHeight
+        )
+        scrollbar.frame = CGRect(
+            x: AmpXMetrics.playlistScrollbar.minX,
+            y: rows.minY,
+            width: AmpXMetrics.playlistScrollbar.width,
+            height: rowViewportHeight
+        )
         let footer = AmpXMetrics.playlistFooter
 
         for (index, localRect) in Self.footerButtons.enumerated() where index < footerButtonsViews.count {
@@ -109,11 +139,17 @@ final class PlaylistModuleContent: AmpXModuleContent {
     }
 
     private func drawRowViewport(in context: CGContext) {
-        let viewport = AmpXMetrics.playlistRows
+        let viewport = CGRect(
+            x: AmpXMetrics.playlistRows.minX,
+            y: AmpXMetrics.playlistRows.minY,
+            width: AmpXMetrics.playlistRows.width,
+            height: rowViewportHeight
+        )
         skin.displayWell(viewport, in: context, backingScale: window?.backingScaleFactor ?? 1)
 
+        let scrollOffset = scrollbar.offset
         for index in 0 ..< Self.mockTracks.count {
-            let row = rowRect(index: index)
+            let row = rowRect(index: index).offsetBy(dx: 0, dy: -scrollOffset)
             guard viewport.intersects(row) else { continue }
 
             let track = Self.mockTracks[index]

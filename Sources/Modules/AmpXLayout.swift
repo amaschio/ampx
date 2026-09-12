@@ -15,6 +15,16 @@ enum AmpXLayout {
         return min(1.35, max(0.85, raw))
     }
 
+    static func adjustedPlaylistViewportHeight(
+        preferred: CGFloat,
+        heightDelta: CGFloat,
+        scale: CGFloat
+    ) -> CGFloat {
+        guard scale > 0 else { return preferred }
+        let adjusted = preferred + heightDelta / scale
+        return max(AmpXMetrics.minimumPlaylistViewportHeight, adjusted)
+    }
+
     static func calculate(
         state: AmpXModuleOrder,
         width: CGFloat,
