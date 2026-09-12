@@ -126,4 +126,42 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
             return "ENTHEA"
         }
     }
+
+    override func mouseUp(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let buttonFrames = headerButtonFrames()
+
+        if let closeFrame = buttonFrames.close, closeFrame.contains(point) {
+            onClose?()
+            return
+        }
+        if let collapseFrame = buttonFrames.collapse, collapseFrame.contains(point) {
+            onCollapse?()
+            return
+        }
+        if let minimizeFrame = buttonFrames.minimize, minimizeFrame.contains(point) {
+            onMinimize?()
+        }
+    }
+
+    private func headerButtonFrames() -> (close: CGRect?, collapse: CGRect?, minimize: CGRect?) {
+        let buttonSize = CGSize(width: 16, height: 14)
+        var x = bounds.maxX - 8 - buttonSize.width
+        let y = bounds.midY - buttonSize.height / 2
+
+        let close = CGRect(x: x, y: y, width: buttonSize.width, height: buttonSize.height)
+        x -= buttonSize.width + 4
+
+        let collapse = CGRect(x: x, y: y, width: buttonSize.width, height: buttonSize.height)
+        x -= buttonSize.width + 4
+
+        let minimize: CGRect?
+        if moduleID == .player {
+            minimize = CGRect(x: x, y: y, width: buttonSize.width, height: buttonSize.height)
+        } else {
+            minimize = nil
+        }
+
+        return (close, collapse, minimize)
+    }
 }

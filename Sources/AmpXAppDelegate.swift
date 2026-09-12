@@ -7,7 +7,7 @@ final class AmpXAppDelegate: NSObject, NSApplicationDelegate {
             || NSClassFromString("XCTestCase") != nil
     }
 
-    private var stackWindowController: AmpXStackWindowController?
+    private var hostCoordinator: AmpXHostCoordinator?
 
     func applicationDidFinishLaunching(_: Notification) {
         guard !Self.isRunningUnderTest else { return }
@@ -15,14 +15,25 @@ final class AmpXAppDelegate: NSObject, NSApplicationDelegate {
         AmpXTypography.registerBundledFonts()
         UserDefaults.standard.set(false, forKey: "NSFullScreenMenuItemEverywhere")
 
-        let state = AmpXModuleOrder()
-        let skin = ClassicModernSkin()
-        let controller = AmpXStackWindowController(state: state, skin: skin)
-        self.stackWindowController = controller
-        controller.showWindow(nil)
+        let layoutStore = AmpXLayoutStore(defaults: .standard)
+        let saved = layoutStore.load()
+        let coordinator = AmpXHostCoordinator(
+            state: saved.state,
+            skin: ClassicModernSkin(),
+            layoutStore: layoutStore
+        )
+        self.hostCoordinator = coordinator
+        coordinator.showStack()
+    }
+
+    func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        if !hasVisibleWindows {
+            hostCoordinator?.showStack()
+        }
+        return true
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
-        true
+        false
     }
 }
