@@ -64,6 +64,7 @@ final class AmpXDetachedModuleWindowController: NSWindowController, NSWindowDele
 
     func windowDidMove(_: Notification) {
         guard let window, !window.inLiveResize else { return }
+        guard coordinator?.isInTheater != true || moduleID != .enthea else { return }
 
         moveSaveWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
@@ -75,6 +76,7 @@ final class AmpXDetachedModuleWindowController: NSWindowController, NSWindowDele
     }
 
     func windowDidEndLiveResize(_: Notification) {
+        guard coordinator?.isInTheater != true || moduleID != .enthea else { return }
         guard let window else { return }
         coordinator?.updateDetachedFrame(moduleID, frame: window.frame)
     }

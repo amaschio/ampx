@@ -45,6 +45,7 @@ final class AmpXAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_: Notification) {
+        hostCoordinator?.theaterController.handleApplicationTermination()
         if let monitor = keyboardEventMonitor {
             NSEvent.removeMonitor(monitor)
         }

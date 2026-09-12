@@ -5,6 +5,9 @@ final class AmpXModuleView: NSView {
     let content: AmpXModuleContent
     let header: AmpXModuleHeaderView
 
+    private(set) var presentation: AmpXHostPresentation = .normal
+    private var savedNormalFrame: CGRect = .zero
+
     private let skin: any AmpXSkin
     private weak var rememberedContentResponder: NSView?
 
@@ -30,6 +33,38 @@ final class AmpXModuleView: NSView {
     override var isFlipped: Bool { true }
 
     func applyLayout(frame: CGRect) {
+        savedNormalFrame = frame
+        guard presentation == .normal else { return }
+        applyNormalLayout(frame: frame)
+    }
+
+    func enterTheaterPresentation(containerSize: CGSize) {
+        presentation = .theater
+        header.isHidden = true
+        frame = CGRect(origin: .zero, size: containerSize)
+        content.frame = bounds
+        needsDisplay = true
+    }
+
+    func exitTheaterPresentation(restoreFrame: CGRect) {
+        presentation = .normal
+        header.isHidden = false
+        let targetFrame = restoreFrame == .zero ? savedNormalFrame : restoreFrame
+        if targetFrame == .zero {
+            frame = restoreFrame
+            return
+        }
+        applyNormalLayout(frame: targetFrame)
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard presentation == .normal else { return }
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        let backingScale = window?.backingScaleFactor ?? 1
+        skin.bevel(bounds, in: context, backingScale: backingScale)
+    }
+
+    private func applyNormalLayout(frame: CGRect) {
         let backingScale = window?.backingScaleFactor ?? 1
         let snappedFrame = CGRect(
             x: AmpXPixelGrid.align(frame.minX, backingScale: backingScale),
@@ -47,12 +82,6 @@ final class AmpXModuleView: NSView {
             width: snappedFrame.width,
             height: max(0, snappedFrame.height - headerHeight)
         )
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        guard let context = NSGraphicsContext.current?.cgContext else { return }
-        let backingScale = window?.backingScaleFactor ?? 1
-        skin.bevel(bounds, in: context, backingScale: backingScale)
     }
 
     func setContentCollapsed(_ collapsed: Bool) {

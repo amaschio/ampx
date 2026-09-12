@@ -18,7 +18,12 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
 
     private(set) var dragController = AmpXModuleDragSession()
     private(set) var focusedModuleID: AmpXModuleID = .player
-    private(set) var isEntheaInTheater = false
+    private(set) lazy var theaterController: AmpXTheaterController = AmpXTheaterController(
+        hosts: self,
+        screenFrame: { [weak self] in self?.screen.frame ?? .zero },
+        getPresentation: { NSApp.presentationOptions },
+        setPresentation: { NSApp.presentationOptions = $0 }
+    )
 
     private(set) var isStackVisible = false
 
@@ -87,6 +92,9 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     func closeModule(_ id: AmpXModuleID) {
         let nextFocus = nextVisibleModule(after: id)
         dragController.cancelDragIfDragging(moduleID: id)
+        if id == .enthea, theaterController.isActive {
+            theaterController.exit()
+        }
         if state.detached.contains(id) {
             tearDownDetachedWindow(for: id)
         }
@@ -201,6 +209,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     func updateDetachedFrame(_ id: AmpXModuleID, frame: CGRect) {
+        guard !theaterController.isActive || id != .enthea else { return }
         guard AmpXLayoutStore.isValidFrame(frame) else { return }
         let clamped = AmpXLayoutStore.clampedToVisibleFrame(frame, screen: screen)
         detachedFrames[id] = clamped
@@ -302,19 +311,19 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     func toggleTheater() {
-        isEntheaInTheater.toggle()
-        refreshEntheaPresentation()
-        refreshEffectiveVisibility()
+        if theaterController.isActive {
+            theaterController.exit()
+        } else {
+            theaterController.enter()
+        }
     }
 
     func exitTheater() {
-        isEntheaInTheater = false
-        refreshEntheaPresentation()
-        refreshEffectiveVisibility()
+        theaterController.exit()
     }
 
     var isInTheater: Bool {
-        isEntheaInTheater
+        theaterController.isActive
     }
 
     private func moveFocusedModule(by offset: Int) {
@@ -412,7 +421,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
             return EntheaModuleContent(
                 skin: skin,
                 audioPlayer: audioPlayer,
-                isTheater: { [weak self] in self?.isEntheaInTheater ?? false },
+                isTheater: { [weak self] in self?.theaterController.isActive ?? false },
                 onToggleTheater: { [weak self] in self?.toggleTheater() }
             )
         default:
@@ -590,11 +599,11 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
             )
         }
 
-        if moduleID == .enthea, isEntheaInTheater {
+        if moduleID == .enthea, theaterController.isActive {
             return AmpXEffectiveVisibility.theaterInputs(
                 collapsed: state.collapsed.contains(moduleID),
                 closed: state.closed.contains(moduleID),
-                window: stackWindow
+                window: theaterController.window
             )
         }
 
@@ -617,6 +626,59 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
 
     private func refreshEntheaPresentation() {
         (moduleViews[.enthea]?.content as? EntheaModuleContent)?.refreshTheaterPresentation()
+    }
+
+    func captureTheaterSnapshot(for moduleID: AmpXModuleID) -> AmpXTheaterSnapshot {
+        let view = moduleViews[moduleID]
+        let originalHostID = state.detached.contains(moduleID) ? moduleID : nil
+        let position = state.order.firstIndex(of: moduleID) ?? 0
+        let frame = view?.frame ?? .zero
+        let scale = moduleScale(for: moduleID)
+        return AmpXTheaterSnapshot(
+            originalHostID: originalHostID,
+            modulePosition: position,
+            frame: frame,
+            scale: scale,
+            presentationOptions: []
+        )
+    }
+
+    func extractModuleViewForTheater(_ moduleID: AmpXModuleID) {
+        guard let view = moduleViews[moduleID] else { return }
+        view.removeFromSuperview()
+        if state.detached.contains(moduleID) {
+            detachedWindowControllers[moduleID]?.window?.orderOut(nil)
+        }
+        stackWindowController?.updateLayout()
+    }
+
+    func reinstallModuleViewFromTheater(_ moduleID: AmpXModuleID, snapshot: AmpXTheaterSnapshot) {
+        guard let view = moduleViews[moduleID] else { return }
+
+        view.exitTheaterPresentation(restoreFrame: snapshot.frame)
+
+        if snapshot.originalHostID != nil {
+            guard let controller = detachedWindowControllers[moduleID] else { return }
+            let restoredFrame = AmpXLayoutStore.clampedToVisibleFrame(snapshot.frame, screen: screen)
+            transferModuleView(view, to: controller)
+            controller.applyFrame(restoredFrame)
+            controller.showWindow(nil)
+        } else {
+            transferModuleView(view, to: stackWindowController?.stackViewport.stackView)
+            stackWindowController?.updateLayout()
+        }
+
+        refreshEntheaPresentation()
+        refreshEffectiveVisibility()
+    }
+
+    func moduleScale(for moduleID: AmpXModuleID) -> CGFloat {
+        if state.detached.contains(moduleID) {
+            let width = detachedWindowControllers[moduleID]?.window?.frame.width ?? AmpXMetrics.compositionWidth
+            return AmpXLayout.scale(width: width)
+        }
+        let width = stackWindow?.frame.width ?? AmpXMetrics.compositionWidth
+        return AmpXLayout.scale(width: width)
     }
 
     private func moduleFrameInStackContent(for moduleID: AmpXModuleID) -> CGRect {
