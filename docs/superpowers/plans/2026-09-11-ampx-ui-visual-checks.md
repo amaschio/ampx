@@ -103,6 +103,111 @@ All content rectangles are in module-local coordinates (origin below the 22 pt h
 - [x] Task 6B: Equalizer crop — curve well, preamp, ten band tracks, mock curve
 - [x] Task 6C: Full three-module stack at scale 1.0 and scale bounds
 
-Capture: `./scripts/shoot.sh -- -AmpXNewUI YES` (scale 1.0 default width 490 pt; bounds at 416.5 pt / 661.5 pt content width → scale 0.85 / 1.35).
+Capture: `./scripts/shoot.sh` (default stack width 490 pt; resize stack to 416.5 pt / 661.5 pt content width → scale 0.85 / 1.35). Detached/collapsed states restored via `defaults import com.ampx.macos` with `AmpXModuleLayoutV1` JSON before relaunch.
 
-**Remaining deltas vs PNG (honest):** scrollbar gold is subtle in `AmpX.png` (mock uses sampled palette); row selection blue differs slightly from PNG anti-alias; footer bevel depth is approximate until Task 7 controls.
+**Remaining deltas vs PNG (honest):** scrollbar gold is subtle in `AmpX.png` (mock uses sampled palette); row selection blue differs slightly from PNG anti-alias; footer bevel depth is approximate; module header gold accent sits on the bevel seam rather than the PNG's inset line.
+
+---
+
+## Task 20 — AppKit acceptance verification (2026-09-12)
+
+**Build:** `a290baf53520f94b489f5c3a506ca55e784411c0`  
+**Toolchain:** Xcode 26.4 (17E192) · macOS 26.6.2 (25G83) · arm64  
+**Physical display:** `NSScreen.main` backing scale **2.0** (2056×1329 pt). No 3× display available in this environment.
+
+### Full regression suite (final tree)
+
+```text
+./scripts/run-tests.sh
+→ ** TEST SUCCEEDED **
+→ 468 tests passed, 0 failed (73 suites)
+→ xcresult: ~/Library/Developer/Xcode/DerivedData/AmpX-deeoonschstsamebrcjyfpxsbbix/Logs/Test/Test-AmpX-2026.09.12_01-38-47--0300.xcresult
+```
+
+Key UI suites exercised: `AmpXLayoutTests`, `AmpXStackViewportTests`, `AmpXHostCoordinatorTests`, `AmpXLayoutStoreTests`, `AmpXTheaterTests`, `AmpXAccessibilityTests`, `AmpXKeyRouterTests`, `AmpXEffectiveVisibilityTests`, `AmpXPlayerBindingTests`, `AmpXEQBindingTests`, `PlaylistKeyboardAdapterTests`, `EntheaHostLifecycleTests`, `AmpXPixelGridTests`, `AmpXFontsTests`.
+
+### Backing-scale coverage
+
+| Scale | Evidence | Limitation |
+|---|---|---|
+| 1× | Live stack screenshots at logical widths below | Rendered on 2× display; geometry uses `AmpXPixelGrid` 1× rules |
+| 2× | Primary capture environment (backing 2.0) | — |
+| 3× | `AmpXPixelGridTests.testStrokeRectEdgesAt3x`, `testAlignAt1xAnd3x` | **Offscreen only** — no 3× monitor attached |
+
+### Window sizes exercised
+
+| Scenario | Stack frame (w×h) | Derived scale | Screenshot |
+|---|---|---|---|
+| Scale 0.85 expanded | 417×900 | 0.85 | [scale-0.85-expanded](acceptance-shots/scale-0.85-expanded.png) |
+| Scale 1.0 expanded | 490×600 (default) / 490×900 | 1.0 | [scale-1.0-expanded](acceptance-shots/scale-1.0-expanded.png) |
+| Scale 1.35 expanded | 662×900 | 1.35 | [scale-1.35-expanded](acceptance-shots/scale-1.35-expanded.png) |
+| Collapsed EQ | 490×700, `collapsed: [equalizer]` | 1.0 | [scale-1.0-collapsed-eq](acceptance-shots/scale-1.0-collapsed-eq.png) |
+| Detached Playlist | stack 490×520 + detached 490×380 | 1.0 / inherited | [stack](acceptance-shots/detached-playlist-stack.png) · [window](acceptance-shots/detached-playlist-window.png) |
+| Detached EQ | stack 490×420 + detached 490×280 | 1.0 / inherited | [stack](acceptance-shots/detached-eq-stack.png) · [window](acceptance-shots/detached-eq-window.png) |
+| All-four overflow | 662×480, all modules open | 1.35 | [all-four-overflow-1.35](acceptance-shots/all-four-overflow-1.35.png) |
+
+Hit-area alignment after resize: stack width maps to `AmpXLayout.scale(width:)` (clamped 0.85–1.35); module frames and control rects scale with layout (`AmpXLayoutTests`, live resize via System Events).
+
+### PNG comparison — accepted deltas
+
+Compared panel bounds to `screenshots/AmpX.png` / reference crops above:
+
+- **Header/padding:** 4.5 pt canvas side inset and 11 pt top inset preserved; gold accent on header bevel (not PNG's inner well line).
+- **Typography:** `AmpXFonts.register()` loads Roboto Mono (Regular/Medium/SemiBold). Missing-glyph path falls back to `NSFont.monospacedSystemFont` (`AmpXFontsTests`).
+- **Timer vs metadata:** 7-segment timer + 3 pt spectrum segments; metadata uses continuous mono glyphs (per crop justification).
+- **Spectrum:** 3.0 pt segment height override (intentional).
+- **Selection/footer:** playlist selection blue and footer bevel depth differ slightly from PNG anti-alias.
+
+### Spec acceptance table
+
+| Area | Result | Evidence |
+|---|---|---|
+| Visual fidelity | **Pass** | Scale shots above; `AmpXPixelGridTests` (1×/2×/3× offscreen); `AmpXFontsTests` |
+| Layout and scale | **Pass** | `AmpXLayoutTests`, `AmpXStackViewportTests`, screenshots at bounds |
+| Module state and persistence | **Pass** | `AmpXModuleOrderTests`, `AmpXLayoutStoreTests`, `AmpXHostCoordinatorTests`; layout import round-trip |
+| Overflow | **Pass** | `AmpXStackViewportTests.testMaximumScaleShortScreenOverflowLayout`; overflow screenshot (playlist shrinks, stack scrolls) |
+| Drawing models | **Pass** | `AmpXSpectrumColumnModelTests`, `PlaylistRowLayoutTests`, `AmpXControlsTests` |
+| Input and accessibility | **Pass** (automated) | `AmpXAccessibilityTests`, `AmpXKeyRouterTests`, `PlaylistKeyboardAdapterTests` |
+| Visibility and lifecycle | **Pass** | `AmpXEffectiveVisibilityTests` (display-link start/stop counters); `EntheaHostLifecycleTests` |
+| Theater | **Pass** | `AmpXTheaterTests` (view identity, frame/presentation restore) |
+| Regression and cutover | **Pass** | Full suite green; `PlaylistChromeActionsTests` unchanged; Classic removed |
+
+### Exercise sequence (manual + automated)
+
+| Step | Observation | Automated backing |
+|---|---|---|
+| Play fixture (`startup.mp3`) | Startup sound loads and plays on launch | `AmpXApplicationControllerTests`, `AmpXPlayerBindingTests` |
+| EQ + volume | Sliders reach `AudioPlayer` / EQ store | `AmpXEQBindingTests`, `AmpXPlayerBindingTests` |
+| Playlist add/reorder/select/crop | Selection + manager ops | `PlaylistKeyboardAdapterTests`, `PlaylistManagerTests` |
+| Detach Playlist / EQ | Second host window at saved frame; stack omits module | Layout import screenshots; `AmpXTheaterTests` (detach path) |
+| Resize hosts differently | Tear-off keeps source scale; stack reclamps playlist viewport on grow | `AmpXLayoutTests`, `AmpXStackViewportTests` |
+| Re-dock | `redock` restores stack order | `AmpXModuleOrderTests` |
+| Close / reopen stack | Window hidden; state retained; dock icon restores | `AmpXHostCoordinatorTests`, `AmpXApplicationControllerTests` |
+| Theater enter/exit | Same `EntheaModuleContent` instance; presentation options restored | `AmpXTheaterTests` |
+| Close ENTHEA | WebView teardown, host released | `EntheaHostLifecycleTests` |
+| Relaunch persistence | JSON layout round-trip | `AmpXLayoutStoreTests` |
+
+**Environmental note:** Interactive detach/collapse via System Events menu clicks was unreliable in the agent session (focus not always reaching module headers). Behavior verified via layout-import screenshots plus coordinator/theater unit tests.
+
+### Keyboard, VoiceOver, shortcuts
+
+- **Keyboard-only (automated):** `AmpXAccessibilityTests` — button press, slider increment/decrement, module-header custom actions (Collapse/Close/Detach), tab traversal, collapse focus fallback, stack scroll-on-focus.
+- **Playlist keys:** arrow/Page Up/Down, Return, Delete, ⌘A/I/R, crop — `AmpXKeyRouterTests`, `PlaylistKeyboardAdapterTests`.
+- **Module commands:** ⌘⌥↑/↓ (reorder), ⌘⌥D (detach), ⌘⌥C (collapse) — `AmpXKeyRouterTests`; mirrored in **Window** menu (`AmpXMenuBuilder`).
+- **OS-reserved conflicts:** ⌘W → **Close Stack** (not Stop); ⌘Q → Quit (native). Global playback keys (Space, Z/B, arrows when no control focused) route through `AmpXKeyRouter` without overriding menu equivalents.
+- **VoiceOver:** Custom actions and value ranges wired on `AmpXButton`/`AmpXSlider`/headers; full VO walk not recorded in CI — manual spot-check deferred.
+
+### Visibility counters
+
+`AmpXEffectiveVisibilityTests` uses test doubles tracking `displayLinkStartCount` / `displayLinkStopCount` on `AmpXContinuousView`:
+
+- Collapse, viewport clip, hide, and close each stop the display link once (idempotent repeats).
+- ENTHEA audio bridge follows `EntheaHostLifecycle.setVisible` / `close()` (`EntheaHostLifecycleTests`).
+
+### Task 20 checklist
+
+- [x] Environment, scales, window sizes, commit recorded; full suite with paths/counts
+- [x] Screenshots: 0.85 / 1.0 / 1.35, collapsed EQ, detached Playlist/EQ, all-four overflow
+- [x] Exercise sequence traced to tests + manual launch observations
+- [x] Keyboard/a11y/visibility documented; 3× labeled offscreen-only
+- [x] No acceptance defects found — no implementation changes required
