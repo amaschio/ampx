@@ -38,8 +38,65 @@ final class PlaylistModuleContent: AmpXModuleContent {
         (.next, CGRect(x: 306.5, y: 45.5, width: 24.0, height: 23.5), false),
     ]
 
-    private static let scrollbarArrowHeight: CGFloat = 8
-    private static let scrollbarThumb = CGRect(x: 2.0, y: 18.0, width: 12.0, height: 12.0)
+    private let scrollbar: AmpXScrollbar
+    private var footerButtonsViews: [AmpXButton] = []
+    private var miniTransportButtons: [AmpXButton] = []
+
+    override init(skin: any AmpXSkin) {
+        self.scrollbar = AmpXScrollbar(skin: skin)
+        super.init(skin: skin)
+        configureControls()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func configureControls() {
+        scrollbar.contentLength = CGFloat(Self.mockTracks.count) * AmpXMetrics.playlistRowHeight
+        scrollbar.viewportLength = AmpXMetrics.playlistRows.height
+        scrollbar.offset = 0
+
+        for (label, localRect) in Self.footerButtons {
+            let button = AmpXButton(skin: skin)
+            button.label = label
+            button.accessibilityTitle = label.replacingOccurrences(of: "\n", with: " ")
+            footerButtonsViews.append(button)
+            addSubview(button)
+        }
+
+        for item in Self.miniTransport {
+            let button = AmpXButton(skin: skin)
+            button.icon = item.icon
+            button.iconColor = item.active ? skin.green : skin.text
+            button.isActive = item.active
+            button.accessibilityTitle = miniTransportLabel(for: item.icon)
+            miniTransportButtons.append(button)
+            addSubview(button)
+        }
+
+        addSubview(scrollbar)
+        layoutControls()
+    }
+
+    override func resizeSubviews(withOldSize oldSize: NSSize) {
+        super.resizeSubviews(withOldSize: oldSize)
+        layoutControls()
+    }
+
+    private func layoutControls() {
+        scrollbar.frame = AmpXMetrics.playlistScrollbar
+        let footer = AmpXMetrics.playlistFooter
+
+        for (index, localRect) in Self.footerButtons.enumerated() where index < footerButtonsViews.count {
+            footerButtonsViews[index].frame = footerRect(localRect.rect, in: footer)
+        }
+
+        for (index, item) in Self.miniTransport.enumerated() where index < miniTransportButtons.count {
+            miniTransportButtons[index].frame = footerRect(item.rect, in: footer)
+        }
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
@@ -48,8 +105,7 @@ final class PlaylistModuleContent: AmpXModuleContent {
         skin.inset(bounds, in: context, backingScale: backingScale)
 
         drawRowViewport(in: context)
-        drawScrollbar(in: context, backingScale: backingScale)
-        drawFooter(in: context, backingScale: backingScale)
+        drawFooterLabels(in: context, backingScale: backingScale)
     }
 
     private func drawRowViewport(in context: CGContext) {
@@ -100,83 +156,8 @@ final class PlaylistModuleContent: AmpXModuleContent {
         }
     }
 
-    private func rowRect(index: Int) -> CGRect {
-        CGRect(
-            x: AmpXMetrics.playlistRows.minX,
-            y: AmpXMetrics.playlistRows.minY + CGFloat(index) * AmpXMetrics.playlistRowHeight,
-            width: AmpXMetrics.playlistRows.width,
-            height: AmpXMetrics.playlistRowHeight
-        )
-    }
-
-    private func drawScrollbar(in context: CGContext, backingScale: CGFloat) {
-        let track = AmpXMetrics.playlistScrollbar
-        skin.displayWell(track, in: context, backingScale: backingScale)
-
-        let arrowWidth = track.width - 4
-        drawScrollArrow(
-            up: true,
-            in: CGRect(
-                x: track.minX + 2,
-                y: track.minY + 1,
-                width: arrowWidth,
-                height: Self.scrollbarArrowHeight
-            ),
-            context: context
-        )
-        drawScrollArrow(
-            up: false,
-            in: CGRect(
-                x: track.minX + 2,
-                y: track.maxY - Self.scrollbarArrowHeight - 1,
-                width: arrowWidth,
-                height: Self.scrollbarArrowHeight
-            ),
-            context: context
-        )
-
-        let thumb = Self.scrollbarThumb.offsetBy(
-            dx: track.minX,
-            dy: track.minY
-        )
-        context.setFillColor(skin.gold.cgColor)
-        context.fill(thumb)
-        context.setFillColor(skin.goldLight.cgColor)
-        context.fill(CGRect(x: thumb.minX, y: thumb.minY, width: thumb.width, height: 1))
-    }
-
-    private func drawScrollArrow(up: Bool, in rect: CGRect, context: CGContext) {
-        context.setFillColor(skin.orange.cgColor)
-        let path = CGMutablePath()
-        if up {
-            path.move(to: CGPoint(x: rect.midX, y: rect.minY + 1))
-            path.addLine(to: CGPoint(x: rect.maxX - 1, y: rect.maxY - 1))
-            path.addLine(to: CGPoint(x: rect.minX + 1, y: rect.maxY - 1))
-        } else {
-            path.move(to: CGPoint(x: rect.minX + 1, y: rect.minY + 1))
-            path.addLine(to: CGPoint(x: rect.maxX - 1, y: rect.minY + 1))
-            path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY - 1))
-        }
-        path.closeSubpath()
-        context.addPath(path)
-        context.fillPath()
-    }
-
-    private func drawFooter(in context: CGContext, backingScale: CGFloat) {
+    private func drawFooterLabels(in context: CGContext, backingScale: CGFloat) {
         let footer = AmpXMetrics.playlistFooter
-
-        for (label, localRect) in Self.footerButtons {
-            let rect = footerRect(localRect, in: footer)
-            skin.bevel(rect, in: context, backingScale: backingScale)
-            AmpXLabel(
-                text: label,
-                color: skin.text,
-                fontSize: label.contains("\n") ? 7 : 8,
-                weight: .semibold,
-                alignment: .center
-            )
-            .draw(in: rect.insetBy(dx: 2, dy: label.contains("\n") ? 4 : 10), context: context, skin: skin)
-        }
 
         let timeRect = footerRect(Self.timeCounterWell, in: footer)
         skin.displayWell(timeRect, in: context, backingScale: backingScale)
@@ -187,18 +168,15 @@ final class PlaylistModuleContent: AmpXModuleContent {
         skin.displayWell(remainingRect, in: context, backingScale: backingScale)
         AmpXLabel(text: "-02:12", color: skin.green, fontSize: 9, weight: .medium, alignment: .center)
             .draw(in: remainingRect, context: context, skin: skin)
+    }
 
-        for item in Self.miniTransport {
-            let rect = footerRect(item.rect, in: footer)
-            skin.bevel(rect, in: context, backingScale: backingScale)
-            let iconColor = item.active ? skin.green : skin.text
-            item.icon.draw(
-                in: rect.insetBy(dx: 5, dy: 5),
-                context: context,
-                skin: skin,
-                color: iconColor
-            )
-        }
+    private func rowRect(index: Int) -> CGRect {
+        CGRect(
+            x: AmpXMetrics.playlistRows.minX,
+            y: AmpXMetrics.playlistRows.minY + CGFloat(index) * AmpXMetrics.playlistRowHeight,
+            width: AmpXMetrics.playlistRows.width,
+            height: AmpXMetrics.playlistRowHeight
+        )
     }
 
     private func footerRect(_ local: CGRect, in footer: CGRect) -> CGRect {
@@ -208,5 +186,16 @@ final class PlaylistModuleContent: AmpXModuleContent {
             width: local.width,
             height: local.height
         )
+    }
+
+    private func miniTransportLabel(for icon: AmpXIcon) -> String {
+        switch icon {
+        case .previous: "Previous"
+        case .play: "Play"
+        case .pause: "Pause"
+        case .stop: "Stop"
+        case .next: "Next"
+        default: "Transport"
+        }
     }
 }

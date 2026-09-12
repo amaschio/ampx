@@ -16,54 +16,109 @@ final class EqualizerModuleContent: AmpXModuleContent {
     private static let sliderTrackWidth: CGFloat = 18
     private static let sliderThumbHeight: CGFloat = 8
 
+    private let onToggle: AmpXButton
+    private let autoToggle: AmpXButton
+    private let presetsButton: AmpXButton
+    private let preampSlider: AmpXSlider
+    private var bandSliders: [AmpXSlider] = []
+
+    override init(skin: any AmpXSkin) {
+        self.onToggle = AmpXButton(skin: skin)
+        self.autoToggle = AmpXButton(skin: skin)
+        self.presetsButton = AmpXButton(skin: skin)
+        self.preampSlider = AmpXSlider(skin: skin)
+        super.init(skin: skin)
+        configureControls()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func configureControls() {
+        onToggle.label = "ON"
+        onToggle.showsActiveIndicator = true
+        onToggle.isActive = true
+        onToggle.accessibilityTitle = "Equalizer on"
+
+        autoToggle.label = "AUTO"
+        autoToggle.showsActiveIndicator = true
+        autoToggle.isActive = false
+        autoToggle.accessibilityTitle = "Equalizer auto"
+
+        presetsButton.label = "PRESETS"
+        presetsButton.accessibilityTitle = "Equalizer presets"
+
+        preampSlider.isVertical = true
+        preampSlider.range = -1 ... 1
+        preampSlider.step = 1.0 / 12.0
+        preampSlider.showsGradient = true
+        preampSlider.showsThumbGrip = true
+        preampSlider.setValue(Double(Self.mockPreamp), sendChange: false)
+        preampSlider.accessibilityTitle = "Preamp"
+
+        let row = AmpXMetrics.eqBandRow
+        for index in 0 ..< AmpXEQBands.bandCount {
+            let centerX = row.minX + AmpXEQBands.bandCenterX(bandIndex: index, width: row.width)
+            let track = CGRect(
+                x: centerX - Self.sliderTrackWidth / 2,
+                y: row.minY,
+                width: Self.sliderTrackWidth,
+                height: row.height
+            )
+            let slider = AmpXSlider(skin: skin)
+            slider.frame = track
+            slider.isVertical = true
+            slider.range = -1 ... 1
+            slider.step = 1.0 / 12.0
+            slider.showsGradient = true
+            slider.showsThumbGrip = true
+            slider.setValue(Double(Self.mockBands[index]), sendChange: false)
+            slider.accessibilityTitle = "\(AmpXEQBands.displayLabels[index]) band"
+            bandSliders.append(slider)
+            addSubview(slider)
+        }
+
+        for control in [onToggle, autoToggle, presetsButton, preampSlider] {
+            addSubview(control)
+        }
+        layoutControls()
+    }
+
+    override func resizeSubviews(withOldSize oldSize: NSSize) {
+        super.resizeSubviews(withOldSize: oldSize)
+        layoutControls()
+    }
+
+    private func layoutControls() {
+        onToggle.frame = Self.eqOnToggle
+        autoToggle.frame = Self.eqAutoToggle
+        presetsButton.frame = Self.eqPresetsButton
+        preampSlider.frame = AmpXMetrics.eqPreamp
+
+        let row = AmpXMetrics.eqBandRow
+        for index in 0 ..< bandSliders.count {
+            let centerX = row.minX + AmpXEQBands.bandCenterX(bandIndex: index, width: row.width)
+            bandSliders[index].frame = CGRect(
+                x: centerX - Self.sliderTrackWidth / 2,
+                y: row.minY,
+                width: Self.sliderTrackWidth,
+                height: row.height
+            )
+        }
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let backingScale = window?.backingScaleFactor ?? 1
 
         skin.inset(bounds, in: context, backingScale: backingScale)
 
-        drawToggle(label: "ON", rect: Self.eqOnToggle, active: true, in: context, backingScale: backingScale)
-        drawToggle(label: "AUTO", rect: Self.eqAutoToggle, active: false, in: context, backingScale: backingScale)
-        drawPresetsButton(in: context, backingScale: backingScale)
         drawCurveWell(in: context, backingScale: backingScale)
         drawDecibelScale(in: context)
         drawHorizontalGuides(in: context)
-        drawVerticalSlider(
-            track: AmpXMetrics.eqPreamp,
-            value: Self.mockPreamp,
-            in: context,
-            backingScale: backingScale
-        )
-        drawBandSliders(in: context, backingScale: backingScale)
         drawSliderLabels(in: context)
-    }
-
-    private func drawToggle(
-        label: String,
-        rect: CGRect,
-        active: Bool,
-        in context: CGContext,
-        backingScale: CGFloat
-    ) {
-        skin.bevel(rect, in: context, backingScale: backingScale)
-        AmpXLabel(text: label, color: skin.text, fontSize: 8, weight: .semibold)
-            .draw(in: rect.insetBy(dx: 2, dy: 3), context: context, skin: skin)
-
-        if active {
-            let indicator = CGRect(x: rect.maxX - 7, y: rect.midY - 2, width: 4, height: 4)
-            context.setFillColor(skin.green.cgColor)
-            context.fill(indicator)
-        } else {
-            context.setFillColor(skin.textDim.cgColor)
-            context.fillEllipse(in: CGRect(x: rect.maxX - 7, y: rect.midY - 2, width: 4, height: 4))
-        }
-    }
-
-    private func drawPresetsButton(in context: CGContext, backingScale: CGFloat) {
-        let rect = Self.eqPresetsButton
-        skin.bevel(rect, in: context, backingScale: backingScale)
-        AmpXLabel(text: "PRESETS", color: skin.text, fontSize: 7, weight: .semibold)
-            .draw(in: rect.insetBy(dx: 3, dy: 3), context: context, skin: skin)
     }
 
     private func drawCurveWell(in context: CGContext, backingScale: CGFloat) {
@@ -139,66 +194,6 @@ final class EqualizerModuleContent: AmpXModuleContent {
         }
         context.strokePath()
         context.restoreGState()
-    }
-
-    private func drawBandSliders(in context: CGContext, backingScale: CGFloat) {
-        let row = AmpXMetrics.eqBandRow
-        for index in 0 ..< AmpXEQBands.bandCount {
-            let centerX = row.minX + AmpXEQBands.bandCenterX(bandIndex: index, width: row.width)
-            let track = CGRect(
-                x: centerX - Self.sliderTrackWidth / 2,
-                y: row.minY,
-                width: Self.sliderTrackWidth,
-                height: row.height
-            )
-            drawVerticalSlider(track: track, value: Self.mockBands[index], in: context, backingScale: backingScale)
-        }
-    }
-
-    private func drawVerticalSlider(
-        track: CGRect,
-        value: Float,
-        in context: CGContext,
-        backingScale: CGFloat
-    ) {
-        skin.displayWell(track, in: context, backingScale: backingScale)
-
-        let colors = [skin.orange.cgColor, skin.yellow.cgColor, skin.green.cgColor] as CFArray
-        if let gradient = CGGradient(
-            colorsSpace: CGColorSpaceCreateDeviceRGB(),
-            colors: colors,
-            locations: [0, 0.5, 1]
-        ) {
-            context.saveGState()
-            context.clip(to: track.insetBy(dx: 1, dy: 1))
-            context.drawLinearGradient(
-                gradient,
-                start: CGPoint(x: track.midX, y: track.minY),
-                end: CGPoint(x: track.midX, y: track.maxY),
-                options: []
-            )
-            context.restoreGState()
-        }
-
-        let thumbCenterY = thumbCenterY(in: track, normalizedValue: value)
-        let thumb = CGRect(
-            x: track.midX - 5,
-            y: thumbCenterY - Self.sliderThumbHeight / 2,
-            width: 10,
-            height: Self.sliderThumbHeight
-        )
-        skin.bevel(thumb, in: context, backingScale: backingScale)
-        context.setFillColor(skin.panelLight.cgColor)
-        context.fill(thumb.insetBy(dx: 1, dy: 1))
-        context.setFillColor(skin.borderDark.cgColor)
-        context.fill(CGRect(x: thumb.minX + 2, y: thumb.midY - 1, width: thumb.width - 4, height: 1))
-        context.fill(CGRect(x: thumb.minX + 2, y: thumb.midY + 1, width: thumb.width - 4, height: 1))
-    }
-
-    private func thumbCenterY(in track: CGRect, normalizedValue: Float) -> CGFloat {
-        let travel = track.height - Self.sliderThumbHeight
-        let progress = (CGFloat(normalizedValue) + 1) / 2
-        return track.minY + (1 - progress) * travel + Self.sliderThumbHeight / 2
     }
 
     private func drawSliderLabels(in context: CGContext) {

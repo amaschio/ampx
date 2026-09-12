@@ -4,6 +4,13 @@ import CoreGraphics
 final class PlayerModuleContent: AmpXModuleContent {
     private let segmentDigits: AmpXSegmentDigits
 
+    private let volumeSlider: AmpXSlider
+    private let balanceSlider: AmpXSlider
+    private let positionSlider: AmpXSlider
+    private let eqToggle: AmpXButton
+    private let plToggle: AmpXButton
+    private var transportButtons: [AmpXButton] = []
+
     private static let referenceTrackTitle = "4. Crusher-P - Echo (3:50)"
     private static let referenceTimer = "01:51"
 
@@ -16,12 +23,86 @@ final class PlayerModuleContent: AmpXModuleContent {
 
     override init(skin: any AmpXSkin) {
         self.segmentDigits = AmpXSegmentDigits(skin: skin)
+        self.volumeSlider = AmpXSlider(skin: skin)
+        self.balanceSlider = AmpXSlider(skin: skin)
+        self.positionSlider = AmpXSlider(skin: skin)
+        self.eqToggle = AmpXButton(skin: skin)
+        self.plToggle = AmpXButton(skin: skin)
         super.init(skin: skin)
+        configureControls()
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    private func configureControls() {
+        volumeSlider.range = 0 ... 1
+        volumeSlider.showsGradient = true
+        volumeSlider.setValue(Self.volumeFraction, sendChange: false)
+
+        balanceSlider.range = 0 ... 1
+        balanceSlider.showsGradient = true
+        balanceSlider.setValue(Self.balanceFraction, sendChange: false)
+
+        positionSlider.range = 0 ... 1
+        positionSlider.setValue(0.38, sendChange: false)
+
+        eqToggle.label = "EQ"
+        eqToggle.showsActiveIndicator = true
+        eqToggle.isActive = true
+        eqToggle.accessibilityTitle = "Equalizer"
+
+        plToggle.label = "PL"
+        plToggle.showsActiveIndicator = true
+        plToggle.isActive = true
+        plToggle.accessibilityTitle = "Playlist"
+
+        let transportIcons: [AmpXIcon?] = [
+            .previous, .play, .pause, .stop, .next, .eject, nil, .`repeat`, .menu,
+        ]
+        for (index, frame) in AmpXMetrics.playerTransport.enumerated() {
+            let button = AmpXButton(skin: skin)
+            button.frame = frame
+            if index == 6 {
+                button.label = "SHUFFLE"
+                button.showsActiveIndicator = true
+                button.isActive = true
+                button.accessibilityTitle = "Shuffle"
+            } else if index == 8 {
+                button.style = .menu
+                button.icon = .menu
+                button.accessibilityTitle = "Menu"
+            } else if let icon = transportIcons[index] {
+                button.icon = icon
+                button.iconColor = index == 1 ? skin.green : skin.text
+                button.accessibilityTitle = transportLabel(for: icon)
+            }
+            transportButtons.append(button)
+            addSubview(button)
+        }
+
+        for control in [volumeSlider, balanceSlider, positionSlider, eqToggle, plToggle] {
+            addSubview(control)
+        }
+        layoutControls()
+    }
+
+    override func resizeSubviews(withOldSize oldSize: NSSize) {
+        super.resizeSubviews(withOldSize: oldSize)
+        layoutControls()
+    }
+
+    private func layoutControls() {
+        volumeSlider.frame = AmpXMetrics.playerVolume
+        balanceSlider.frame = AmpXMetrics.playerBalance
+        positionSlider.frame = AmpXMetrics.playerPosition
+        eqToggle.frame = AmpXMetrics.playerEQToggle
+        plToggle.frame = AmpXMetrics.playerPLToggle
+        for (index, frame) in AmpXMetrics.playerTransport.enumerated() where index < transportButtons.count {
+            transportButtons[index].frame = frame
+        }
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -39,24 +120,29 @@ final class PlayerModuleContent: AmpXModuleContent {
 
         drawTrackTitle(in: context)
         drawMetadata(in: context)
+    }
 
-        drawSlider(
-            track: AmpXMetrics.playerVolume,
-            thumbCenterX: AmpXMetrics.playerVolumeThumbCenterX,
-            in: context,
-            backingScale: backingScale
-        )
-        drawSlider(
-            track: AmpXMetrics.playerBalance,
-            thumbCenterX: AmpXMetrics.playerBalanceThumbCenterX,
-            in: context,
-            backingScale: backingScale,
-            gradient: true
-        )
-        drawModuleToggles(in: context, backingScale: backingScale)
+    private static var volumeFraction: Double {
+        let track = AmpXMetrics.playerVolume
+        return Double((AmpXMetrics.playerVolumeThumbCenterX - track.minX) / track.width)
+    }
 
-        drawPositionBar(in: context, backingScale: backingScale)
-        drawTransport(in: context, backingScale: backingScale)
+    private static var balanceFraction: Double {
+        let track = AmpXMetrics.playerBalance
+        return Double((AmpXMetrics.playerBalanceThumbCenterX - track.minX) / track.width)
+    }
+
+    private func transportLabel(for icon: AmpXIcon) -> String {
+        switch icon {
+        case .previous: "Previous"
+        case .play: "Play"
+        case .pause: "Pause"
+        case .stop: "Stop"
+        case .next: "Next"
+        case .eject: "Eject"
+        case .repeat: "Repeat"
+        default: "Transport"
+        }
     }
 
     private func drawPlayGlyph(in context: CGContext) {
@@ -151,103 +237,5 @@ final class PlayerModuleContent: AmpXModuleContent {
             .draw(in: CGRect(x: rect.maxX - 52, y: rect.minY + 2, width: 24, height: rect.height), context: context, skin: skin)
         AmpXLabel(text: "stereo", color: skin.green, fontSize: 8, weight: .regular)
             .draw(in: CGRect(x: rect.maxX - 28, y: rect.minY + 2, width: 28, height: rect.height), context: context, skin: skin)
-    }
-
-    private func drawSlider(
-        track: CGRect,
-        thumbCenterX: CGFloat,
-        in context: CGContext,
-        backingScale: CGFloat,
-        gradient: Bool = false
-    ) {
-        skin.displayWell(track, in: context, backingScale: backingScale)
-
-        if gradient {
-            let colors = [skin.green.cgColor, skin.yellow.cgColor, skin.orange.cgColor] as CFArray
-            if let gradient = CGGradient(
-                colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                colors: colors,
-                locations: [0, 0.5, 1]
-            ) {
-                context.saveGState()
-                context.clip(to: track.insetBy(dx: 1, dy: 1))
-                context.drawLinearGradient(
-                    gradient,
-                    start: CGPoint(x: track.minX, y: track.midY),
-                    end: CGPoint(x: track.maxX, y: track.midY),
-                    options: []
-                )
-                context.restoreGState()
-            }
-        }
-
-        let thumb = CGRect(
-            x: thumbCenterX - 4,
-            y: track.minY + 1,
-            width: 8,
-            height: track.height - 2
-        )
-        skin.bevel(thumb, in: context, backingScale: backingScale)
-        context.setFillColor(skin.panelLight.cgColor)
-        context.fill(thumb.insetBy(dx: 1, dy: 1))
-    }
-
-    private func drawModuleToggles(in context: CGContext, backingScale: CGFloat) {
-        for (label, rect) in [
-            ("EQ", AmpXMetrics.playerEQToggle),
-            ("PL", AmpXMetrics.playerPLToggle),
-        ] {
-            skin.bevel(rect, in: context, backingScale: backingScale)
-            AmpXLabel(text: label, color: skin.text, fontSize: 8, weight: .semibold)
-                .draw(in: rect.insetBy(dx: 2, dy: 2), context: context, skin: skin)
-            let indicator = CGRect(x: rect.maxX - 7, y: rect.midY - 2, width: 4, height: 4)
-            context.setFillColor(skin.green.cgColor)
-            context.fill(indicator)
-        }
-    }
-
-    private func drawPositionBar(in context: CGContext, backingScale: CGFloat) {
-        let track = AmpXMetrics.playerPosition
-        skin.displayWell(track, in: context, backingScale: backingScale)
-
-        let thumbX = track.minX + track.width * 0.38
-        let thumb = CGRect(x: thumbX - 5, y: track.minY - 3, width: 10, height: track.height + 6)
-        skin.bevel(thumb, in: context, backingScale: backingScale)
-        context.setFillColor(skin.panelLight.cgColor)
-        context.fill(thumb.insetBy(dx: 1, dy: 1))
-    }
-
-    private func drawTransport(in context: CGContext, backingScale: CGFloat) {
-        let icons: [AmpXIcon?] = [
-            .previous, .play, .pause, .stop, .next, .eject, nil, .`repeat`, .menu,
-        ]
-
-        for (index, frame) in AmpXMetrics.playerTransport.enumerated() {
-            let isMenu = index == 8
-            if isMenu {
-                context.setFillColor(skin.orange.cgColor)
-                context.fill(frame.insetBy(dx: 1, dy: 1))
-            } else {
-                skin.bevel(frame, in: context, backingScale: backingScale)
-            }
-
-            if index == 6 {
-                AmpXLabel(text: "SHUFFLE", color: skin.text, fontSize: 7, weight: .semibold)
-                    .draw(in: frame.insetBy(dx: 2, dy: 10), context: context, skin: skin)
-                let indicator = CGRect(x: frame.midX - 2, y: frame.minY + 4, width: 4, height: 4)
-                context.setFillColor(skin.green.cgColor)
-                context.fill(indicator)
-                continue
-            }
-
-            guard let icon = icons[index] else { continue }
-            let iconColor = index == 1 ? skin.green : skin.text
-            icon.draw(
-                in: frame.insetBy(dx: 10, dy: 8),
-                context: context,
-                skin: skin,
-                color: iconColor
-            )
-        }
     }
 }
