@@ -65,6 +65,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         stackWindowController?.applyStackFrame(stackFrame)
         stackWindowController?.showWindow(nil)
         isStackVisible = true
+        refreshEffectiveVisibility()
     }
 
     func closeStack() {
@@ -73,6 +74,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         }
         stackWindowController?.window?.orderOut(nil)
         isStackVisible = false
+        refreshEffectiveVisibility()
         persistLayout()
     }
 
@@ -85,12 +87,14 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         state.close(id)
         focusModule(nextFocus)
         stackWindowController?.updateLayout()
+        refreshEffectiveVisibility()
         persistLayout()
     }
 
     func reopenModule(_ id: AmpXModuleID) {
         state.reopen(id)
         stackWindowController?.updateLayout()
+        refreshEffectiveVisibility()
         persistLayout()
     }
 
@@ -105,6 +109,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         for controller in detachedWindowControllers.values {
             relayoutDetachedModule(controller)
         }
+        refreshEffectiveVisibility()
         persistLayout()
     }
 
@@ -134,6 +139,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         controller.showWindow(nil)
 
         stackWindowController?.updateLayout()
+        refreshEffectiveVisibility()
         persistLayout()
     }
 
@@ -160,6 +166,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         } else {
             stackWindowController?.updateLayout()
         }
+        refreshEffectiveVisibility()
         persistLayout()
     }
 
@@ -284,10 +291,12 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
 
     func toggleTheater() {
         isEntheaInTheater.toggle()
+        refreshEffectiveVisibility()
     }
 
     func exitTheater() {
         isEntheaInTheater = false
+        refreshEffectiveVisibility()
     }
 
     var isInTheater: Bool {
@@ -500,5 +509,55 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
             playlistViewportHeight: playlistViewportHeight
         )
         layoutStore.save(layout)
+    }
+
+    func refreshEffectiveVisibility() {
+        for moduleID in AmpXModuleID.allCases {
+            guard let moduleView = moduleViews[moduleID] else { continue }
+            let inputs = visibilityInputs(for: moduleID)
+            moduleView.content.setEffectivelyVisible(inputs.isVisible)
+        }
+    }
+
+    private func visibilityInputs(for moduleID: AmpXModuleID) -> AmpXVisibilityInputs {
+        if state.detached.contains(moduleID) {
+            return AmpXEffectiveVisibility.detachedInputs(
+                collapsed: state.collapsed.contains(moduleID),
+                closed: state.closed.contains(moduleID),
+                window: detachedWindowControllers[moduleID]?.window
+            )
+        }
+
+        if moduleID == .enthea, isEntheaInTheater {
+            return AmpXEffectiveVisibility.theaterInputs(
+                collapsed: state.collapsed.contains(moduleID),
+                closed: state.closed.contains(moduleID),
+                window: stackWindow
+            )
+        }
+
+        let moduleFrame = moduleFrameInStackContent(for: moduleID)
+        let visibleContentRect = stackWindowController?.stackViewport.visibleContentRect ?? .zero
+        let stackWindowVisible = isStackVisible && (stackWindow?.isVisible ?? false)
+
+        var inputs = AmpXEffectiveVisibility.stackInputs(
+            collapsed: state.collapsed.contains(moduleID),
+            closed: state.closed.contains(moduleID),
+            window: stackWindow,
+            moduleFrame: moduleFrame,
+            visibleContentRect: visibleContentRect
+        )
+        if !stackWindowVisible {
+            inputs.windowVisible = false
+        }
+        return inputs
+    }
+
+    private func moduleFrameInStackContent(for moduleID: AmpXModuleID) -> CGRect {
+        guard let moduleView = moduleViews[moduleID],
+              let stackView = stackWindowController?.stackViewport.stackView,
+              moduleView.superview === stackView
+        else { return .zero }
+        return moduleView.frame
     }
 }

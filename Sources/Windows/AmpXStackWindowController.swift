@@ -35,8 +35,12 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
 
         window.delegate = self
         self.viewport.stackView.setModuleViews(moduleViews)
+        self.viewport.onVisibleRectChanged = { [weak coordinator] _ in
+            coordinator?.refreshEffectiveVisibility()
+        }
         self.applyChrome()
         self.updateLayout()
+        self.refreshEffectiveVisibility()
     }
 
     @available(*, unavailable)
@@ -74,6 +78,7 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
         )
         viewport.applyLayout(layout, state: coordinator.state)
         resizeWindowPreservingTop(width: width, contentHeight: layout.viewportHeight)
+        refreshEffectiveVisibility()
     }
 
     func revealContent(_ rect: CGRect) {
@@ -149,6 +154,22 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
         }
         moveSaveWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
+    }
+
+    func windowDidMiniaturize(_: Notification) {
+        refreshEffectiveVisibility()
+    }
+
+    func windowDidDeminiaturize(_: Notification) {
+        refreshEffectiveVisibility()
+    }
+
+    func windowDidChangeOcclusionState(_: Notification) {
+        refreshEffectiveVisibility()
+    }
+
+    private func refreshEffectiveVisibility() {
+        coordinator?.refreshEffectiveVisibility()
     }
 
     private func applyChrome() {

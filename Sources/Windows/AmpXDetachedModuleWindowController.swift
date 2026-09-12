@@ -50,6 +50,7 @@ final class AmpXDetachedModuleWindowController: NSWindowController, NSWindowDele
         }
         containerView.frame = containerView.superview?.bounds ?? .zero
         resizeWindow(toContentHeight: view.frame.height)
+        coordinator?.refreshEffectiveVisibility()
     }
 
     func detachModuleView() -> AmpXModuleView? {
@@ -76,6 +77,18 @@ final class AmpXDetachedModuleWindowController: NSWindowController, NSWindowDele
     func windowDidEndLiveResize(_: Notification) {
         guard let window else { return }
         coordinator?.updateDetachedFrame(moduleID, frame: window.frame)
+    }
+
+    func windowDidMiniaturize(_: Notification) {
+        coordinator?.refreshEffectiveVisibility()
+    }
+
+    func windowDidDeminiaturize(_: Notification) {
+        coordinator?.refreshEffectiveVisibility()
+    }
+
+    func windowDidChangeOcclusionState(_: Notification) {
+        coordinator?.refreshEffectiveVisibility()
     }
 
     private func resizeToInheritedWidth(_ inheritedWidth: CGFloat) {

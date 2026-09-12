@@ -15,6 +15,12 @@ class AmpXModuleContent: AmpXDrawingView {
             }
     }
 
+    func setEffectivelyVisible(_ visible: Bool) {
+        for case let continuous as AmpXContinuousView in subviews {
+            continuous.setEffectivelyVisible(visible)
+        }
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let backingScale = window?.backingScaleFactor ?? 1
