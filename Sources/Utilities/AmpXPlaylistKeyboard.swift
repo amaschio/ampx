@@ -1,6 +1,6 @@
 import Foundation
 
-/// Routes playlist keyboard commands from `AmpXHotkeys` into the visible playlist panel.
+/// Routes playlist keyboard commands from `AmpXKeyRouter` into the visible playlist panel.
 @MainActor
 enum AmpXPlaylistKeyboard {
     private weak static var handler: Handling?

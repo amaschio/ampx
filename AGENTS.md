@@ -20,7 +20,7 @@ Target users are music collectors and audiophiles who remember Winamp fondly and
 | Layer | Technology |
 |---|---|
 | Language | Swift 6 |
-| UI | SwiftUI + AppKit interop where needed |
+| UI | AppKit + Core Graphics (custom controls) |
 | Audio engine | AVFoundation / AVAudioEngine |
 | DSP / EQ | AVAudioUnitEQ (10-band parametric) |
 | Visualizations | Metal |
@@ -31,22 +31,23 @@ Target users are music collectors and audiophiles who remember Winamp fondly and
 
 `Sources/` is a single SPM/Xcode module. It documents each area's **responsibility and the rules to respect**:
 
-- **Top-level `Sources/`** — the app shell and primary models/views: `AmpXApp` (`@main` + menus),
-  `ContentView` (root view + AppKit window setup), `AudioPlayer` (AVAudioEngine + EQ + media keys),
+- **Top-level `Sources/`** — the app shell and primary models: `AmpXAppDelegate` (`@main`),
+  `AmpXApplicationController` (menus + lifecycle), `AudioPlayer` (AVAudioEngine + EQ + media keys),
   `PlaylistManager`, `Track`, and the parsers (`M3UParser`, `TrackMetadataParser`).
+- **`Windows/`** — stack/detached/theater window hosts (`AmpXHostCoordinator`, `AmpXStackWindowController`,
+  `AmpXDetachedModuleWindowController`, `AmpXTheaterController`).
+- **`Modules/`** — module stack, layout persistence, and per-module content (Player, Equalizer,
+  Playlist, ENTHEA).
+- **`Components/`** — reusable AppKit controls (`AmpXButton`, `AmpXSlider`, `AmpXModuleView`, etc.).
+- **`Theme/`** — `AmpXSkin`, `ClassicModernSkin`, fonts, metrics, pixel-grid snapping.
 - **`Audio/`** — DSP & analysis (FFT, EQ bands, feature bus, ring buffer, auto-leveler, EQF). Pure
   signal/data code.
 - **`Playlist/`** — persistence & file I/O (state store, M3U file service). UI talks to this only through `PlaylistManager`, not these types directly.
-- **`Views/Classic`** — the Winamp 2.x skin UI (main, shade, playlist, EQ, **MilkDrop panel**) at
-  Webamp’s 275 px geometry. New chrome **must match this Classic aesthetic** (see Architecture
-  Principles). Shared skin helpers live in `AmpXSkinSprites` / `ClassicSkinTheme`.
-- **`Views/Visualizer`, `Visualization/`, `Shaders/`** — the Metal-backed visualizer and `.metal`
+- **`Visualization/`, `Shaders/`** — the Metal-backed visualizer and `.metal`
   shaders. Heavy/optional; must degrade gracefully when the visualizer window is closed.
-- **`Utilities/`** — cross-cutting helpers (colors, metrics, UI scale, typography, FS helpers,
-  title-bar drag overlay, marquee typography).
+- **`Utilities/`** — cross-cutting helpers (key routing, menus, time formatting, FS helpers).
 - **`AudioPlaybackControlling`** — protocol abstracting the player so `PlaylistManager` (and tests)
-  can inject a mock. Classic UI uses the concrete `AudioPlayer` via `@EnvironmentObject`; prefer the
-  protocol at the playlist/test seam, not as a universal rule for every new view.
+  can inject a mock. Prefer the protocol at the playlist/test seam.
 
 Supporting dirs: `Tests/` (XCTest `AmpXTests` + generated `Fixtures/`), `scripts/` (test runner,
 `uv` fixture generation, `shoot.sh` UI screenshots), `Resources/` (asset catalog, audio, fonts),
@@ -58,7 +59,7 @@ only, no asset catalog, **no SPM test target**; run tests via Xcode / `./scripts
 ## Architecture Principles
 
 **Winamp UX fidelity.**
-The compact-player aesthetic is intentional. Do not introduce full-window redesigns. New UI panels should match the existing retro aesthetic.
+The compact-player aesthetic is intentional. Do not introduce full-window redesigns. New UI panels should match the Classic Modern skin (`ClassicModernSkin` / `AmpXSkin`).
 
 ---
 
@@ -86,8 +87,8 @@ Open `AmpX.xcodeproj`, select the `AmpX` scheme, target `My Mac`, then `⌘R`.
 ```
 Screenshots land in `/tmp/ampx_shot0.png`, `…shot1.png`, etc. Captures **by window ID**
 (`screencapture -l<id>`) so it grabs the real window pixels even when occluded — no need to
-fight window focus. Essential for Classic skin fidelity work: edit SwiftUI → `shoot.sh` → compare
-to the reference skin → repeat.
+fight window focus. Essential for UI fidelity work: edit AppKit views → `shoot.sh` → compare
+to the reference screenshot → repeat.
 
 ### Clean build
 ```bash

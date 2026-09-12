@@ -1,10 +1,18 @@
 import AppKit
 
+@main
 @MainActor
 final class AmpXAppDelegate: NSObject, NSApplicationDelegate {
     private static var isRunningUnderTest: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
             || NSClassFromString("XCTestCase") != nil
+    }
+
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = AmpXAppDelegate()
+        app.delegate = delegate
+        withExtendedLifetime(delegate) { app.run() }
     }
 
     private var applicationController: AmpXApplicationController?
@@ -13,7 +21,7 @@ final class AmpXAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_: Notification) {
         guard !Self.isRunningUnderTest else { return }
 
-        AmpXTypography.registerBundledFonts()
+        AmpXFonts.register()
         UserDefaults.standard.set(false, forKey: "NSFullScreenMenuItemEverywhere")
 
         let audioPlayer = AudioPlayer.shared

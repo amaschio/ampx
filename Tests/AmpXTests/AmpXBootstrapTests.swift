@@ -2,23 +2,9 @@
 import XCTest
 
 final class AmpXBootstrapTests: XCTestCase {
-    func testUsesNewUIDefaultsToClassic() {
-        let name = "AmpXBootstrapTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defer { defaults.removePersistentDomain(forName: name) }
-
-        XCTAssertFalse(AmpXMain.usesNewUI(defaults: defaults))
-        defaults.set(true, forKey: "AmpXNewUI")
-        XCTAssertTrue(AmpXMain.usesNewUI(defaults: defaults))
-    }
-
-    func testUsesNewUIAcceptsLaunchArgumentStyleValues() {
-        let name = "AmpXBootstrapTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defer { defaults.removePersistentDomain(forName: name) }
-
-        defaults.set("YES", forKey: "AmpXNewUI")
-        XCTAssertTrue(AmpXMain.usesNewUI(defaults: defaults))
+    func testBundledFontsRegister() {
+        AmpXFonts.register()
+        XCTAssertNotNil(AmpXFonts.font(size: 12))
     }
 
     @MainActor
