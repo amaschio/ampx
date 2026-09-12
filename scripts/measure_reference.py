@@ -1,303 +1,242 @@
 #!/usr/bin/env python3
-"""Measure AmpX reference PNG geometry for ReferenceMeasurementsV1."""
-
-from __future__ import annotations
-
+"""Generate auditable, manually measured Player landmarks and annotations.
+Run from scripts/: uv run python measure_reference.py ../screenshots/AmpX.png
+No automatic-design claims, unmeasured EQ/Playlist values, or canonical overrides.
+"""
+import argparse
+import hashlib
 import json
-import sys
 from pathlib import Path
+from statistics import median
+from PIL import Image, ImageDraw, ImageFont
 
-from PIL import Image
-
-SCALE = 2.0
-COMPOSITION_WIDTH = 490
-CANVAS_LEFT = 9
-CANVAS_TOP = 22
-HEADER_HEIGHT = 22
-MODULE_GAP = 6
-PLAYER_HEIGHT = 223.5
-EQUALIZER_HEIGHT = 225.5
-PLAYLIST_HEIGHT = 305
-
-
-def logical(value: float) -> float:
-    return round(value / SCALE, 1)
-
-
-def content_rect(module_src_y: int, x: int, y: int, w: int, h: int) -> dict[str, float | int]:
-    return {
-        "srcX": x,
-        "srcY": y,
-        "srcWidth": w,
-        "srcHeight": h,
-        "x": logical(x - CANVAS_LEFT),
-        "y": logical(y - (module_src_y + HEADER_HEIGHT * SCALE)),
-        "width": logical(w),
-        "height": logical(h),
-    }
-
-
-def union_rect(
-    a: tuple[int, int, int, int], b: tuple[int, int, int, int]
-) -> tuple[int, int, int, int]:
-    left = min(a[0], b[0])
-    top = min(a[1], b[1])
-    right = max(a[0] + a[2], b[0] + b[2])
-    bottom = max(a[1] + a[3], b[1] + b[3])
-    return left, top, right - left, bottom - top
-
-
-def is_black(px: tuple[int, int, int]) -> bool:
-    return sum(px) < 30
-
-
-def is_green(px: tuple[int, int, int]) -> bool:
-    return px[1] > 150 and px[0] < 100
-
-
-def flood_black(
-    img: Image.Image, x0: int, y0: int, x1: int, y1: int, min_w: int = 30, min_h: int = 15
-) -> list[tuple[int, int, int, int]]:
-    rects: list[tuple[int, int, int, int]] = []
-    visited: set[tuple[int, int]] = set()
-    for y in range(y0, y1):
-        for x in range(x0, x1):
-            if (x, y) in visited:
-                continue
-            if not is_black(img.getpixel((x, y))):
-                continue
-            stack = [(x, y)]
-            min_x, max_x, min_y, max_y = x, x, y, y
-            while stack:
-                cx, cy = stack.pop()
-                if (cx, cy) in visited:
-                    continue
-                if cx < x0 or cx >= x1 or cy < y0 or cy >= y1:
-                    continue
-                if not is_black(img.getpixel((cx, cy))):
-                    continue
-                visited.add((cx, cy))
-                min_x, max_x = min(min_x, cx), max(max_x, cx)
-                min_y, max_y = min(min_y, cy), max(max_y, cy)
-                stack.extend([(cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)])
-            width, height = max_x - min_x + 1, max_y - min_y + 1
-            if width >= min_w and height >= min_h:
-                rects.append((min_x, min_y, width, height))
-    return sorted(rects, key=lambda rect: (rect[1], rect[0], -rect[2] * rect[3]))
-
-
-def sample_color(img: Image.Image, x: int, y: int) -> list[float]:
-    red, green, blue = img.getpixel((x, y))
-    return [round(red / 255, 3), round(green / 255, 3), round(blue / 255, 3)]
-
-
-def measure_spectrum(img: Image.Image, display: tuple[int, int, int, int]) -> dict[str, float]:
-    """Measure L/R analyzer columns below the timer, not the center timer digits."""
-    x0, y0, width, height = display
-    y_start = y0 + int(35 * SCALE)
-    y_end = y0 + height - 6
-    x_end = x0 + int(75 * SCALE)
-
-    segment_heights_src: list[int] = []
-    segment_gaps_src: list[int] = []
-    for x in range(x0 + int(15 * SCALE), x_end):
-        in_segment = False
-        segment_start = 0
-        gap_start = 0
-        column_segments: list[int] = []
-        column_gaps: list[int] = []
-        for y in range(y_start, y_end):
-            px = img.getpixel((x, y))
-            lit = px[1] > 120 and px[0] < 80
-            if lit and not in_segment:
-                if column_segments:
-                    column_gaps.append(y - gap_start)
-                in_segment = True
-                segment_start = y
-            elif not lit and in_segment:
-                column_segments.append(y - segment_start)
-                in_segment = False
-                gap_start = y
-        for segment_height, segment_gap in zip(column_segments, column_gaps):
-            if 4 <= segment_height <= 8 and 1 <= segment_gap <= 4:
-                segment_heights_src.append(segment_height)
-                segment_gaps_src.append(segment_gap)
-
-    def median(values: list[int]) -> float:
-        ordered = sorted(values)
-        mid = len(ordered) // 2
-        if len(ordered) % 2:
-            return float(ordered[mid])
-        return (ordered[mid - 1] + ordered[mid]) / 2
-
-    measured_height = round(logical(median(segment_heights_src)), 1) if segment_heights_src else 3.0
-    measured_gap = round(logical(median(segment_gaps_src)), 1) if segment_gaps_src else 1.0
-    return {"segmentHeight": measured_height, "segmentGap": measured_gap}
-
-
-def transport_rects(img: Image.Image, player_src_y: int, content_y: int) -> list[dict[str, float]]:
-    right = CANVAS_LEFT + int(COMPOSITION_WIDTH * SCALE)
-    y_mid = content_y + int((139 + 19) * SCALE)
-    edges: list[int] = []
-    prev_face = False
-    for x_src in range(CANVAS_LEFT + int(10 * SCALE), right - int(15 * SCALE)):
-        red, green, blue = img.getpixel((x_src, y_mid))
-        face = 45 < red < 80 and 55 < green < 100 and 85 < blue < 135
-        if face and not prev_face:
-            edges.append(x_src)
-        prev_face = face
-
-    filtered = [edges[0]]
-    for edge in edges[1:]:
-        if logical(edge - CANVAS_LEFT) - logical(filtered[-1] - CANVAS_LEFT) >= 35:
-            filtered.append(edge)
-
-    # Nine transport buttons; anchor prev and play to measured margins.
-    logical_edges = [14.5, 57.0] + [logical(edge - CANVAS_LEFT) for edge in filtered[2:9]]
-    return [
-        {"x": x, "y": 139.0, "width": 44.0, "height": 38.0}
-        for x in logical_edges[:9]
-    ]
-
-
-def sample_gold(img: Image.Image, playlist_src_y: int) -> tuple[list[float], list[float]]:
-    playlist_end = playlist_src_y + int(PLAYLIST_HEIGHT * SCALE)
-    samples: list[tuple[float, float, float, list[float]]] = []
-    for y in range(playlist_src_y, playlist_end):
-        for x in range(CANVAS_LEFT, CANVAS_LEFT + int(COMPOSITION_WIDTH * SCALE)):
-            red, green, blue = img.getpixel((x, y))
-            if red > 170 and green > 110 and blue < 90 and red > green > blue:
-                logical_x = logical(x - CANVAS_LEFT)
-                logical_y = logical(y - (playlist_src_y + HEADER_HEIGHT * SCALE))
-                if 420 < logical_x < 470 and 0 < logical_y < 200:
-                    samples.append((red, green, blue, sample_color(img, x, y)))
-    samples.sort(key=lambda item: item[0] + item[1])
-    gold = samples[len(samples) // 4][3]
-    gold_light = samples[-1][3]
-    return gold, gold_light
-
-
-def module_positions() -> dict[str, int]:
-    y = CANVAS_TOP
-    positions: dict[str, int] = {}
-    for name, height in [("player", PLAYER_HEIGHT), ("equalizer", EQUALIZER_HEIGHT), ("playlist", PLAYLIST_HEIGHT)]:
-        positions[name] = y
-        y += int(height * SCALE) + int(MODULE_GAP * SCALE)
-    return positions
-
-
-def measure(img: Image.Image) -> dict:
-    modules = module_positions()
-    right = CANVAS_LEFT + int(COMPOSITION_WIDTH * SCALE)
-
-    player_y = modules["player"]
-    eq_y = modules["equalizer"]
-    pl_y = modules["playlist"]
-
-    player_content_y = player_y + int(HEADER_HEIGHT * SCALE)
-    player_bottom = player_y + int(PLAYER_HEIGHT * SCALE)
-    blacks = flood_black(img, CANVAS_LEFT, player_content_y, right, player_bottom, min_w=60, min_h=25)
-    display, track = blacks[0], blacks[1]
-    metadata = union_rect(blacks[2], blacks[3])
-
-    eq_content_y = eq_y + int(HEADER_HEIGHT * SCALE)
-    pl_content_y = pl_y + int(HEADER_HEIGHT * SCALE)
-
-    rows = flood_black(
-        img, CANVAS_LEFT, pl_content_y, right, pl_content_y + int(200 * SCALE), min_w=300, min_h=80
-    )[0]
-    scrollbar = (rows[0] + rows[2] - int(16 * SCALE), rows[1], int(16 * SCALE), int(180 * SCALE))
-    footer = (
-        rows[0],
-        rows[1] + int(180 * SCALE) + int(4 * SCALE),
-        rows[2],
-        int(89.5 * SCALE),
-    )
-
-    gold, gold_light = sample_gold(img, pl_y)
-
-    return {
-        "ReferenceMeasurementsV1": {
-            "source": "screenshots/AmpX.png",
-            "pngScale": SCALE,
-            "compositionWidth": COMPOSITION_WIDTH,
-            "canvasPadding": {"left": logical(CANVAS_LEFT), "top": logical(CANVAS_TOP)},
-            "headerHeight": HEADER_HEIGHT,
-            "moduleGap": MODULE_GAP,
-            "playerHeight": PLAYER_HEIGHT,
-            "equalizerHeight": EQUALIZER_HEIGHT,
-            "playlistHeight": PLAYLIST_HEIGHT,
-            "playlistNonRowChrome": 103,
-            "player": {
-                "displayWell": content_rect(player_y, *display),
-                "trackWell": content_rect(player_y, *track),
-                "metadata": {**content_rect(player_y, *metadata), "digitStyle": "mono"},
-                "volume": content_rect(player_y, *blacks[4]),
-                "balance": content_rect(player_y, *blacks[5]),
-                "position": {"x": 15.5, "y": 111.5, "width": 458.5, "height": 4.0},
-                "transport": transport_rects(img, player_y, player_content_y),
-            },
-            "eq": {
-                "curve": {"x": 68.0, "y": 18.0, "width": 314.0, "height": 24.0},
-                "preamp": {"x": 15.0, "y": 56.0, "width": 18.0, "height": 120.0},
-                "bandRow": {"x": 34.0, "y": 56.0, "width": 440.0, "height": 120.0},
-            },
-            "playlist": {
-                "rows": {"x": 15.5, "y": 9.5, "width": 424.0, "height": 180.0},
-                "scrollbar": content_rect(pl_y, *scrollbar),
-                "footer": content_rect(pl_y, *footer),
-            },
-            "gold": gold,
-            "goldLight": gold_light,
-            "spectrum": measure_spectrum(img, display),
-        }
-    }
-
-
-FROZEN_OVERRIDES: dict[str, dict[str, float | str]] = {
-    "spectrum.segmentHeight": {
-        "frozen": 3.0,
-        "reason": (
-            "Reference PNG analyzer bars are anti-aliased mock peaks; median lit run is ~2.2 pt. "
-            "AmpXMetrics keeps Winamp-canonical 3.0 pt segment height for implementation."
-        ),
-    },
+SCALE = 2
+PANEL = (10, 7, 980, 447)  # Excludes only the soft outer fringe.
+ORIGIN = (10, 64)  # Content origin; header/frame seam starts at y=62.
+# group | name | visible source x,y,w,h; ±2 source-pixel edge uncertainty.
+LANDMARK_TEXT = '''frame|panel|10,7,980,447
+frame|content.frame|24,62,952,379
+header|header|10,7,980,57
+header|header.brand|449,19,100,36
+header|header.gripGlyph|29,21,36,32
+header|header.leftLine.top|85,26,325,7
+header|header.leftLine.bottom|85,38,325,7
+header|header.rightLine.top|582,26,238,7
+header|header.rightLine.bottom|582,38,238,7
+header|header.minimize|834,17,40,40
+header|header.collapse|886,17,40,40
+header|header.close|937,17,40,40
+display|display.well|37,84,336,190
+display|display.blackInterior|41,89,328,181
+display|display.playGlyph|80,106,28,36
+display|display.timer|179,100,164,51
+timer|display.timer.digit0|179,101,29,50
+timer|display.timer.digit1|229,101,9,49
+timer|display.timer.colon|253,112,13,28
+timer|display.timer.digit5|282,101,28,50
+timer|display.timer.last1|331,101,12,49
+display|display.spectrum|76,178,275,82
+display|display.channelL|48,192,18,27
+display|display.channelR|48,234,18,27
+metadata|track.well|385,84,577,63
+metadata|track.text|397,100,429,28
+metadata|metadata.bitrateWell|385,156,79,50
+metadata|metadata.bitrateInk|397,168,51,25
+metadata|metadata.kbps|474,171,53,27
+metadata|metadata.sampleRateWell|558,157,66,49
+metadata|metadata.sampleRateInk|574,168,33,25
+metadata|metadata.kHz|635,171,41,23
+metadata|metadata.mono|791,175,60,18
+metadata|metadata.stereo|871,171,82,22
+sliders|volume.track|387,235,211,22
+sliders|volume.coloredInterior|393,240,199,12
+sliders|volume.thumb|515,230,43,40
+sliders|balance.track|615,235,134,22
+sliders|balance.coloredInterior|622,240,120,12
+sliders|balance.thumb|661,230,43,40
+sliders|toggle.eq|763,218,93,57
+sliders|toggle.eq.indicator|776,234,20,24
+sliders|toggle.eq.label|807,235,26,24
+sliders|toggle.pl|866,218,95,57
+sliders|toggle.pl.indicator|878,234,21,24
+sliders|toggle.pl.label|911,235,27,24
+sliders|position.well|37,287,925,39
+sliders|position.trackInterior|46,296,908,22
+sliders|position.thumb|451,292,95,32
+transport|transport.previous|38,343,88,77
+transport|transport.play|132,343,92,77
+transport|transport.pause|229,343,84,77
+transport|transport.stop|321,343,87,77
+transport|transport.next|417,343,87,77
+transport|transport.eject|515,343,94,77
+transport|transport.shuffle|617,343,168,77
+transport|transport.repeat|791,343,85,77
+transport|transport.menu|893,348,67,71
+glyphs|transport.previous.glyph|67,365,29,32
+glyphs|transport.play.glyph|166,366,27,31
+glyphs|transport.pause.glyph|259,367,24,29
+glyphs|transport.stop.glyph|353,369,25,25
+glyphs|transport.next.glyph|448,365,28,32
+glyphs|transport.eject.glyph|547,368,30,29
+glyphs|transport.shuffle.indicator|634,366,21,25
+glyphs|transport.shuffle.label|668,372,93,20
+glyphs|transport.repeat.glyph|815,365,37,32
+glyphs|transport.menu.glyph|911,369,31,28'''
+PATCHES = {
+    'display.black': (51,152,5,5), 'panel.interior': (700,210,5,5),
+    'button.face': (145,352,5,5), 'button.topHighlight': (142,346,10,1),
+    'button.leftHighlight': (135,355,1,10), 'button.bottomShadow': (145,416,10,1),
+    'frame.highlight': (50,64,10,1), 'frame.darkEdge': (50,66,10,1),
+    'thumb.steelFace': (522,237,5,5), 'thumb.steelHighlight': (522,233,10,1),
+    'thumb.goldFace': (475,312,10,3), 'thumb.goldHighlight': (467,295,20,1),
 }
 
 
-def apply_overrides(payload: dict) -> tuple[dict, list[dict[str, object]]]:
-    applied: list[dict[str, object]] = []
-    spectrum = payload["ReferenceMeasurementsV1"]["spectrum"]
-    measured_height = spectrum["segmentHeight"]
-    override = FROZEN_OVERRIDES["spectrum.segmentHeight"]
-    if measured_height != override["frozen"]:
-        applied.append(
-            {
-                "key": "spectrum.segmentHeight",
-                "measured": measured_height,
-                "frozen": override["frozen"],
-                "reason": override["reason"],
-            }
-        )
-        spectrum["segmentHeight"] = override["frozen"]
-        spectrum["segmentHeightMeasured"] = measured_height
-    return payload, applied
+def converted(rect, origin):
+    x,y,w,h = rect
+    return [(x-origin[0])/SCALE,(y-origin[1])/SCALE,w/SCALE,h/SCALE]
 
 
-def main() -> int:
-    png_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("../screenshots/AmpX.png")
-    image = Image.open(png_path).convert("RGB")
-    payload, overrides = apply_overrides(measure(image))
-    print(json.dumps(payload, indent=2))
-    if overrides:
-        print("\nFrozen overrides applied:", file=sys.stderr)
-        for item in overrides:
-            print(
-                f"- {item['key']}: measured={item['measured']} -> frozen={item['frozen']} ({item['reason']})",
-                file=sys.stderr,
-            )
-    return 0
+def lit_runs(im, x):
+    runs, start = [], None
+    for y in range(205,261):
+        r,g,b = im.getpixel((x,y)) if y < 260 else (0,0,0)
+        lit = g > 130 and g > b*1.8
+        if lit and start is None:
+            start = y
+        elif not lit and start is not None:
+            runs.append([start,y-start])
+            start = None
+    return runs
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+def generate(path, output):
+    im = Image.open(path).convert('RGB')
+    if im.size != (998,1576):
+        raise ValueError('Remeasure landmarks for any other source dimensions.')
+    output.mkdir(parents=True,exist_ok=True)
+    records = []
+    for i,line in enumerate(LANDMARK_TEXT.splitlines(),1):
+        group,name,raw = line.split('|')
+        rect = list(map(int,raw.split(',')))
+        x,y,w,h = rect
+        assert w > 0 and h > 0 and 0 <= x < x+w <= im.width and 0 <= y < y+h <= im.height
+        records.append(dict(id=i,name=name,sourceRect=rect,group=group,
+            moduleRect=converted(rect,PANEL[:2]),contentRect=converted(rect,ORIGIN),
+            method='manual visible-edge/ink measurement; inspect annotation',edgeUncertaintySourcePx=2))
+    colors = {}
+    for name,(x,y,w,h) in PATCHES.items():
+        values = list(im.crop((x,y,x+w,y+h)).get_flattened_data())
+        rgb = [round(median(p[c] for p in values)) for c in range(3)]
+        colors[name] = dict(sourcePatch=[x,y,w,h],rgb=rgb,hex='#'+''.join(f'{c:02X}' for c in rgb))
+    # Pixel profiles preserve layer widths/gradients without pretending one color
+    # sample specifies an entire material. Coordinates are source pixels.
+    profiles = {}
+    for name,x,y,w,h in (
+        ('button.topEdge',150,342,1,12),
+        ('button.bottomEdge',150,409,1,12),
+        ('frame.topEdge',100,5,1,14),
+        ('well.topEdge',400,81,1,12),
+        ('steelThumb.topEdge',530,228,1,16),
+        ('goldThumb.topEdge',480,290,1,22),
+    ):
+        profiles[name] = dict(sourcePatch=[x,y,w,h],
+            rgb=[list(im.getpixel((x,y+dy))) for dy in range(h)])
+    scans = {str(x):lit_runs(im,x) for x in (81,99,116,134)}
+    heights = [h for runs in scans.values() for _,h in runs]
+    gaps = [b[0]-a[0]-a[1] for runs in scans.values() for a,b in zip(runs,runs[1:])]
+    spectrum = dict(sourceRuns=scans,medianLitHeightSourcePx=median(heights) if heights else None,
+        medianGapSourcePx=median(gaps) if gaps else None,
+        note='Thresholded bright cores at y=205..259; glow excluded. No fallback or canonical override.')
+    by_name = {r['name']:r for r in records}
+    travel = {}
+    for prefix,track in [('volume','volume.coloredInterior'),('balance','balance.coloredInterior'),('position','position.trackInterior')]:
+        x,y,w,h = by_name[track]['sourceRect']
+        tw = by_name[prefix+'.thumb']['sourceRect'][2]
+        travel[prefix] = dict(sourceCenterEndpoints=[x+tw/2,x+w-tw/2],
+            method='derived inset-travel proposal; NOT observable from this single pose',
+            hitBounds='not observable; define during implementation without enlarging artwork')
+    payload = dict(version='ReferenceMeasurementsV2',scope='Player only',
+        source='screenshots/AmpX.png',sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+        imageSize=list(im.size),sourceScale=SCALE,panelSourceRect=list(PANEL),
+        moduleOrigin=list(PANEL[:2]),contentOrigin=list(ORIGIN),headerHeightLogical=28.5,
+        convention='x,y,width,height; right/bottom exclusive. Frame includes bevel, excludes soft fringe.',
+        records=records,colorSamples=colors,edgeProfiles=profiles,spectrum=spectrum,proposedTravel=travel)
+    (output/'player-measurements-v2.json').write_text(json.dumps(payload,indent=2)+'\n')
+    font = ImageFont.load_default(size=13)
+    groups = ('frame','header','display','timer','metadata','sliders','transport','glyphs')
+    for group in groups:
+        canvas = im.crop((0,0,998,457)).resize((1497,686))
+        draw = ImageDraw.Draw(canvas)
+        for r in records:
+            if r['group'] == group:
+                x,y,w,h = r['sourceRect']
+                draw.rectangle((x*1.5,y*1.5,(x+w)*1.5-1,(y+h)*1.5-1),outline='#FF59E7',width=2)
+                draw.text((x*1.5+2,y*1.5+2),str(r['id']),font=font,fill='black',stroke_width=2,stroke_fill='white')
+        canvas.save(output/f'player-{group}-annotated.png')
+    im.crop((10,7,990,454)).save(output/'player-source.png')
+    scan = im.crop((70,170,155,263)).resize((510,558))
+    draw = ImageDraw.Draw(scan)
+    for x in scans:
+        draw.line(((int(x)-70)*6,210,(int(x)-70)*6,540),fill='#FF59E7',width=1)
+    scan.save(output/'player-spectrum-scan.png')
+    material = Image.new('RGB',(1200,600),'#121923')
+    draw = ImageDraw.Draw(material)
+    for i,(name,box) in enumerate((
+        ('Frame / well',(15,55,130,105)),
+        ('Raised transport face',(128,337,228,427)),
+        ('Steel thumb',(500,222,566,278)),
+        ('Gold thumb',(444,284,554,332)),
+    )):
+        x,y=(i%2)*600,(i//2)*300
+        draw.text((x+12,y+10),name,font=font,fill='white')
+        crop=im.crop(box)
+        crop.thumbnail((570,245))
+        # Nearest-neighbor magnification makes the source edge layers explicit.
+        factor=min(570/crop.width,245/crop.height)
+        material.paste(crop.resize((int(crop.width*factor),int(crop.height*factor)),Image.Resampling.NEAREST),(x+12,y+36))
+    material.save(output/'player-material-details.png')
+    lines = ['# ReferenceMeasurementsV2 — Player','',
+        'Generated by `scripts/measure_reference.py`. Source SHA-256: `'+payload['sha256']+'`.','',
+        '**Scope:** Player only. Manually measured artwork bounds, ±2 source-pixel edge uncertainty (±1 pt); right/bottom exclusive. Glyph bounds are visible ink, not font layout cells. Hit areas are not visible in the PNG.','',
+        '**Origins:** module `(10,7)` px; content `(10,64)` px. Player crop `980×447` px = `490×223.5` pt. Header convention `28.5` pt; the content-frame highlight begins at y=62, two pixels above that origin. Replaces the V1 inferred y=22 canvas top and 22 pt header.','',
+        '## Measured rectangles','','| ID | Element | Source x,y,w,h (px) | Module x,y,w,h (pt) | Content x,y,w,h (pt) |','|---|---|---|---|---|']
+    for r in records:
+        lines.append(f"| {r['id']} | `{r['name']}` | {r['sourceRect']} | {r['moduleRect']} | {r['contentRect']} |")
+    lines += ['','## Annotated checks','']
+    for group in groups:
+        lines += [f'### {group.title()}','',f'![{group} bounds](player-{group}-annotated.png)','']
+    lines += ['## Material samples','','Patch medians are observations, not a uniform replacement palette. The reference has gradients, glow and multiple edge layers. Preserve these variations; coordinates allow verification.','','| Layer | Source patch | RGB | Hex |','|---|---|---|---|']
+    for name,c in colors.items():
+        lines.append(f"| {name} | {c['sourcePatch']} | {c['rgb']} | `{c['hex']}` |")
+    lines += ['', '![Material edge details](player-material-details.png)', '',
+        'The JSON `edgeProfiles` contains per-source-pixel RGB scans through frame, well, button and thumb edges. Each sample is 0.5 logical pt; preserve the sequence of highlight, face and shadow layers rather than replacing it with a one-line outline. The enlarged crops use nearest-neighbor scaling to expose source pixels.', '']
+    lines += ['','## Spectrum scan','','```json',json.dumps(spectrum,indent=2),'```','',
+        '![Spectrum scan](player-spectrum-scan.png)','',
+        '## Non-observable properties and implementation constraints','',
+        '- Thumb travel and invisible hit bounds cannot be measured from one pose. JSON records a derived inset-travel proposal separately. Validate it during control implementation; do not present it as extracted geometry.',
+        '- Font point size, baseline metrics and hidden timer cell widths cannot be uniquely recovered from raster ink. Fit bundled fonts and stable digit cells to measured ink, then verify rendered overlays before freezing metrics. The visible `1` is narrow ink, not a narrower layout cell.',
+        '- Keep centered Player branding; single-line track/metadata; distinct kbps, kHz, mono, stereo; EQ/PL and Shuffle optically aligned with indicators. The timer reads `01:51` and must retain its proportions for other values.',
+        '- Header source order is left decoration, centered brand between paired lines, then minimize/collapse/close; behavior comes from the spec.','',
+        '## V1 corrections','',
+        '- Panel top is measured directly, not inferred by centering a total composition height.',
+        '- Metadata includes channel labels separately from the two numeric wells.',
+        '- The play triangle is outside the timer ink rectangle.',
+        '- Volume/balance thumbs exceed the narrow track height. Position includes a recessed well and broad gold handle, not a four-point-high entire control.',
+        '- Transport faces have individual widths; Shuffle is 84 pt wide rather than a uniform 44 pt.',
+        '- Spectrum raw runs are retained without the unapproved 3 pt override.',
+        '- EQ/Playlist V1 values remain unvalidated by this Player-only step.','']
+    (output/'player-measurements-v2.md').write_text('\n'.join(lines))
+    print(json.dumps(dict(output=str(output),rectangles=len(records),spectrum=spectrum),indent=2))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('source',type=Path)
+    parser.add_argument('--output',type=Path,default=Path('../docs/superpowers/plans/reference-crops/v2'))
+    args = parser.parse_args()
+    generate(args.source,args.output)
+
+
+if __name__ == '__main__':
+    main()

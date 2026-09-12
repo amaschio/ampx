@@ -1,3 +1,27 @@
+# AmpX UI Visual Checks
+
+## Revision 5 correction — Step 1 (2026-09-12)
+
+**Current visual status: NOT ACCEPTED.** The V1 measurement table and visual-pass verdict below are preserved as historical evidence, superseded by the rejected `screenshots/ampx_v1.png` result and Revision 5. A historical test pass or screenshot list does not satisfy the new visual gates. EQ/Playlist V1 measurements remain unvalidated.
+
+**Authoritative Player measurements:** [ReferenceMeasurementsV2, annotated source](reference-crops/v2/player-measurements-v2.md) · [machine-readable ledger](reference-crops/v2/player-measurements-v2.json).
+
+**Baseline:** existing `.worktrees/ampx-ui`, branch `feature/ampx-ui`, revision `9f3ba45` (completed AppKit cutover). No tracked source edits existed at task start. Untracked files were the old plan/spec/review/PDF and three Playlist reference crops; they were retained. Revision 5 and the corrected plan were carried from the main checkout before measurement work. Main checkout `5dc5a23` is not the implementation baseline.
+
+**Baseline verification:** `./scripts/run-tests.sh` succeeded. The xcresult summary confirms 468 passed tests, zero failures and zero skipped (the console printed 467 case lines). Log: `/tmp/ampx-step1-baseline.log`. Result bundle: `/Users/santiagorodriguez/Library/Developer/Xcode/DerivedData/AmpX-deeoonschstsamebrcjyfpxsbbix/Logs/Test/Test-AmpX-2026.09.12_16-44-27--0300.xcresult`. This establishes behavioral baseline only, not visual fidelity.
+
+**Measurement checkpoint:** Eight grouped annotations (frame, header, display, timer, metadata, sliders, transport, glyphs), the material enlargement sheet, and spectrum scan were opened and visually inspected against the original PNG. The 68 rectangles identify visible edge/ink bounds with ±2 source-pixel uncertainty. Font metrics and invisible interaction bounds are explicitly not measured from raster ink. Derived travel proposals are labeled separately and must be checked during Step 2.
+
+**Corrections established:** actual panel/content origins; centered title and paired header lines; independent timer/play-glyph regions; metadata channel labels outside numeric wells; separate narrow slider tracks and taller metallic handles; recessed seek well and broad gold handle; individual transport widths and 84 pt Shuffle; actual spectrum scans without the former canonical override. JSON also records six per-pixel material edge profiles and twelve color patches.
+
+**Artifact verification:** Regeneration into `/tmp/ampx-reference-v2-repro` produced byte-identical artifacts (`diff -qr`). All 68 unique source-to-logical conversions and annotation links passed validation.
+
+**Scope:** only measurement tooling and documentation changed. No production Swift rendering, model bindings, or saved layout changed. Step 2 and the Player approval gate have not started.
+
+---
+
+## Historical V1 evidence — superseded visual verdict
+
 # AmpX UI Visual Checks — ReferenceMeasurementsV1
 
 **Date:** 2026-09-11  
