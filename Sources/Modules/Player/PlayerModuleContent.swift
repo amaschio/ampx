@@ -6,6 +6,7 @@ final class PlayerModuleContent: AmpXModuleContent {
     private let audioPlayer: AudioPlayer
     private let playlistManager: PlaylistManager
     private let onToggleModule: (AmpXModuleID) -> Void
+    var menuAction: ((AmpXButton) -> Void)?
 
     private let spectrumWell: SpectrumWellView
     private let timeDisplay: TimeDisplayView
@@ -108,6 +109,10 @@ final class PlayerModuleContent: AmpXModuleContent {
                 button.style = .menu
                 button.icon = .menu
                 button.accessibilityTitle = "Menu"
+                button.action = { [weak self] in
+                    guard let self, let button = self.transportButtons[safe: 8] else { return }
+                    self.menuAction?(button)
+                }
             } else if let icon = transportIcons[index] {
                 button.icon = icon
                 button.accessibilityTitle = transportLabel(for: icon)
