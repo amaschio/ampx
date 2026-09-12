@@ -90,6 +90,9 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         if state.detached.contains(id) {
             tearDownDetachedWindow(for: id)
         }
+        if id == .enthea {
+            (moduleViews[id]?.content as? EntheaModuleContent)?.closeHost()
+        }
         state.close(id)
         focusModule(nextFocus)
         stackWindowController?.updateLayout()
@@ -99,6 +102,9 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
 
     func reopenModule(_ id: AmpXModuleID) {
         state.reopen(id)
+        if id == .enthea {
+            (moduleViews[id]?.content as? EntheaModuleContent)?.reopenHost()
+        }
         stackWindowController?.updateLayout()
         refreshEffectiveVisibility()
         persistLayout()
@@ -297,11 +303,13 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
 
     func toggleTheater() {
         isEntheaInTheater.toggle()
+        refreshEntheaPresentation()
         refreshEffectiveVisibility()
     }
 
     func exitTheater() {
         isEntheaInTheater = false
+        refreshEntheaPresentation()
         refreshEffectiveVisibility()
     }
 
@@ -396,6 +404,13 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
                 skin: skin,
                 manager: playlistManager,
                 audioPlayer: audioPlayer
+            )
+        case .enthea:
+            return EntheaModuleContent(
+                skin: skin,
+                audioPlayer: audioPlayer,
+                isTheater: { [weak self] in self?.isEntheaInTheater ?? false },
+                onToggleTheater: { [weak self] in self?.toggleTheater() }
             )
         default:
             return AmpXModuleContent.make(moduleID: moduleID, skin: skin)
@@ -595,6 +610,10 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
             inputs.windowVisible = false
         }
         return inputs
+    }
+
+    private func refreshEntheaPresentation() {
+        (moduleViews[.enthea]?.content as? EntheaModuleContent)?.refreshTheaterPresentation()
     }
 
     private func moduleFrameInStackContent(for moduleID: AmpXModuleID) -> CGRect {
