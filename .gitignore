@@ -68,3 +68,6 @@ fastlane/test_output
 # Code Injection
 iOSInjectionProject/
 
+
+# Local git worktrees
+.worktrees/
