@@ -63,6 +63,7 @@ final class AmpXModuleDragSession {
     private var didTearOff = false
     private var autoScrollTimer: Timer?
     private var pendingDropIndex: Int?
+    private var lastDragScreenPoint: NSPoint?
 
     func bind(coordinator: AmpXHostCoordinator, viewport: AmpXStackViewport? = nil) {
         self.coordinator = coordinator
@@ -145,6 +146,7 @@ final class AmpXModuleDragSession {
         draggedModuleID = nil
         didTearOff = false
         pendingDropIndex = nil
+        lastDragScreenPoint = nil
     }
 
     func cancelDragIfDragging(moduleID: AmpXModuleID) {
@@ -179,18 +181,21 @@ final class AmpXModuleDragSession {
             )
         }
 
-        guard isPointOverStack(event.locationInWindow, window: window) else {
+        let screenPoint = screenPoint(for: event.locationInWindow, in: window)
+        lastDragScreenPoint = screenPoint
+
+        guard isPointOverStack(screenPoint: screenPoint) else {
             pendingDropIndex = nil
             viewport.stackView.setInsertionMarker(at: nil, width: 0)
             stopAutoScroll()
             return
         }
 
-        let contentPoint = viewport.stackContentPoint(fromWindowPoint: event.locationInWindow)
+        let contentPoint = viewport.stackContentPoint(fromScreenPoint: screenPoint)
         let geometry = coordinator.makeDropGeometry(excluding: moduleID)
         pendingDropIndex = AmpXModuleDragController.dropIndex(geometry: geometry, point: contentPoint)
         updateInsertionMarker(for: geometry, dropIndex: pendingDropIndex)
-        updateAutoScroll(for: event.locationInWindow, in: window)
+        updateAutoScroll(for: screenPoint)
     }
 
     private func updateInsertionMarker(for geometry: AmpXDropGeometry, dropIndex: Int?) {
@@ -217,10 +222,10 @@ final class AmpXModuleDragSession {
         viewport.stackView.setInsertionMarker(at: markerY, width: geometry.bounds.width)
     }
 
-    private func updateAutoScroll(for windowPoint: NSPoint, in window: NSWindow) {
+    private func updateAutoScroll(for screenPoint: NSPoint) {
         guard let viewport else { return }
 
-        let viewportPoint = viewport.convert(windowPoint, from: nil)
+        let viewportPoint = viewport.viewportPoint(fromScreenPoint: screenPoint)
         let speed = viewport.autoScrollSpeed(for: viewportPoint)
         guard speed != 0 else {
             stopAutoScroll()
@@ -247,11 +252,11 @@ final class AmpXModuleDragSession {
 
         viewport.setScrollOffset(viewport.scrollOffset + viewport.pendingAutoScrollSpeed)
 
+        guard let lastDragScreenPoint else { return }
+
+        let contentPoint = viewport.stackContentPoint(fromScreenPoint: lastDragScreenPoint)
         let geometry = coordinator.makeDropGeometry(excluding: moduleID)
-        pendingDropIndex = AmpXModuleDragController.dropIndex(
-            geometry: geometry,
-            point: viewport.lastDragContentPoint ?? .zero
-        )
+        pendingDropIndex = AmpXModuleDragController.dropIndex(geometry: geometry, point: contentPoint)
         updateInsertionMarker(for: geometry, dropIndex: pendingDropIndex)
     }
 
@@ -271,10 +276,12 @@ final class AmpXModuleDragSession {
         return !expanded.contains(viewportPoint)
     }
 
+    private func isPointOverStack(screenPoint: NSPoint) -> Bool {
+        viewport?.contains(screenPoint: screenPoint) ?? false
+    }
+
     private func isPointOverStack(_ windowPoint: NSPoint, window: NSWindow) -> Bool {
-        guard let viewport else { return false }
-        let point = viewport.convert(windowPoint, from: nil)
-        return viewport.bounds.contains(point)
+        isPointOverStack(screenPoint: window.convertPoint(toScreen: windowPoint))
     }
 
     private func screenPoint(for windowPoint: NSPoint, in window: NSWindow) -> CGPoint {

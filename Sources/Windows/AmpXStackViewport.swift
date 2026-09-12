@@ -9,7 +9,6 @@ final class AmpXStackViewport: NSView {
     private(set) var scrollOffset: CGFloat = 0
 
     var pendingAutoScrollSpeed: CGFloat = 0
-    var lastDragContentPoint: CGPoint?
 
     private let scrollbar: AmpXScrollbar
     private var contentHeight: CGFloat = 0
@@ -106,11 +105,19 @@ final class AmpXStackViewport: NSView {
         setScrollOffset(target)
     }
 
-    func stackContentPoint(fromWindowPoint windowPoint: NSPoint) -> CGPoint {
-        let viewportPoint = convert(windowPoint, from: nil)
-        let contentPoint = CGPoint(x: viewportPoint.x, y: viewportPoint.y + scrollOffset)
-        lastDragContentPoint = contentPoint
-        return contentPoint
+    func viewportPoint(fromScreenPoint screenPoint: NSPoint) -> NSPoint {
+        guard let stackWindow = window else { return .zero }
+        let windowPoint = stackWindow.convertPoint(fromScreen: screenPoint)
+        return convert(windowPoint, from: nil)
+    }
+
+    func contains(screenPoint: NSPoint) -> Bool {
+        bounds.contains(viewportPoint(fromScreenPoint: screenPoint))
+    }
+
+    func stackContentPoint(fromScreenPoint screenPoint: NSPoint) -> CGPoint {
+        let viewportPoint = viewportPoint(fromScreenPoint: screenPoint)
+        return CGPoint(x: viewportPoint.x, y: viewportPoint.y + scrollOffset)
     }
 
     func autoScrollSpeed(for viewportPoint: NSPoint) -> CGFloat {
