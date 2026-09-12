@@ -30,7 +30,7 @@ class AmpXModuleContent: AmpXDrawingView {
     static func make(moduleID: AmpXModuleID, skin: any AmpXSkin) -> AmpXModuleContent {
         switch moduleID {
         case .player:
-            return PlayerModuleContent(skin: skin)
+            preconditionFailure("Player module content must be constructed by AmpXHostCoordinator")
         case .equalizer:
             return EqualizerModuleContent(skin: skin)
         case .playlist:

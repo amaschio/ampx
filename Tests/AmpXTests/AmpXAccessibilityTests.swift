@@ -62,7 +62,17 @@ final class AmpXAccessibilityTests: XCTestCase {
         let skin = ClassicModernSkin()
         let module = AmpXModuleView(
             moduleID: .player,
-            content: PlayerModuleContent(skin: skin),
+            content: PlayerModuleContent(
+                skin: skin,
+                audioPlayer: AudioPlayer(installRemoteCommands: false),
+                playlistManager: PlaylistManager(
+                    audioPlayer: MockAudioPlayer(),
+                    restoreBookmarks: false,
+                    restorePlaylist: false,
+                    alertPresenter: SilentPlaylistAlertPresenter()
+                ),
+                onToggleModule: { _ in }
+            ),
             skin: skin
         )
         module.frame = CGRect(x: 0, y: 0, width: 490, height: 400)

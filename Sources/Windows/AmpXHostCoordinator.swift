@@ -6,6 +6,8 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     private let skin: any AmpXSkin
     private let layoutStore: AmpXLayoutStore
     private let screen: NSScreen
+    private let audioPlayer: AudioPlayer
+    private let playlistManager: PlaylistManager
 
     private(set) var stackWindowController: AmpXStackWindowController?
     private var moduleViews: [AmpXModuleID: AmpXModuleView] = [:]
@@ -32,12 +34,16 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         state: AmpXModuleOrder,
         skin: any AmpXSkin,
         layoutStore: AmpXLayoutStore? = nil,
-        screen: NSScreen? = nil
+        screen: NSScreen? = nil,
+        audioPlayer: AudioPlayer = .shared,
+        playlistManager: PlaylistManager = .shared
     ) {
         let resolvedScreen = screen ?? NSScreen.main ?? NSScreen.screens.first!
         self.state = state
         self.skin = skin
         self.screen = resolvedScreen
+        self.audioPlayer = audioPlayer
+        self.playlistManager = playlistManager
         self.layoutStore = layoutStore ?? AmpXLayoutStore(defaults: .standard, screen: resolvedScreen)
 
         let saved = self.layoutStore.load(screen: resolvedScreen)
@@ -365,10 +371,34 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
 
     private func createModuleViews() {
         for moduleID in AmpXModuleID.allCases {
-            let content = AmpXModuleContent.make(moduleID: moduleID, skin: skin)
+            let content = makeModuleContent(for: moduleID)
             let view = AmpXModuleView(moduleID: moduleID, content: content, skin: skin)
             wireHeader(for: view)
             moduleViews[moduleID] = view
+        }
+    }
+
+    private func makeModuleContent(for moduleID: AmpXModuleID) -> AmpXModuleContent {
+        switch moduleID {
+        case .player:
+            return PlayerModuleContent(
+                skin: skin,
+                audioPlayer: audioPlayer,
+                playlistManager: playlistManager,
+                onToggleModule: { [weak self] id in
+                    self?.toggleModuleVisibility(id)
+                }
+            )
+        default:
+            return AmpXModuleContent.make(moduleID: moduleID, skin: skin)
+        }
+    }
+
+    private func toggleModuleVisibility(_ id: AmpXModuleID) {
+        if state.closed.contains(id) {
+            reopenModule(id)
+        } else {
+            closeModule(id)
         }
     }
 
@@ -516,6 +546,12 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
             guard let moduleView = moduleViews[moduleID] else { continue }
             let inputs = visibilityInputs(for: moduleID)
             moduleView.content.setEffectivelyVisible(inputs.isVisible)
+        }
+        if let playerContent = moduleViews[.player]?.content as? PlayerModuleContent {
+            playerContent.updateModuleToggleStates(
+                eqOpen: !state.closed.contains(.equalizer),
+                plOpen: !state.closed.contains(.playlist)
+            )
         }
     }
 

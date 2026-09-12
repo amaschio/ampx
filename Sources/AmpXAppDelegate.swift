@@ -23,7 +23,9 @@ final class AmpXAppDelegate: NSObject, NSApplicationDelegate {
         let coordinator = AmpXHostCoordinator(
             state: saved.state,
             skin: ClassicModernSkin(),
-            layoutStore: layoutStore
+            layoutStore: layoutStore,
+            audioPlayer: audioPlayer,
+            playlistManager: playlistManager
         )
         self.hostCoordinator = coordinator
         installWindowMenu(coordinator: coordinator)
