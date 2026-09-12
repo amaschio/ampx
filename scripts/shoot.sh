@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build → relaunch → screenshot the AmpX window(s) for UI iteration.
-# Usage: ./scripts/shoot.sh [--no-build]
+# Usage: ./scripts/shoot.sh [--no-build] [-- <open-args>]
 #   Captures each on-screen AmpX window by window ID (works even when occluded)
 #   to /tmp/ampx_shot*.png. Prints the paths so an agent can read them.
 set -e
@@ -9,8 +9,28 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG="Debug"
 ARCH="$(uname -m)"
 DESTINATION="platform=macOS,arch=${ARCH}"
+NO_BUILD=false
+APP_ARGS=()
 
-if [[ "$1" != "--no-build" ]]; then
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --no-build)
+            NO_BUILD=true
+            shift
+            ;;
+        --)
+            shift
+            APP_ARGS=("$@")
+            break
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+if [[ "$NO_BUILD" == false ]]; then
     xcodebuild -project "${PROJECT_DIR}/AmpX.xcodeproj" -scheme AmpX \
         -configuration "${CONFIG}" \
         -destination "${DESTINATION}" \
@@ -40,7 +60,11 @@ killall AmpX >/dev/null 2>&1 || true
 pkill -x AmpX >/dev/null 2>&1 || true
 sleep 0.5
 echo "🚀 $APP_PATH"
-open -n "$APP_PATH"
+if [[ ${#APP_ARGS[@]} -gt 0 ]]; then
+    open -n "$APP_PATH" --args "${APP_ARGS[@]}"
+else
+    open -n "$APP_PATH"
+fi
 sleep 2.5
 
 # Enumerate AmpX's on-screen windows (layer 0 = normal) and capture each by ID.

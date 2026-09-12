@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 
-@main
 struct AmpXApp: App {
     @StateObject private var audioPlayer = AudioPlayer.shared
     @StateObject private var playlistManager = PlaylistManager.shared
