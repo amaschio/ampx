@@ -27,18 +27,24 @@ struct AmpXLabel {
     }
 
     func font(skin: any AmpXSkin) -> NSFont {
-        skin.font(size: fontSize, weight: weight)
+        skin.font(size: self.fontSize, weight: self.weight)
     }
 
     /// Single-line advance size; wrapping is never implied.
     func measuredSize(skin: any AmpXSkin) -> CGSize {
-        attributedString(skin: skin, paragraph: nil).size()
+        self.attributedString(skin: skin, paragraph: nil).size()
+    }
+
+    /// Visible glyph bounds relative to the line origin: x from the left edge, y up from the baseline.
+    func inkBounds(skin: any AmpXSkin) -> CGRect {
+        let line = CTLineCreateWithAttributedString(attributedString(skin: skin, paragraph: nil))
+        return CTLineGetBoundsWithOptions(line, .useGlyphPathBounds)
     }
 
     /// Typographic box of a single line whose baseline is at `baseline` (flipped coordinates).
     func lineRect(x: CGFloat, baseline: CGFloat, skin: any AmpXSkin) -> CGRect {
         let font = font(skin: skin)
-        let width = measuredSize(skin: skin).width
+        let width = self.measuredSize(skin: skin).width
         return CGRect(x: x, y: baseline - font.ascender, width: width, height: font.ascender - font.descender)
     }
 
@@ -46,9 +52,9 @@ struct AmpXLabel {
     /// for centered/right alignment.
     func draw(x: CGFloat, baseline: CGFloat, context: CGContext, skin: any AmpXSkin) {
         let font = font(skin: skin)
-        let attributed = attributedString(skin: skin, paragraph: nil)
+        let attributed = self.attributedString(skin: skin, paragraph: nil)
         let width = attributed.size().width
-        let originX: CGFloat = switch alignment {
+        let originX: CGFloat = switch self.alignment {
         case .center: x - width / 2
         case .right: x - width
         default: x
@@ -62,9 +68,9 @@ struct AmpXLabel {
 
     func draw(in rect: CGRect, context: CGContext, skin: any AmpXSkin) {
         let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = alignment
+        paragraph.alignment = self.alignment
 
-        let attributed = attributedString(skin: skin, paragraph: paragraph)
+        let attributed = self.attributedString(skin: skin, paragraph: paragraph)
         let boundingRect = rect.insetBy(dx: 0, dy: 1)
         let size = attributed.boundingRect(
             with: CGSize(width: boundingRect.width, height: .greatestFiniteMagnitude),
@@ -81,15 +87,15 @@ struct AmpXLabel {
 
     private func attributedString(skin: any AmpXSkin, paragraph: NSParagraphStyle?) -> NSAttributedString {
         var attributes: [NSAttributedString.Key: Any] = [
-            .font: font(skin: skin),
-            .foregroundColor: color,
+            .font: self.font(skin: skin),
+            .foregroundColor: self.color,
         ]
-        if tracking != 0 {
-            attributes[.kern] = tracking
+        if self.tracking != 0 {
+            attributes[.kern] = self.tracking
         }
         if let paragraph {
             attributes[.paragraphStyle] = paragraph
         }
-        return NSAttributedString(string: text, attributes: attributes)
+        return NSAttributedString(string: self.text, attributes: attributes)
     }
 }

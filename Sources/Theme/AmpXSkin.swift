@@ -9,7 +9,10 @@ enum AmpXFaceStyle {
 }
 
 enum AmpXThumbMaterial {
+    /// Steel handle with three vertical grooves (horizontal sliders).
     case steel
+    /// Steel handle with two horizontal grooves (vertical EQ sliders).
+    case steelLevel
     case gold
 }
 
@@ -61,5 +64,7 @@ protocol AmpXSkin {
         backingScale: CGFloat
     )
     func seekWell(_ well: CGRect, track: CGRect, in context: CGContext, backingScale: CGFloat)
+    /// Vertical EQ slot with a glowing bar tinted by the displayed gain.
+    func levelTrack(_ slot: CGRect, decibels: Double, in context: CGContext, backingScale: CGFloat)
     func metallicThumb(_ rect: CGRect, material: AmpXThumbMaterial, in context: CGContext, backingScale: CGFloat)
 }

@@ -120,11 +120,44 @@ enum AmpXMetrics {
     static let spectrumSegmentHeight: CGFloat = 5.0
     static let spectrumSegmentPitch: CGFloat = 6.9
 
-    // MARK: - Equalizer / Playlist (ReferenceMeasurementsV1, unvalidated)
+    // MARK: - Equalizer (content coordinates, ReferenceMeasurementsV2 eq-measurements-v2)
 
-    static let eqCurve = CGRect(x: 68.0, y: 18.0, width: 314.0, height: 24.0)
-    static let eqPreamp = CGRect(x: 15.0, y: 56.0, width: 18.0, height: 120.0)
-    static let eqBandRow = CGRect(x: 34.0, y: 56.0, width: 440.0, height: 120.0)
+    static let eqOnToggle = CGRect(x: 14, y: 9.5, width: 55.5, height: 33)
+    static let eqAutoToggle = CGRect(x: 75.5, y: 9.5, width: 70.5, height: 33)
+    static let eqPresetsButton = CGRect(x: 382, y: 9.5, width: 93.5, height: 33)
+    /// Button-local lamps, label ink (left edge, baseline) and dropdown triangle.
+    /// Lamp outline sits just outside the measured 8.5 × 9 pt green core.
+    static let eqOnIndicator = CGRect(x: 10, y: 10.5, width: 10.5, height: 11)
+    static let eqAutoIndicator = CGRect(x: 10, y: 10, width: 10.5, height: 11)
+    static let eqOnLabelInk = CGPoint(x: 28.5, y: 21)
+    static let eqAutoLabelInk = CGPoint(x: 30, y: 21)
+    static let eqPresetsLabelInk = CGPoint(x: 13.5, y: 21)
+    static let eqPresetsTriangle = CGRect(x: 74.5, y: 13, width: 8, height: 7)
+
+    /// Curve drawn on the panel (no well): edge knots at the frame edges, band knots from +20 pt at 18.39 pt pitch.
+    static let eqCurveFrame = CGRect(x: 161, y: 5, width: 201, height: 42)
+    static let eqCurveFirstBandOffset: CGFloat = 20
+    static let eqCurveBandPitch: CGFloat = 18.39
+    static let eqGridMinY: CGFloat = 10
+    static let eqGridMaxY: CGFloat = 47
+
+    /// Measured thumb centers; the reference spacing is uneven (67–72 px).
+    static let eqPreampCenterX: CGFloat = 36
+    static let eqBandCenterX: [CGFloat] = [135, 169.75, 203.25, 237.25, 271.75, 306.25, 339.75, 374.25, 408, 444]
+    static let eqSliderSlotSize = CGSize(width: 13, height: 109.5)
+    static let eqSliderSlotCenterY: CGFloat = 108.25
+    static let eqSliderThumbSize = CGSize(width: 20, height: 24)
+    /// Thumb-center travel: +12 dB at the 58.5 pt tick row, −12 dB at 157.25 pt.
+    static let eqSliderTravel: CGFloat = 98.75
+    static let eqTickWidth: CGFloat = 6.5
+    static let eqPreampTickOffset: CGFloat = 15.75
+    static let eqOuterBandTickOffset: CGFloat = 17.25
+    static let eqDecibelLabelCenterX: CGFloat = 80
+    static let eqDecibelLabelBaselines: [CGFloat] = [64, 111.5, 159.5]
+    static let eqPreampLabelInkX: CGFloat = 20
+    static let eqBandLabelBaseline: CGFloat = 180.5
+
+    // MARK: - Playlist (ReferenceMeasurementsV1, unvalidated)
 
     static let playlistRows = CGRect(x: 15.5, y: 9.5, width: 424.0, height: 180.0)
     static let playlistScrollbar = CGRect(x: 440.5, y: 9.5, width: 16.0, height: 180.0)

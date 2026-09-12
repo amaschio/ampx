@@ -2,12 +2,15 @@ import AppKit
 import Combine
 import CoreGraphics
 
-final class EqualizerModuleContent: AmpXModuleContent {
-    private static let eqOnToggle = CGRect(x: 15.0, y: 14.0, width: 26.0, height: 18.0)
-    private static let eqAutoToggle = CGRect(x: 43.0, y: 14.0, width: 32.0, height: 18.0)
-    private static let eqPresetsButton = CGRect(x: 418.0, y: 14.0, width: 54.0, height: 18.0)
+/// Display-only EQ values for deterministic reference captures. Never written to audio or saved settings.
+struct EqualizerReferencePresentation: Equatable {
+    var bandDecibels: [Double]
+    var preampDecibels: Double
+    var isEnabled: Bool
+    var isAutoEnabled: Bool
+}
 
-    private static let sliderTrackWidth: CGFloat = 18
+final class EqualizerModuleContent: AmpXModuleContent {
     private static let decibelRange: ClosedRange<Double> = -12 ... 12
 
     private let audioPlayer: AudioPlayer
@@ -20,6 +23,11 @@ final class EqualizerModuleContent: AmpXModuleContent {
     private var cancellables = Set<AnyCancellable>()
     private let presetsMenuTarget = EQPresetsMenuTarget()
 
+    /// When set, rendering uses these values instead of live EQ state.
+    var referencePresentation: EqualizerReferencePresentation? {
+        didSet { self.applyReferencePresentation() }
+    }
+
     init(skin: any AmpXSkin, audioPlayer: AudioPlayer) {
         self.audioPlayer = audioPlayer
         self.onToggle = AmpXButton(skin: skin)
@@ -28,132 +36,159 @@ final class EqualizerModuleContent: AmpXModuleContent {
         self.preampSlider = AmpXSlider(skin: skin)
         self.curveView = EQCurveView(skin: skin)
         super.init(skin: skin)
-        presetsMenuTarget.audioPlayer = audioPlayer
-        configureControls()
-        bindModels()
-        refreshControlState(animated: false)
+        self.presetsMenuTarget.audioPlayer = audioPlayer
+        self.configureControls()
+        self.bindModels()
+        self.refreshControlState(animated: false)
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
     private func configureControls() {
-        onToggle.label = "ON"
-        onToggle.showsActiveIndicator = true
-        onToggle.accessibilityTitle = "Equalizer on"
-        onToggle.action = { [weak audioPlayer] in
+        self.configureToggle(self.onToggle, label: "ON", indicator: AmpXMetrics.eqOnIndicator, labelInk: AmpXMetrics.eqOnLabelInk)
+        self.onToggle.accessibilityTitle = "Equalizer on"
+        self.onToggle.action = { [weak audioPlayer] in
             guard let audioPlayer else { return }
             audioPlayer.setEQEnabled(!audioPlayer.eqEnabled)
         }
 
-        autoToggle.label = "AUTO"
-        autoToggle.showsActiveIndicator = true
-        autoToggle.accessibilityTitle = "Equalizer auto"
-        autoToggle.action = { [weak audioPlayer] in
+        self.configureToggle(self.autoToggle, label: "AUTO", indicator: AmpXMetrics.eqAutoIndicator, labelInk: AmpXMetrics.eqAutoLabelInk)
+        self.autoToggle.accessibilityTitle = "Equalizer auto"
+        self.autoToggle.action = { [weak audioPlayer] in
             guard let audioPlayer else { return }
             audioPlayer.setEQAutoEnabled(!audioPlayer.eqAutoEnabled)
         }
 
-        presetsButton.label = "PRESETS"
-        presetsButton.accessibilityTitle = "Equalizer presets"
-        presetsButton.action = { [weak self] in
+        self.presetsButton.label = "PRESETS"
+        self.presetsButton.labelFontSize = 12.5
+        self.presetsButton.labelWeight = .regular
+        self.presetsButton.labelBaselineOrigin = Self.labelOrigin(
+            "PRESETS", size: 12.5, inkX: AmpXMetrics.eqPresetsLabelInk.x, baseline: AmpXMetrics.eqPresetsLabelInk.y, skin: skin
+        )
+        self.presetsButton.icon = .dropdown
+        self.presetsButton.iconColor = skin.text
+        self.presetsButton.iconRect = AmpXMetrics.eqPresetsTriangle
+        self.presetsButton.accessibilityTitle = "Equalizer presets"
+        self.presetsButton.action = { [weak self] in
             self?.showPresetsMenu()
         }
 
-        preampSlider.isVertical = true
-        preampSlider.range = Self.decibelRange
-        preampSlider.step = 1
-        preampSlider.showsGradient = true
-        preampSlider.showsThumbGrip = true
-        preampSlider.accessibilityTitle = "Preamp"
-        preampSlider.onChange = { [weak audioPlayer] db in
+        self.configureLevelSlider(self.preampSlider, title: "Preamp")
+        self.preampSlider.onChange = { [weak audioPlayer] db in
             audioPlayer?.setEQPreamp(EQValueMapping.normalized(decibels: Float(db)))
         }
 
-        let row = AmpXMetrics.eqBandRow
         for index in 0 ..< AmpXEQBands.bandCount {
-            let centerX = row.minX + AmpXEQBands.bandCenterX(bandIndex: index, width: row.width)
-            let track = CGRect(
-                x: centerX - Self.sliderTrackWidth / 2,
-                y: row.minY,
-                width: Self.sliderTrackWidth,
-                height: row.height
-            )
             let slider = AmpXSlider(skin: skin)
-            slider.frame = track
-            slider.isVertical = true
-            slider.range = Self.decibelRange
-            slider.step = 1
-            slider.showsGradient = true
-            slider.showsThumbGrip = true
-            slider.accessibilityTitle = "\(AmpXEQBands.displayLabels[index]) band"
+            self.configureLevelSlider(slider, title: "\(AmpXEQBands.displayLabels[index]) band")
             slider.onChange = { [weak audioPlayer] db in
                 audioPlayer?.setEQBand(index, gain: Float(db))
             }
-            bandSliders.append(slider)
+            self.bandSliders.append(slider)
             addSubview(slider)
         }
 
-        curveView.frame = AmpXMetrics.eqCurve
-
-        for control in [curveView, onToggle, autoToggle, presetsButton, preampSlider] {
+        for control in [self.curveView, self.onToggle, self.autoToggle, self.presetsButton, self.preampSlider] {
             addSubview(control)
         }
-        layoutControls()
+        self.layoutControls()
+    }
+
+    private func configureToggle(_ button: AmpXButton, label: String, indicator: CGRect, labelInk: CGPoint) {
+        button.label = label
+        button.labelFontSize = 13
+        button.labelWeight = .regular
+        button.labelBaselineOrigin = Self.labelOrigin(label, size: 13, inkX: labelInk.x, baseline: labelInk.y, skin: skin)
+        button.showsActiveIndicator = true
+        button.indicatorRect = indicator
+    }
+
+    private func configureLevelSlider(_ slider: AmpXSlider, title: String) {
+        slider.isVertical = true
+        slider.range = Self.decibelRange
+        slider.step = 1
+        slider.artwork = .level
+        slider.trackSize = AmpXMetrics.eqSliderSlotSize
+        slider.thumbSize = AmpXMetrics.eqSliderThumbSize
+        slider.travelLength = AmpXMetrics.eqSliderTravel
+        slider.accessibilityTitle = title
+    }
+
+    private static func labelOrigin(_ text: String, size: CGFloat, inkX: CGFloat, baseline: CGFloat, skin: any AmpXSkin) -> CGPoint {
+        let ink = AmpXLabel(text: text, color: skin.text, fontSize: size, weight: .regular).inkBounds(skin: skin)
+        return CGPoint(x: inkX - ink.minX, y: baseline)
     }
 
     private func bindModels() {
-        audioPlayer.$eqEnabled
+        self.audioPlayer.$eqEnabled
             .receive(on: DispatchQueue.main)
             .sink { [weak self] enabled in
                 self?.onToggle.isActive = enabled
             }
-            .store(in: &cancellables)
+            .store(in: &self.cancellables)
 
-        audioPlayer.$eqAutoEnabled
+        self.audioPlayer.$eqAutoEnabled
             .receive(on: DispatchQueue.main)
             .sink { [weak self] enabled in
                 self?.autoToggle.isActive = enabled
             }
-            .store(in: &cancellables)
+            .store(in: &self.cancellables)
 
-        audioPlayer.$eqBandValues
+        self.audioPlayer.$eqBandValues
             .receive(on: DispatchQueue.main)
             .sink { [weak self] values in
                 self?.updateBandSliders(from: values)
                 self?.updateCurve(animated: true)
             }
-            .store(in: &cancellables)
+            .store(in: &self.cancellables)
 
-        audioPlayer.$eqPreampValue
+        self.audioPlayer.$eqPreampValue
             .receive(on: DispatchQueue.main)
             .sink { [weak self] normalized in
                 self?.updatePreampSlider(from: normalized)
                 self?.updateCurve(animated: true)
             }
-            .store(in: &cancellables)
+            .store(in: &self.cancellables)
 
-        audioPlayer.$eqPresetsRevision
+        self.audioPlayer.$eqPresetsRevision
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.presetsMenuTarget.presets = self?.audioPlayer.eqPresets() ?? []
             }
-            .store(in: &cancellables)
+            .store(in: &self.cancellables)
     }
 
     private func refreshControlState(animated: Bool) {
-        onToggle.isActive = audioPlayer.eqEnabled
-        autoToggle.isActive = audioPlayer.eqAutoEnabled
-        updateBandSliders(from: audioPlayer.eqBandValues)
-        updatePreampSlider(from: audioPlayer.eqPreampValue)
-        presetsMenuTarget.presets = audioPlayer.eqPresets()
-        updateCurve(animated: animated)
+        self.onToggle.isActive = self.audioPlayer.eqEnabled
+        self.autoToggle.isActive = self.audioPlayer.eqAutoEnabled
+        self.updateBandSliders(from: self.audioPlayer.eqBandValues)
+        self.updatePreampSlider(from: self.audioPlayer.eqPreampValue)
+        self.presetsMenuTarget.presets = self.audioPlayer.eqPresets()
+        self.updateCurve(animated: animated)
+    }
+
+    private func applyReferencePresentation() {
+        let reference = self.referencePresentation
+        self.onToggle.displayActiveOverride = reference?.isEnabled
+        self.autoToggle.displayActiveOverride = reference?.isAutoEnabled
+        self.preampSlider.displayValueOverride = reference?.preampDecibels
+        for (index, slider) in self.bandSliders.enumerated() {
+            slider.displayValueOverride = reference.flatMap { index < $0.bandDecibels.count ? $0.bandDecibels[index] : nil }
+        }
+        self.curveView.reference = reference.map {
+            EQCurveView.Reference(
+                bandValues: $0.bandDecibels.map { EQValueMapping.normalized(decibels: Float($0)) },
+                preampValue: EQValueMapping.normalized(decibels: Float($0.preampDecibels))
+            )
+        }
+        needsDisplay = true
     }
 
     private func updateBandSliders(from values: [Float]) {
-        for index in 0 ..< bandSliders.count where index < values.count {
+        for index in 0 ..< self.bandSliders.count where index < values.count {
             let db = EQValueMapping.decibels(normalized: values[index])
             bandSliders[index].setValue(Double(db), sendChange: false)
         }
@@ -161,26 +196,26 @@ final class EqualizerModuleContent: AmpXModuleContent {
 
     private func updatePreampSlider(from normalized: Float) {
         let db = EQValueMapping.decibels(normalized: normalized)
-        preampSlider.setValue(Double(db), sendChange: false)
+        self.preampSlider.setValue(Double(db), sendChange: false)
     }
 
     private func updateCurve(animated: Bool) {
-        curveView.setCurve(
-            bandValues: audioPlayer.eqBandValues,
-            preampValue: audioPlayer.eqPreampValue,
+        self.curveView.setCurve(
+            bandValues: self.audioPlayer.eqBandValues,
+            preampValue: self.audioPlayer.eqPreampValue,
             animated: animated
         )
     }
 
     private func showPresetsMenu() {
         let menu = NSMenu()
-        for preset in audioPlayer.eqPresets() {
+        for preset in self.audioPlayer.eqPresets() {
             let item = NSMenuItem(
                 title: preset.name,
                 action: #selector(EQPresetsMenuTarget.applyPreset(_:)),
                 keyEquivalent: ""
             )
-            item.target = presetsMenuTarget
+            item.target = self.presetsMenuTarget
             item.representedObject = preset
             menu.addItem(item)
         }
@@ -190,121 +225,161 @@ final class EqualizerModuleContent: AmpXModuleContent {
             action: #selector(EQPresetsMenuTarget.loadEQF(_:)),
             keyEquivalent: ""
         )
-        loadItem.target = presetsMenuTarget
+        loadItem.target = self.presetsMenuTarget
         menu.addItem(loadItem)
         let resetItem = NSMenuItem(
             title: "Reset",
             action: #selector(EQPresetsMenuTarget.resetEQ(_:)),
             keyEquivalent: ""
         )
-        resetItem.target = presetsMenuTarget
+        resetItem.target = self.presetsMenuTarget
         menu.addItem(resetItem)
-        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: presetsButton.bounds.height), in: presetsButton)
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: self.presetsButton.bounds.height), in: self.presetsButton)
     }
 
     override func resizeSubviews(withOldSize oldSize: NSSize) {
         super.resizeSubviews(withOldSize: oldSize)
-        layoutControls()
+        self.layoutControls()
+    }
+
+    // MARK: - Layout
+
+    static func sliderFrame(centerX: CGFloat) -> CGRect {
+        let thumb = AmpXMetrics.eqSliderThumbSize
+        let height = AmpXMetrics.eqSliderTravel + thumb.height
+        return CGRect(
+            x: centerX - thumb.width / 2,
+            y: AmpXMetrics.eqSliderSlotCenterY - height / 2,
+            width: thumb.width,
+            height: height
+        )
     }
 
     private func layoutControls() {
-        onToggle.frame = Self.eqOnToggle
-        autoToggle.frame = Self.eqAutoToggle
-        presetsButton.frame = Self.eqPresetsButton
-        preampSlider.frame = AmpXMetrics.eqPreamp
-        curveView.frame = AmpXMetrics.eqCurve
-
-        let row = AmpXMetrics.eqBandRow
-        for index in 0 ..< bandSliders.count {
-            let centerX = row.minX + AmpXEQBands.bandCenterX(bandIndex: index, width: row.width)
-            bandSliders[index].frame = CGRect(
-                x: centerX - Self.sliderTrackWidth / 2,
-                y: row.minY,
-                width: Self.sliderTrackWidth,
-                height: row.height
-            )
+        self.onToggle.frame = AmpXMetrics.eqOnToggle
+        self.autoToggle.frame = AmpXMetrics.eqAutoToggle
+        self.presetsButton.frame = AmpXMetrics.eqPresetsButton
+        self.curveView.frame = AmpXMetrics.eqCurveFrame
+        self.preampSlider.frame = Self.sliderFrame(centerX: AmpXMetrics.eqPreampCenterX)
+        for (index, slider) in self.bandSliders.enumerated() {
+            slider.frame = Self.sliderFrame(centerX: AmpXMetrics.eqBandCenterX[index])
         }
     }
 
-    override func draw(_ dirtyRect: NSRect) {
+    // MARK: - Drawing
+
+    override func draw(_: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
-        let backingScale = window?.backingScaleFactor ?? 1
-
-        drawCurveWell(in: context, backingScale: backingScale)
-        drawDecibelScale(in: context)
-        drawHorizontalGuides(in: context)
-        drawSliderLabels(in: context)
+        self.drawCurveGrid(in: context)
+        self.drawScaleTicks(in: context)
+        self.drawDecibelLabels(in: context)
+        self.drawSliderLabels(in: context)
     }
 
-    private func drawCurveWell(in context: CGContext, backingScale: CGFloat) {
-        let well = AmpXMetrics.eqCurve
-        skin.displayWell(well, in: context, backingScale: backingScale)
-
-        let midY = well.midY
-        var x = well.minX + 1
-        while x < well.maxX - 1 {
-            context.setFillColor(skin.textDim.withAlphaComponent(0.55).cgColor)
-            context.fill(CGRect(x: x, y: midY, width: 1, height: 1))
-            x += 3
-        }
-    }
-
-    private func drawDecibelScale(in context: CGContext) {
-        let track = AmpXMetrics.eqPreamp
-        let labels: [(String, CGFloat)] = [
-            ("+12 dB", track.minY + 2),
-            ("0 dB", track.midY - 4),
-            ("-12 dB", track.maxY - 12),
+    private func drawCurveGrid(in context: CGContext) {
+        let frame = AmpXMetrics.eqCurveFrame
+        let knots = EQCurveView.knotPoints(
+            bandValues: Array(repeating: 0, count: AmpXEQBands.bandCount),
+            preampValue: 0,
+            size: frame.size
+        )
+        let height = AmpXMetrics.eqGridMaxY - AmpXMetrics.eqGridMinY
+        // Dark, mid and light half-point columns sampled across a reference grid line.
+        let columns: [(offset: CGFloat, color: NSColor)] = [
+            (-0.5, NSColor(srgbRed: 21 / 255, green: 31 / 255, blue: 48 / 255, alpha: 1)),
+            (0, NSColor(srgbRed: 40 / 255, green: 53 / 255, blue: 78 / 255, alpha: 1)),
+            (0.5, NSColor(srgbRed: 66 / 255, green: 84 / 255, blue: 116 / 255, alpha: 1)),
         ]
-        for (text, y) in labels {
-            AmpXLabel(text: text, color: skin.orange, fontSize: 7, weight: .medium)
-                .draw(in: CGRect(x: track.maxX + 2, y: y, width: 28, height: 10), context: context, skin: skin)
+        for knot in knots {
+            let x = frame.minX + knot.x
+            for column in columns {
+                context.setFillColor(column.color.cgColor)
+                context.fill(CGRect(x: x + column.offset - 0.25, y: AmpXMetrics.eqGridMinY, width: 0.5, height: height))
+            }
         }
     }
 
-    private func drawHorizontalGuides(in context: CGContext) {
-        let row = AmpXMetrics.eqBandRow
-        let track = AmpXMetrics.eqPreamp
-        let guideYs = [
-            track.minY + 2,
-            track.midY,
-            track.maxY - 2,
+    /// Horizontal ±12/0 dB dashes between sliders at the thumb-center rows, plus slot end marks.
+    private func drawScaleTicks(in context: CGContext) {
+        let tickColor = NSColor(srgbRed: 170 / 255, green: 180 / 255, blue: 196 / 255, alpha: 1)
+        let markColor = NSColor(srgbRed: 58 / 255, green: 70 / 255, blue: 90 / 255, alpha: 1)
+        let centers = AmpXMetrics.eqBandCenterX
+        var tickXs = [
+            AmpXMetrics.eqPreampCenterX - AmpXMetrics.eqPreampTickOffset,
+            AmpXMetrics.eqPreampCenterX + AmpXMetrics.eqPreampTickOffset,
+            centers[0] - AmpXMetrics.eqOuterBandTickOffset,
+            centers[centers.count - 1] + AmpXMetrics.eqOuterBandTickOffset,
         ]
-        context.saveGState()
-        context.setStrokeColor(skin.textDim.withAlphaComponent(0.35).cgColor)
-        context.setLineWidth(1)
-        context.setLineDash(phase: 0, lengths: [2, 2])
-        for y in guideYs {
-            context.move(to: CGPoint(x: row.minX, y: y))
-            context.addLine(to: CGPoint(x: row.maxX, y: y))
+        tickXs += zip(centers, centers.dropFirst()).map { ($0 + $1) / 2 }
+
+        for value in [12.0, 0, -12] {
+            let y = self.preampSlider.convert(self.preampSlider.thumbRect(forValue: value), to: self).midY
+            context.setFillColor(tickColor.cgColor)
+            for x in tickXs {
+                context.fill(CGRect(x: x - AmpXMetrics.eqTickWidth / 2, y: y - 0.5, width: AmpXMetrics.eqTickWidth, height: 1))
+            }
         }
-        context.strokePath()
-        context.restoreGState()
+
+        context.setFillColor(markColor.cgColor)
+        for slider in [self.preampSlider] + self.bandSliders {
+            let slot = slider.convert(slider.trackRect, to: self)
+            context.fill(CGRect(x: slot.midX - 0.5, y: slot.minY - 3, width: 1, height: 2.5))
+            context.fill(CGRect(x: slot.midX - 0.5, y: slot.maxY + 0.5, width: 1, height: 2.5))
+        }
+    }
+
+    private func drawDecibelLabels(in context: CGContext) {
+        for (text, baseline) in zip(["+12 dB", "0 dB", "-12 dB"], AmpXMetrics.eqDecibelLabelBaselines) {
+            AmpXLabel(text: text, color: skin.yellow, fontSize: 11.5, weight: .regular, alignment: .center)
+                .draw(x: AmpXMetrics.eqDecibelLabelCenterX, baseline: baseline, context: context, skin: skin)
+        }
     }
 
     private func drawSliderLabels(in context: CGContext) {
-        let row = AmpXMetrics.eqBandRow
-        let preampLabel = CGRect(
-            x: AmpXMetrics.eqPreamp.minX - 4,
-            y: row.maxY + 2,
-            width: AmpXMetrics.eqPreamp.width + 8,
-            height: 12
-        )
-        AmpXLabel(text: "PREAMP", color: skin.orange, fontSize: 7, weight: .medium, alignment: .center)
-            .draw(in: preampLabel, context: context, skin: skin)
-
-        for index in 0 ..< AmpXEQBands.bandCount {
-            let centerX = row.minX + AmpXEQBands.bandCenterX(bandIndex: index, width: row.width)
-            let labelRect = CGRect(x: centerX - 16, y: row.maxY + 2, width: 32, height: 12)
-            AmpXLabel(
-                text: AmpXEQBands.displayLabels[index],
-                color: skin.orange,
-                fontSize: 7,
-                weight: .medium,
-                alignment: .center
-            )
-            .draw(in: labelRect, context: context, skin: skin)
+        for item in Self.sliderLabelLayout(skin: skin) {
+            AmpXLabel(text: item.text, color: skin.text, fontSize: Self.sliderLabelSize, weight: .regular)
+                .draw(x: item.rect.minX, baseline: item.rect.maxY, context: context, skin: skin)
         }
+    }
+
+    // MARK: - Production geometry exposed for regressions
+
+    private static let sliderLabelSize: CGFloat = 12.5
+
+    struct TopRowFrames {
+        var on: CGRect
+        var auto: CGRect
+        var presets: CGRect
+        var curve: CGRect
+    }
+
+    static var topRowFrames: TopRowFrames {
+        TopRowFrames(
+            on: AmpXMetrics.eqOnToggle,
+            auto: AmpXMetrics.eqAutoToggle,
+            presets: AmpXMetrics.eqPresetsButton,
+            curve: AmpXMetrics.eqCurveFrame
+        )
+    }
+
+    /// Preamp first, then the ten bands. Rects are the cap-height box above the shared baseline
+    /// (`maxY` is the baseline); `minX` is the drawing origin.
+    static func sliderLabelLayout(skin: any AmpXSkin = ClassicModernSkin()) -> [(text: String, rect: CGRect)] {
+        let baseline = AmpXMetrics.eqBandLabelBaseline
+
+        func box(_ text: String, originX: (CGFloat, CGRect) -> CGFloat) -> (text: String, rect: CGRect) {
+            let label = AmpXLabel(text: text, color: skin.text, fontSize: self.sliderLabelSize, weight: .regular)
+            let width = label.measuredSize(skin: skin).width
+            let capHeight = label.font(skin: skin).capHeight
+            let x = originX(width, label.inkBounds(skin: skin))
+            return (text, CGRect(x: x, y: baseline - capHeight, width: width, height: capHeight))
+        }
+
+        var items = [box("PREAMP") { _, ink in AmpXMetrics.eqPreampLabelInkX - ink.minX }]
+        for (index, text) in AmpXEQBands.displayLabels.enumerated() {
+            items.append(box(text) { _, ink in AmpXMetrics.eqBandCenterX[index] - ink.midX })
+        }
+        return items
     }
 }
 
@@ -315,14 +390,14 @@ private final class EQPresetsMenuTarget: NSObject {
 
     @objc func applyPreset(_ sender: NSMenuItem) {
         guard let preset = sender.representedObject as? EQPreset else { return }
-        audioPlayer?.applyEQPreset(preset)
+        self.audioPlayer?.applyEQPreset(preset)
     }
 
-    @objc func loadEQF(_ sender: NSMenuItem) {
-        audioPlayer?.importEQFPresets()
+    @objc func loadEQF(_: NSMenuItem) {
+        self.audioPlayer?.importEQFPresets()
     }
 
-    @objc func resetEQ(_ sender: NSMenuItem) {
-        audioPlayer?.resetEQ()
+    @objc func resetEQ(_: NSMenuItem) {
+        self.audioPlayer?.resetEQ()
     }
 }

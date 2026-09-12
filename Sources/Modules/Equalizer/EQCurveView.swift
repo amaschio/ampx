@@ -6,6 +6,22 @@ import QuartzCore
 final class EQCurveView: AmpXDrawingView {
     static let animationDuration: TimeInterval = 0.075
 
+    struct Reference: Equatable {
+        /// Normalized −1…1 band gains.
+        var bandValues: [Float]
+        /// Normalized −1…1 preamp gain.
+        var preampValue: Float
+    }
+
+    /// Display-only curve for deterministic reference presentation; `nil` draws the animated live curve.
+    var reference: Reference? {
+        didSet { needsDisplay = true }
+    }
+
+    /// Sampled from the reference curve stroke.
+    private static let curveColor = NSColor(srgbRed: 246 / 255, green: 182 / 255, blue: 6 / 255, alpha: 1)
+    private static let knotColor = NSColor(srgbRed: 1, green: 206 / 255, blue: 20 / 255, alpha: 1)
+
     private var displayedBandValues = Array(repeating: Float(0), count: AmpXEQBands.bandCount)
     private var displayedPreampValue: Float = 0
     private var targetBandValues = Array(repeating: Float(0), count: AmpXEQBands.bandCount)
@@ -23,38 +39,57 @@ final class EQCurveView: AmpXDrawingView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// Curve knots in a view of `size`: preamp edge knots at the view edges and band knots at the
+    /// measured pitch, with heights from `AmpXEQBands.responseCurvePoints`.
+    static func knotPoints(bandValues: [Float], preampValue: Float, size: CGSize) -> [CGPoint] {
+        let span = AmpXMetrics.eqCurveBandPitch * CGFloat(AmpXEQBands.bandCount)
+        let origin = AmpXMetrics.eqCurveFirstBandOffset - AmpXMetrics.eqCurveBandPitch / 2
+        var points = AmpXEQBands.responseCurvePoints(
+            bandValues: bandValues,
+            preampValue: preampValue,
+            width: span,
+            height: size.height
+        )
+        guard points.count >= 2 else { return points }
+        for index in points.indices {
+            points[index].x += origin
+        }
+        points[0].x = 0
+        points[points.count - 1].x = size.width
+        return points
+    }
+
     func setCurve(bandValues: [Float], preampValue: Float, animated: Bool) {
-        let bands = normalizedBands(from: bandValues)
+        let bands = self.normalizedBands(from: bandValues)
         if !animated {
-            stopAnimation()
-            displayedBandValues = bands
-            displayedPreampValue = preampValue
-            targetBandValues = bands
-            targetPreampValue = preampValue
+            self.stopAnimation()
+            self.displayedBandValues = bands
+            self.displayedPreampValue = preampValue
+            self.targetBandValues = bands
+            self.targetPreampValue = preampValue
             needsDisplay = true
             return
         }
 
-        animationFromBands = displayedBandValues
-        animationFromPreamp = displayedPreampValue
-        targetBandValues = bands
-        targetPreampValue = preampValue
-        animationStartTime = CACurrentMediaTime()
-        startAnimation()
+        self.animationFromBands = self.displayedBandValues
+        self.animationFromPreamp = self.displayedPreampValue
+        self.targetBandValues = bands
+        self.targetPreampValue = preampValue
+        self.animationStartTime = CACurrentMediaTime()
+        self.startAnimation()
     }
 
-    override func draw(_ dirtyRect: NSRect) {
+    override func draw(_: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
 
-        let points = AmpXEQBands.responseCurvePoints(
-            bandValues: displayedBandValues,
-            preampValue: displayedPreampValue,
-            width: bounds.width,
-            height: bounds.height
+        let points = Self.knotPoints(
+            bandValues: self.reference.map { self.normalizedBands(from: $0.bandValues) } ?? self.displayedBandValues,
+            preampValue: self.reference?.preampValue ?? self.displayedPreampValue,
+            size: bounds.size
         )
         guard points.count >= 2 else { return }
 
@@ -63,20 +98,11 @@ final class EQCurveView: AmpXDrawingView {
         context.setLineWidth(1.5)
         context.setLineCap(.round)
         context.setLineJoin(.round)
-        context.replacePathWithStrokedPath()
-        context.clip()
-        let colors = [skin.yellow.cgColor, skin.orange.cgColor] as CFArray
-        if let gradient = CGGradient(
-            colorsSpace: CGColorSpaceCreateDeviceRGB(),
-            colors: colors,
-            locations: [0, 1]
-        ) {
-            context.drawLinearGradient(
-                gradient,
-                start: CGPoint(x: 0, y: 0),
-                end: CGPoint(x: bounds.width, y: 0),
-                options: []
-            )
+        context.setStrokeColor(Self.curveColor.cgColor)
+        context.strokePath()
+        context.setFillColor(Self.knotColor.cgColor)
+        for point in points {
+            context.fillEllipse(in: CGRect(x: point.x - 1.6, y: point.y - 1.6, width: 3.2, height: 3.2))
         }
         context.restoreGState()
     }
@@ -96,47 +122,47 @@ final class EQCurveView: AmpXDrawingView {
     }
 
     private func startAnimation() {
-        stopAnimation()
+        self.stopAnimation()
 
         let forwarder = EQCurveAnimationForwarder()
         forwarder.view = self
-        animationForwarder = forwarder
+        self.animationForwarder = forwarder
 
         let link = displayLink(
             target: forwarder,
             selector: #selector(EQCurveAnimationForwarder.displayLinkFired(_:))
         )
-        animationLink = link
+        self.animationLink = link
         link.add(to: .main, forMode: .common)
-        animationTick(at: CACurrentMediaTime())
+        self.animationTick(at: CACurrentMediaTime())
     }
 
     fileprivate func animationTick(at time: TimeInterval) {
         guard let start = animationStartTime else { return }
         let progress = min(1, (time - start) / Self.animationDuration)
-        displayedBandValues = zip(animationFromBands, targetBandValues).map { from, to in
+        self.displayedBandValues = zip(self.animationFromBands, self.targetBandValues).map { from, to in
             from + (to - from) * Float(progress)
         }
-        displayedPreampValue = animationFromPreamp + (targetPreampValue - animationFromPreamp) * Float(progress)
+        self.displayedPreampValue = self.animationFromPreamp + (self.targetPreampValue - self.animationFromPreamp) * Float(progress)
         setNeedsDisplay(bounds)
 
         if progress >= 1 {
-            finishAnimation()
+            self.finishAnimation()
         }
     }
 
     private func finishAnimation() {
-        displayedBandValues = targetBandValues
-        displayedPreampValue = targetPreampValue
-        stopAnimation()
+        self.displayedBandValues = self.targetBandValues
+        self.displayedPreampValue = self.targetPreampValue
+        self.stopAnimation()
         needsDisplay = true
     }
 
     private func stopAnimation() {
-        animationLink?.invalidate()
-        animationLink = nil
-        animationForwarder = nil
-        animationStartTime = nil
+        self.animationLink?.invalidate()
+        self.animationLink = nil
+        self.animationForwarder = nil
+        self.animationStartTime = nil
     }
 }
 
@@ -145,6 +171,6 @@ private final class EQCurveAnimationForwarder: NSObject {
     weak var view: EQCurveView?
 
     @objc func displayLinkFired(_ link: CADisplayLink) {
-        view?.animationTick(at: link.timestamp)
+        self.view?.animationTick(at: link.timestamp)
     }
 }

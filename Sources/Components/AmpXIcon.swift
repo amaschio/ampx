@@ -15,6 +15,7 @@ enum AmpXIcon {
     case minimize
     case close
     case grip
+    case dropdown
 
     func draw(in rect: CGRect, context: CGContext, skin: any AmpXSkin, color: NSColor? = nil) {
         let tint = color ?? skin.text
@@ -24,7 +25,7 @@ enum AmpXIcon {
 
         switch self {
         case .play:
-            fillPolygon([
+            self.fillPolygon([
                 CGPoint(x: rect.minX, y: rect.minY),
                 CGPoint(x: rect.maxX, y: rect.midY),
                 CGPoint(x: rect.minX, y: rect.maxY),
@@ -38,7 +39,7 @@ enum AmpXIcon {
         case .previous:
             let barWidth = rect.width * 0.16
             context.fill(CGRect(x: rect.minX, y: rect.minY, width: barWidth, height: rect.height))
-            fillPolygon([
+            self.fillPolygon([
                 CGPoint(x: rect.minX + rect.width * 0.24, y: rect.midY),
                 CGPoint(x: rect.maxX, y: rect.minY),
                 CGPoint(x: rect.maxX, y: rect.maxY),
@@ -46,21 +47,21 @@ enum AmpXIcon {
         case .next:
             let barWidth = rect.width * 0.16
             context.fill(CGRect(x: rect.maxX - barWidth, y: rect.minY, width: barWidth, height: rect.height))
-            fillPolygon([
+            self.fillPolygon([
                 CGPoint(x: rect.minX, y: rect.minY),
                 CGPoint(x: rect.maxX - rect.width * 0.24, y: rect.midY),
                 CGPoint(x: rect.minX, y: rect.maxY),
             ], context: context)
         case .eject:
             let barHeight = rect.height * 0.2
-            fillPolygon([
+            self.fillPolygon([
                 CGPoint(x: rect.minX, y: rect.minY + rect.height * 0.6),
                 CGPoint(x: rect.midX, y: rect.minY),
                 CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.6),
             ], context: context)
             context.fill(CGRect(x: rect.minX, y: rect.maxY - barHeight, width: rect.width, height: barHeight))
         case .repeat:
-            drawRepeat(in: rect, context: context)
+            self.drawRepeat(in: rect, context: context)
         case .menu:
             let barHeight = rect.height * 0.18
             for row in 0 ..< 3 {
@@ -83,7 +84,13 @@ enum AmpXIcon {
                 CGPoint(x: rect.maxX, y: rect.minY), CGPoint(x: rect.minX, y: rect.maxY),
             ])
         case .grip:
-            drawPulse(in: rect, context: context, tint: tint)
+            self.drawPulse(in: rect, context: context, tint: tint)
+        case .dropdown:
+            self.fillPolygon([
+                CGPoint(x: rect.minX, y: rect.minY),
+                CGPoint(x: rect.maxX, y: rect.minY),
+                CGPoint(x: rect.midX, y: rect.maxY),
+            ], context: context)
         }
 
         context.restoreGState()
@@ -117,12 +124,12 @@ enum AmpXIcon {
         context.addPath(path)
         context.strokePath()
 
-        fillPolygon([
+        self.fillPolygon([
             CGPoint(x: right - arrow * 1.1, y: top - arrow / 2),
             CGPoint(x: rect.maxX, y: top),
             CGPoint(x: right - arrow * 1.1, y: top + arrow / 2),
         ], context: context)
-        fillPolygon([
+        self.fillPolygon([
             CGPoint(x: left + arrow * 1.1, y: bottom - arrow / 2),
             CGPoint(x: rect.minX, y: bottom),
             CGPoint(x: left + arrow * 1.1, y: bottom + arrow / 2),
@@ -132,10 +139,23 @@ enum AmpXIcon {
     /// Pulse waveform traced pixel-by-pixel from the reference header decoration (18 × 16 pt design box).
     private func drawPulse(in rect: CGRect, context: CGContext, tint: NSColor) {
         let strokes: [[CGPoint]] = [
-            [CGPoint(x: 0.5, y: 7.25), CGPoint(x: 3, y: 7.25), CGPoint(x: 4.25, y: 4.25), CGPoint(x: 4.75, y: 0.6),
-             CGPoint(x: 7.4, y: 0.6), CGPoint(x: 7.4, y: 10.8)],
-            [CGPoint(x: 7.4, y: 4.75), CGPoint(x: 10.1, y: 4.75), CGPoint(x: 10.1, y: 13.75), CGPoint(x: 12.8, y: 13.75),
-             CGPoint(x: 12.8, y: 10), CGPoint(x: 14.3, y: 7.4), CGPoint(x: 17.7, y: 7.4)],
+            [
+                CGPoint(x: 0.5, y: 7.25),
+                CGPoint(x: 3, y: 7.25),
+                CGPoint(x: 4.25, y: 4.25),
+                CGPoint(x: 4.75, y: 0.6),
+                CGPoint(x: 7.4, y: 0.6),
+                CGPoint(x: 7.4, y: 10.8),
+            ],
+            [
+                CGPoint(x: 7.4, y: 4.75),
+                CGPoint(x: 10.1, y: 4.75),
+                CGPoint(x: 10.1, y: 13.75),
+                CGPoint(x: 12.8, y: 13.75),
+                CGPoint(x: 12.8, y: 10),
+                CGPoint(x: 14.3, y: 7.4),
+                CGPoint(x: 17.7, y: 7.4),
+            ],
             [CGPoint(x: 7.4, y: 9), CGPoint(x: 10.1, y: 9)],
         ]
         let scaleX = rect.width / 18

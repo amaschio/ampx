@@ -5,6 +5,8 @@ import XCTest
 @MainActor
 final class AmpXReferenceRenderingTests: XCTestCase {
     private let skin = ClassicModernSkin()
+    /// EqualizerModuleContent holds its player weakly in menu targets; keep models alive for the test.
+    private var retainedPlayers: [AudioPlayer] = []
 
     // MARK: - Geometry regressions (production geometry, no copied rectangles)
 
@@ -19,8 +21,8 @@ final class AmpXReferenceRenderingTests: XCTestCase {
             let layout = PlayerModuleContent.metadataLayout(bitrate: bitrate, sampleRate: sampleRate)
             let items = layout.items
             for item in items {
-                let measured = AmpXLabel(text: item.text, color: skin.green, fontSize: item.fontSize, weight: item.weight)
-                    .measuredSize(skin: skin)
+                let measured = AmpXLabel(text: item.text, color: self.skin.green, fontSize: item.fontSize, weight: item.weight)
+                    .measuredSize(skin: self.skin)
                 XCTAssertLessThanOrEqual(
                     measured.width, item.rect.width + 0.01,
                     "\(item.text) would wrap or clip for \(bitrate)/\(sampleRate)"
@@ -59,7 +61,7 @@ final class AmpXReferenceRenderingTests: XCTestCase {
     }
 
     func testSliderArtworkIsUnchangedWhenOnlyHitBoundsEnlarge() throws {
-        let content = makePlayerContent()
+        let content = self.makePlayerContent()
         let slider = try XCTUnwrap(controlSliders(in: content).first)
         slider.setValue(0.4, sendChange: false)
         let track = slider.convert(slider.trackRect, to: content)
@@ -71,9 +73,9 @@ final class AmpXReferenceRenderingTests: XCTestCase {
         XCTAssertEqual(slider.convert(slider.thumbRect, to: content), thumb)
     }
 
-    func testPointerAtThumbCenterMapsToDisplayedValue() throws {
-        let content = makePlayerContent()
-        for slider in controlSliders(in: content) + positionSliders(in: content) {
+    func testPointerAtThumbCenterMapsToDisplayedValue() {
+        let content = self.makePlayerContent()
+        for slider in self.controlSliders(in: content) + self.positionSliders(in: content) {
             for value in [0.0, 0.25, 0.5, 0.75, 1.0] {
                 slider.setValue(value, sendChange: false)
                 let center = CGPoint(x: slider.thumbRect.midX, y: slider.thumbRect.midY)
@@ -94,6 +96,54 @@ final class AmpXReferenceRenderingTests: XCTestCase {
         equalizer.frame = player.frame
         let equalizerOrder = equalizer.headerButtonLayout().sorted { $0.frame.minX < $1.frame.minX }.map(\.button)
         XCTAssertEqual(equalizerOrder, [.collapse, .close])
+    }
+
+    // MARK: - Equalizer geometry regressions
+
+    func testEqualizerTopRowControlsDoNotOverlapCurve() {
+        let frames = EqualizerModuleContent.topRowFrames
+        let all = [("ON", frames.on), ("AUTO", frames.auto), ("PRESETS", frames.presets), ("curve", frames.curve)]
+        let content = CGRect(
+            x: 0, y: 0,
+            width: AmpXMetrics.compositionWidth,
+            height: AmpXMetrics.equalizerHeight - AmpXMetrics.headerHeight
+        )
+        for (index, item) in all.enumerated() {
+            XCTAssertTrue(content.contains(item.1), "\(item.0) leaves the content area")
+            for other in all.dropFirst(index + 1) {
+                XCTAssertFalse(item.1.intersects(other.1), "\(item.0) overlaps \(other.0)")
+            }
+        }
+    }
+
+    func testEqualizerSlidersLabelsAndThumbsStaySeparate() {
+        let content = self.makeEqualizerContent()
+        let sliders = self.allSubviews(of: content).compactMap { $0 as? AmpXSlider }
+        XCTAssertEqual(sliders.count, AmpXEQBands.bandCount + 1)
+        let labels = EqualizerModuleContent.sliderLabelLayout()
+        XCTAssertEqual(labels.count, sliders.count)
+        for pair in zip(labels, labels.dropFirst()) {
+            XCTAssertFalse(pair.0.rect.intersects(pair.1.rect), "\(pair.0.text) label collides with \(pair.1.text)")
+        }
+        let topRow = EqualizerModuleContent.topRowFrames
+        for slider in sliders {
+            for value in [-12.0, 0, 12] {
+                slider.setValue(value, sendChange: false)
+                let thumb = slider.convert(slider.thumbRect, to: content)
+                XCTAssertTrue(content.bounds.contains(thumb), "\(slider.accessibilityTitle ?? "") thumb leaves content at \(value)")
+                for rect in [topRow.on, topRow.auto, topRow.presets] + labels.map(\.rect) {
+                    XCTAssertFalse(thumb.intersects(rect), "\(slider.accessibilityTitle ?? "") thumb overlaps a control at \(value)")
+                }
+                let center = CGPoint(x: slider.thumbRect.midX, y: slider.thumbRect.midY)
+                XCTAssertEqual(slider.value(at: center), value, accuracy: 0.001)
+            }
+        }
+        let artwork = sliders.map { $0.convert($0.trackRect.union($0.thumbRect), to: content) }
+        for (index, rect) in artwork.enumerated() {
+            for other in artwork.dropFirst(index + 1) {
+                XCTAssertFalse(rect.intersects(other), "Adjacent EQ slider artwork overlaps")
+            }
+        }
     }
 
     // MARK: - Deterministic reference capture
@@ -119,7 +169,7 @@ final class AmpXReferenceRenderingTests: XCTestCase {
     )
 
     func testPlayerStaticReferenceCaptureIsDeterministic() throws {
-        let content = makePlayerContent()
+        let content = self.makePlayerContent()
         content.referencePresentation = Self.playerReference
         let module = AmpXModuleView(moduleID: .player, content: content, skin: skin)
         let window = NSWindow(
@@ -149,6 +199,59 @@ final class AmpXReferenceRenderingTests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
         withExtendedLifetime(window) {}
+    }
+
+    /// Display-only values matching the reference EQ: gains derived from measured thumb centers.
+    static let equalizerReference = EqualizerReferencePresentation(
+        bandDecibels: [1.79, 0.15, -1.0, -2.34, -4.41, -3.19, -1.25, 0.33, 1.67, 3.07],
+        preampDecibels: 0.82,
+        isEnabled: true,
+        isAutoEnabled: false
+    )
+
+    func testEqualizerStaticReferenceCaptureIsDeterministic() throws {
+        let content = self.makeEqualizerContent()
+        content.referencePresentation = Self.equalizerReference
+        let module = AmpXModuleView(moduleID: .equalizer, content: content, skin: skin)
+        let frame = CGRect(x: 0, y: 0, width: AmpXMetrics.compositionWidth, height: AmpXMetrics.equalizerHeight)
+        let window = NSWindow(contentRect: frame, styleMask: .borderless, backing: .buffered, defer: false)
+        window.contentView?.addSubview(module)
+        module.applyLayout(frame: frame)
+
+        try self.export(self.deterministicPNG(of: module), named: "eq-static.png", backingScale: window.backingScaleFactor)
+        for (name, decibels) in [("eq-min.png", -12.0), ("eq-zero.png", 0.0), ("eq-max.png", 12.0)] {
+            content.referencePresentation = EqualizerReferencePresentation(
+                bandDecibels: Array(repeating: decibels, count: AmpXEQBands.bandCount),
+                preampDecibels: decibels,
+                isEnabled: false,
+                isAutoEnabled: true
+            )
+            try self.export(self.deterministicPNG(of: module), named: name, backingScale: window.backingScaleFactor)
+        }
+        withExtendedLifetime(window) {}
+    }
+
+    private func deterministicPNG(of view: NSView) throws -> Data {
+        let first = try capture(view)
+        let second = try capture(view)
+        XCTAssertEqual(first.pixelsWide, Int(view.bounds.width * 2))
+        XCTAssertEqual(first.pixelsHigh, Int(view.bounds.height * 2))
+        let firstPNG = try XCTUnwrap(first.representation(using: .png, properties: [:]))
+        let secondPNG = try XCTUnwrap(second.representation(using: .png, properties: [:]))
+        XCTAssertEqual(firstPNG, secondPNG, "Frozen reference presentation must render identically")
+        return firstPNG
+    }
+
+    private func export(_ png: Data, named name: String, backingScale: CGFloat) throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("AmpXReferenceRendering")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent(name)
+        try png.write(to: url)
+        print("AMPX_REFERENCE_CAPTURE \(url.path) backingScale=\(backingScale)")
+        let attachment = XCTAttachment(data: png, uniformTypeIdentifier: "public.png")
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     private func capture(_ view: NSView) throws -> NSBitmapImageRep {
@@ -192,15 +295,33 @@ final class AmpXReferenceRenderingTests: XCTestCase {
         return content
     }
 
+    private func makeEqualizerContent() -> EqualizerModuleContent {
+        let suite = "AmpXReferenceRenderingTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite) ?? .standard
+        let audioPlayer = AudioPlayer(
+            installRemoteCommands: false,
+            eqSettingsStore: EQSettingsStore(userDefaults: defaults, settingsKey: "settings", presetsKey: "presets")
+        )
+        let content = EqualizerModuleContent(skin: skin, audioPlayer: audioPlayer)
+        content.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: AmpXMetrics.compositionWidth,
+            height: AmpXMetrics.equalizerHeight - AmpXMetrics.headerHeight
+        )
+        self.retainedPlayers.append(audioPlayer)
+        return content
+    }
+
     private func controlSliders(in root: NSView) -> [AmpXSlider] {
-        allSubviews(of: root).compactMap { $0 as? AmpXSlider }.filter { !($0.superview is PositionBarView) }
+        self.allSubviews(of: root).compactMap { $0 as? AmpXSlider }.filter { !($0.superview is PositionBarView) }
     }
 
     private func positionSliders(in root: NSView) -> [AmpXSlider] {
-        allSubviews(of: root).compactMap { $0 as? AmpXSlider }.filter { $0.superview is PositionBarView }
+        self.allSubviews(of: root).compactMap { $0 as? AmpXSlider }.filter { $0.superview is PositionBarView }
     }
 
     private func allSubviews(of root: NSView) -> [NSView] {
-        root.subviews.flatMap { [$0] + allSubviews(of: $0) }
+        root.subviews.flatMap { [$0] + self.allSubviews(of: $0) }
     }
 }

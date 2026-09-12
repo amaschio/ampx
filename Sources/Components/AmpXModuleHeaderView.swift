@@ -20,21 +20,23 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
         self.moduleID = moduleID
         super.init(skin: skin)
         setAccessibilityRole(.group)
-        setAccessibilityLabel(accessibilityTitle(for: moduleID))
+        setAccessibilityLabel(self.accessibilityTitle(for: moduleID))
         setAccessibilityHelp("Module header")
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var acceptsFirstResponder: Bool { true }
+    override var acceptsFirstResponder: Bool {
+        true
+    }
 
     override func becomeFirstResponder() -> Bool {
         let became = super.becomeFirstResponder()
         if became, let coordinator = findCoordinator(in: window) {
-            coordinator.noteFocusedModule(moduleID)
+            coordinator.noteFocusedModule(self.moduleID)
         }
         return became
     }
@@ -57,97 +59,160 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
     }
 
     private func scaled(_ rect: CGRect) -> CGRect {
-        CGRect(x: rect.minX * scale, y: rect.minY * scale, width: rect.width * scale, height: rect.height * scale)
+        CGRect(x: rect.minX * self.scale, y: rect.minY * self.scale, width: rect.width * self.scale, height: rect.height * self.scale)
     }
 
     /// Drag handle around the left pulse decoration; stops short of the gold rules.
     var gripFrame: CGRect {
-        scaled(CGRect(x: 4, y: 2, width: 29, height: 24.5))
+        self.scaled(CGRect(x: 4, y: 2, width: 29, height: 24.5))
     }
 
     func headerButtonLayout() -> [(button: HeaderButton, frame: CGRect)] {
         var layout: [(button: HeaderButton, frame: CGRect)] = []
-        if moduleID == .player {
-            layout.append((.minimize, scaled(AmpXMetrics.headerMinimizeButton)))
+        if self.moduleID == .player {
+            layout.append((.minimize, self.scaled(AmpXMetrics.headerMinimizeButton)))
         }
-        layout.append((.collapse, scaled(AmpXMetrics.headerCollapseButton)))
-        layout.append((.close, scaled(AmpXMetrics.headerCloseButton)))
+        layout.append((.collapse, self.scaled(AmpXMetrics.headerCollapseButton)))
+        layout.append((.close, self.scaled(AmpXMetrics.headerCloseButton)))
         return layout
     }
 
     private var brandLabel: AmpXLabel {
-        AmpXLabel(text: "AmpX", color: skin.text, fontSize: 20 * scale, weight: .semibold, tracking: 0.8 * scale)
+        let isPlayer = self.moduleID == .player
+        return AmpXLabel(
+            text: "AmpX",
+            color: skin.text,
+            fontSize: (isPlayer ? 20 : 18) * self.scale,
+            weight: .semibold,
+            tracking: (isPlayer ? 0.8 : 0.6) * self.scale
+        )
+    }
+
+    /// Ink-positioned brand + title for non-Player headers, in reference points.
+    private struct TitlePlacement {
+        /// `nil` places the brand ink a fixed gap before the title.
+        var brandInkX: CGFloat?
+        var titleInkX: CGFloat
+        var baseline: CGFloat
+        var ruleGapBefore: CGFloat
+        var ruleGapAfter: CGFloat
+    }
+
+    /// Equalizer measured (eq-measurements-v2); Playlist estimated from the full reference until Task 4.
+    private var titlePlacement: TitlePlacement? {
+        switch self.moduleID {
+        case .player: nil
+        case .equalizer: TitlePlacement(brandInkX: 175.5, titleInkX: 243.5, baseline: 21, ruleGapBefore: 19.5, ruleGapAfter: 18)
+        case .playlist: TitlePlacement(brandInkX: 185, titleInkX: 243.5, baseline: 21, ruleGapBefore: 18.5, ruleGapAfter: 15.5)
+        case .enthea: TitlePlacement(brandInkX: nil, titleInkX: 243.5, baseline: 21, ruleGapBefore: 19.5, ruleGapAfter: 16.5)
+        }
     }
 
     private var moduleTitleLabel: AmpXLabel? {
-        let title: String? = switch moduleID {
+        let title: String? = switch self.moduleID {
         case .player: nil
         case .equalizer: "EQUALIZER"
         case .playlist: "PLAYLIST"
         case .enthea: "ENTHEA"
         }
         return title.map {
-            AmpXLabel(text: $0, color: skin.text, fontSize: 15 * scale, weight: .regular, tracking: 1.2 * scale)
+            AmpXLabel(text: $0, color: skin.text, fontSize: 14.5 * self.scale, weight: .regular, tracking: 0.25 * self.scale)
         }
     }
 
     /// Horizontal extent of the centered brand/title group.
     var titleGroupFrame: CGRect {
-        let brandWidth = brandLabel.measuredSize(skin: skin).width
-        let titleWidth = moduleTitleLabel.map { $0.measuredSize(skin: skin).width + 20 * scale } ?? 0
+        let brandWidth = self.brandLabel.measuredSize(skin: skin).width
+        let titleWidth = self.moduleTitleLabel.map { $0.measuredSize(skin: skin).width + 20 * self.scale } ?? 0
         let width = brandWidth + titleWidth
         return CGRect(
-            x: AmpXMetrics.headerTitleCenterX * scale - width / 2,
-            y: AmpXMetrics.headerBrandInkTop * scale,
+            x: AmpXMetrics.headerTitleCenterX * self.scale - width / 2,
+            y: AmpXMetrics.headerBrandInkTop * self.scale,
             width: width,
-            height: 18 * scale
+            height: 18 * self.scale
         )
     }
 
     // MARK: - Drawing
 
-    override func draw(_ dirtyRect: NSRect) {
+    override func draw(_: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let backingScale = window?.backingScaleFactor ?? 1
 
         AmpXIcon.grip.draw(
-            in: scaled(AmpXMetrics.headerGripGlyph),
+            in: self.scaled(AmpXMetrics.headerGripGlyph),
             context: context,
             skin: skin,
             color: NSColor(srgbRed: 1, green: 0.8, blue: 0.08, alpha: 1)
         )
-        drawTitleAndRules(in: context, backingScale: backingScale)
-        for item in headerButtonLayout() {
-            drawButton(item.button, frame: item.frame, in: context, backingScale: backingScale)
+        self.drawTitleAndRules(in: context, backingScale: backingScale)
+        for item in self.headerButtonLayout() {
+            self.drawButton(item.button, frame: item.frame, in: context, backingScale: backingScale)
         }
     }
 
     private func drawTitleAndRules(in context: CGContext, backingScale: CGFloat) {
-        let group = titleGroupFrame
-        let ruleY = AmpXMetrics.headerRuleY * scale
-        let ruleHeight = AmpXMetrics.headerRuleHeight * scale
-        let leftMaxX = group.minX - AmpXMetrics.headerRuleGapBeforeTitle * scale
-        let rightMinX = group.maxX + AmpXMetrics.headerRuleGapAfterTitle * scale
-        let leftMinX = AmpXMetrics.headerRuleMinX * scale
+        if let placement = titlePlacement {
+            self.drawPlacedTitleAndRules(placement, in: context, backingScale: backingScale)
+            return
+        }
+        let group = self.titleGroupFrame
+        let ruleY = AmpXMetrics.headerRuleY * self.scale
+        let ruleHeight = AmpXMetrics.headerRuleHeight * self.scale
+        let leftMaxX = group.minX - AmpXMetrics.headerRuleGapBeforeTitle * self.scale
+        let rightMinX = group.maxX + AmpXMetrics.headerRuleGapAfterTitle * self.scale
+        let leftMinX = AmpXMetrics.headerRuleMinX * self.scale
         skin.headerRule(
             CGRect(x: leftMinX, y: ruleY, width: leftMaxX - leftMinX, height: ruleHeight),
             in: context,
             backingScale: backingScale
         )
         skin.headerRule(
-            CGRect(x: rightMinX, y: ruleY, width: AmpXMetrics.headerRuleMaxX * scale - rightMinX, height: ruleHeight),
+            CGRect(x: rightMinX, y: ruleY, width: AmpXMetrics.headerRuleMaxX * self.scale - rightMinX, height: ruleHeight),
             in: context,
             backingScale: backingScale
         )
 
-        let brand = brandLabel
+        let brand = self.brandLabel
         let brandFont = brand.font(skin: skin)
         let baseline = group.minY + brandFont.capHeight
         brand.draw(x: group.minX, baseline: baseline, context: context, skin: skin)
         if let title = moduleTitleLabel {
-            let titleX = group.minX + brand.measuredSize(skin: skin).width + 20 * scale
+            let titleX = group.minX + brand.measuredSize(skin: skin).width + 20 * self.scale
             title.draw(x: titleX, baseline: baseline, context: context, skin: skin)
         }
+    }
+
+    private func drawPlacedTitleAndRules(_ placement: TitlePlacement, in context: CGContext, backingScale: CGFloat) {
+        let brand = self.brandLabel
+        let brandInk = brand.inkBounds(skin: skin)
+        let title = self.moduleTitleLabel
+        let titleInk = title?.inkBounds(skin: skin) ?? .zero
+        let titleInkX = placement.titleInkX * self.scale
+        let brandInkX = placement.brandInkX.map { $0 * self.scale } ?? (titleInkX - 20 * self.scale - brandInk.width)
+        let brandX = brandInkX - brandInk.minX
+        let titleX = titleInkX - titleInk.minX
+        let baseline = placement.baseline * self.scale
+
+        let ruleY = AmpXMetrics.headerRuleY * self.scale
+        let ruleHeight = AmpXMetrics.headerRuleHeight * self.scale
+        let leftMinX = AmpXMetrics.headerRuleMinX * self.scale
+        let leftMaxX = brandInkX - placement.ruleGapBefore * self.scale
+        let inkMaxX = title == nil ? brandX + brandInk.maxX : titleX + titleInk.maxX
+        let rightMinX = inkMaxX + placement.ruleGapAfter * self.scale
+        skin.headerRule(
+            CGRect(x: leftMinX, y: ruleY, width: leftMaxX - leftMinX, height: ruleHeight),
+            in: context,
+            backingScale: backingScale
+        )
+        skin.headerRule(
+            CGRect(x: rightMinX, y: ruleY, width: AmpXMetrics.headerRuleMaxX * self.scale - rightMinX, height: ruleHeight),
+            in: context,
+            backingScale: backingScale
+        )
+
+        brand.draw(x: brandX, baseline: baseline, context: context, skin: skin)
+        title?.draw(x: titleX, baseline: baseline, context: context, skin: skin)
     }
 
     private func drawButton(_ button: HeaderButton, frame: CGRect, in context: CGContext, backingScale: CGFloat) {
@@ -170,7 +235,7 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
             color = NSColor(srgbRed: 0.95, green: 0.63, blue: 0.08, alpha: 1)
         }
         icon.draw(
-            in: scaled(glyphRect).offsetBy(dx: frame.minX, dy: frame.minY),
+            in: self.scaled(glyphRect).offsetBy(dx: frame.minX, dy: frame.minY),
             context: context,
             skin: skin,
             color: color
@@ -180,32 +245,32 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
     private func accessibilityTitle(for moduleID: AmpXModuleID) -> String {
         switch moduleID {
         case .player:
-            return "AmpX"
+            "AmpX"
         case .equalizer:
-            return "Equalizer"
+            "Equalizer"
         case .playlist:
-            return "Playlist"
+            "Playlist"
         case .enthea:
-            return "ENTHEA"
+            "ENTHEA"
         }
     }
 
     // MARK: - Interaction
 
     private func headerButton(at point: CGPoint) -> HeaderButton? {
-        headerButtonLayout().first { $0.frame.contains(point) }?.button
+        self.headerButtonLayout().first { $0.frame.contains(point) }?.button
     }
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
 
-        if gripFrame.contains(point) {
-            gripTracking = true
-            onGripMouseDown?(event)
+        if self.gripFrame.contains(point) {
+            self.gripTracking = true
+            self.onGripMouseDown?(event)
             return
         }
 
-        if headerButton(at: point) != nil {
+        if self.headerButton(at: point) != nil {
             return
         }
 
@@ -213,24 +278,24 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard gripTracking else { return }
-        onGripMouseDragged?(event)
+        guard self.gripTracking else { return }
+        self.onGripMouseDragged?(event)
     }
 
     override func mouseUp(with event: NSEvent) {
-        if gripTracking {
-            gripTracking = false
-            onGripMouseUp?(event)
+        if self.gripTracking {
+            self.gripTracking = false
+            self.onGripMouseUp?(event)
             return
         }
 
-        switch headerButton(at: convert(event.locationInWindow, from: nil)) {
+        switch self.headerButton(at: convert(event.locationInWindow, from: nil)) {
         case .close:
-            onClose?()
+            self.onClose?()
         case .collapse:
-            onCollapse?()
+            self.onCollapse?()
         case .minimize:
-            onMinimize?()
+            self.onMinimize?()
         case nil:
             break
         }
@@ -239,35 +304,35 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
     override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
         var actions: [NSAccessibilityCustomAction] = []
 
-        if moduleID != .player {
-            actions.append(NSAccessibilityCustomAction(name: "Detach", target: self, selector: #selector(accessibilityDetach)))
-        } else if onMinimize != nil {
-            actions.append(NSAccessibilityCustomAction(name: "Minimize", target: self, selector: #selector(accessibilityMinimize)))
+        if self.moduleID != .player {
+            actions.append(NSAccessibilityCustomAction(name: "Detach", target: self, selector: #selector(self.accessibilityDetach)))
+        } else if self.onMinimize != nil {
+            actions.append(NSAccessibilityCustomAction(name: "Minimize", target: self, selector: #selector(self.accessibilityMinimize)))
         }
 
-        actions.append(NSAccessibilityCustomAction(name: "Collapse", target: self, selector: #selector(accessibilityCollapse)))
-        actions.append(NSAccessibilityCustomAction(name: "Close", target: self, selector: #selector(accessibilityClose)))
+        actions.append(NSAccessibilityCustomAction(name: "Collapse", target: self, selector: #selector(self.accessibilityCollapse)))
+        actions.append(NSAccessibilityCustomAction(name: "Close", target: self, selector: #selector(self.accessibilityClose)))
 
         return actions
     }
 
     @objc func accessibilityCollapse() -> Bool {
-        onCollapse?()
+        self.onCollapse?()
         return true
     }
 
     @objc func accessibilityClose() -> Bool {
-        onClose?()
+        self.onClose?()
         return true
     }
 
     @objc func accessibilityMinimize() -> Bool {
-        onMinimize?()
+        self.onMinimize?()
         return true
     }
 
     @objc func accessibilityDetach() -> Bool {
-        onDetach?()
+        self.onDetach?()
         return true
     }
 }
