@@ -100,8 +100,11 @@ final class PlaylistModuleContent: AmpXModuleContent {
     }
 
     override func scrollWheel(with event: NSEvent) {
-        guard canScrollVertically else { return }
-        scrollbar.scrollWheel(with: event)
+        if canScrollVertically {
+            scrollbar.scrollWheel(with: event)
+        } else {
+            nextResponder?.scrollWheel(with: event)
+        }
     }
 
     private func layoutControls() {
