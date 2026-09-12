@@ -125,8 +125,8 @@ final class ClassicVisualizerLayoutDefaultsTests: XCTestCase {
         let layout = AmpXPanelLayoutState(defaults: defaults)
         XCTAssertFalse(layout.showVisualizer)
         XCTAssertFalse(layout.visualizerInTheater)
-        XCTAssertEqual(layout.visualizerSize.width, AmpXMetrics.defaultVisualizerWidth)
-        XCTAssertEqual(layout.visualizerSize.height, AmpXMetrics.defaultVisualizerHeight)
+        XCTAssertEqual(layout.visualizerSize.width, LegacyPanelMetrics.defaultVisualizerWidth)
+        XCTAssertEqual(layout.visualizerSize.height, LegacyPanelMetrics.defaultVisualizerHeight)
     }
 
     @MainActor

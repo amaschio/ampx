@@ -21,8 +21,8 @@ enum AmpXUIScaleLevel: CGFloat, CaseIterable, Identifiable {
 @MainActor
 final class AmpXUIScale: ObservableObject {
     static let shared = AmpXUIScale()
-    static let basePanelWidth: CGFloat = AmpXMetrics.panelWidth
-    static let baseMainPlayerHeight: CGFloat = AmpXMetrics.mainPlayerHeight
+    static let basePanelWidth: CGFloat = LegacyPanelMetrics.panelWidth
+    static let baseMainPlayerHeight: CGFloat = LegacyPanelMetrics.mainPlayerHeight
     private static let userDefaultsKey = "AmpXUIScale"
 
     @Published private(set) var level: AmpXUIScaleLevel

@@ -4,7 +4,7 @@ import CoreGraphics
 ///
 /// `panelWidth` / `mainPlayerHeight` are legacy modern-UI defaults retained only as
 /// fallbacks for playlist/visualizer sizing migration — do not use them for new Classic UI.
-enum AmpXMetrics {
+enum LegacyPanelMetrics {
     /// Legacy modern panel width; Classic chrome uses `ClassicSkinMetrics.windowWidth` (275).
     static let panelWidth: CGFloat = 450
     /// Legacy modern main height; Classic uses shade/main sprite metrics instead.

@@ -361,7 +361,7 @@ struct ClassicVisualizerPanelView: View {
                             self.isDraggingResize = true
                         }
                         let minWidth = ClassicSkinMetrics.windowWidth * self.s
-                        let minHeight = AmpXMetrics.visualizerMinHeight * self.s
+                        let minHeight = LegacyPanelMetrics.visualizerMinHeight * self.s
                         var transaction = Transaction()
                         transaction.disablesAnimations = true
                         withTransaction(transaction) {

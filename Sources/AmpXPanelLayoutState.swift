@@ -53,7 +53,7 @@ final class AmpXPanelLayoutState: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         let savedHeight = defaults.double(forKey: Self.playlistHeightKey)
-        let height = savedHeight > 0 ? savedHeight : AmpXMetrics.defaultPlaylistHeight
+        let height = savedHeight > 0 ? savedHeight : LegacyPanelMetrics.defaultPlaylistHeight
         let savedWidth = defaults.double(forKey: Self.playlistWidthKey)
         // Default to classic 275 px grid (not the legacy modern 450 px panel).
         let width = savedWidth > 0 ? savedWidth : ClassicSkinMetrics.windowWidth
@@ -62,9 +62,9 @@ final class AmpXPanelLayoutState: ObservableObject {
         self.showVisualizer = defaults.bool(forKey: Self.showVisualizerKey)
 
         let savedVizHeight = defaults.double(forKey: Self.visualizerHeightKey)
-        let vizHeight = savedVizHeight > 0 ? savedVizHeight : AmpXMetrics.defaultVisualizerHeight
+        let vizHeight = savedVizHeight > 0 ? savedVizHeight : LegacyPanelMetrics.defaultVisualizerHeight
         let savedVizWidth = defaults.double(forKey: Self.visualizerWidthKey)
-        let vizWidth = savedVizWidth > 0 ? savedVizWidth : AmpXMetrics.defaultVisualizerWidth
+        let vizWidth = savedVizWidth > 0 ? savedVizWidth : LegacyPanelMetrics.defaultVisualizerWidth
         self.visualizerSize = CGSize(width: vizWidth, height: vizHeight)
     }
 
