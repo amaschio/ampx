@@ -45,6 +45,7 @@ final class AmpXModuleView: NSView {
         self.header.isHidden = true
         frame = CGRect(origin: .zero, size: containerSize)
         self.content.frame = bounds
+        self.content.bounds = CGRect(origin: .zero, size: bounds.size)
         needsDisplay = true
     }
 
@@ -93,7 +94,8 @@ final class AmpXModuleView: NSView {
         )
         self.frame = snappedFrame
 
-        let headerHeight = AmpXMetrics.headerHeight * (frame.width / AmpXMetrics.compositionWidth)
+        let scale = Self.scale(forWidth: snappedFrame.width)
+        let headerHeight = AmpXMetrics.headerHeight * scale
         self.header.frame = CGRect(x: 0, y: 0, width: snappedFrame.width, height: headerHeight)
         self.content.frame = CGRect(
             x: 0,
@@ -101,6 +103,16 @@ final class AmpXModuleView: NSView {
             width: snappedFrame.width,
             height: max(0, snappedFrame.height - headerHeight)
         )
+        // Content lays out and draws in reference points; the bounds scale maps them to the UI scale,
+        // keeping hit testing and drawing aligned.
+        self.content.bounds = CGRect(
+            origin: .zero,
+            size: CGSize(width: self.content.frame.width / scale, height: self.content.frame.height / scale)
+        )
+    }
+
+    static func scale(forWidth width: CGFloat) -> CGFloat {
+        width > 0 ? width / AmpXMetrics.compositionWidth : 1
     }
 
     func setContentCollapsed(_ collapsed: Bool) {

@@ -9,20 +9,24 @@ class AmpXControlView: AmpXDrawingView {
         didSet { needsDisplay = true }
     }
 
-    override var acceptsFirstResponder: Bool { isEnabled }
+    override var acceptsFirstResponder: Bool {
+        self.isEnabled
+    }
 
+    /// `point` is in the superview's coordinate system; the expanded hit area is tested in local coordinates.
     override func hitTest(_ point: NSPoint) -> NSView? {
-        guard isEnabled, !isHidden else { return nil }
+        guard self.isEnabled, !isHidden else { return nil }
+        let localPoint = superview.map { convert(point, from: $0) } ?? point
         let expanded = AmpXControlMath.expandedHitRect(for: bounds)
-        return expanded.contains(point) ? self : nil
+        return expanded.contains(localPoint) ? self : nil
     }
 
     override func becomeFirstResponder() -> Bool {
         let became = super.becomeFirstResponder()
         if became {
-            showsFocusRing = true
-            noteFocusedModuleIfNeeded()
-            revealInStackViewportIfNeeded()
+            self.showsFocusRing = true
+            self.noteFocusedModuleIfNeeded()
+            self.revealInStackViewportIfNeeded()
         }
         return became
     }
@@ -54,13 +58,13 @@ class AmpXControlView: AmpXDrawingView {
     override func resignFirstResponder() -> Bool {
         let resigned = super.resignFirstResponder()
         if resigned {
-            showsFocusRing = false
+            self.showsFocusRing = false
         }
         return resigned
     }
 
     func drawFocusRing(in context: CGContext, backingScale: CGFloat) {
-        guard showsFocusRing else { return }
+        guard self.showsFocusRing else { return }
         let ring = bounds.insetBy(dx: -2, dy: -2)
         let aligned = AmpXPixelGrid.strokeRect(ring, lineWidth: 1, backingScale: backingScale)
         context.setStrokeColor(skin.green.cgColor)

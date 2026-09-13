@@ -107,7 +107,7 @@ Regenerate: `cd scripts && uv run python measure_reference.py ../screenshots/Amp
 
 ## Revision 5 correction — Step 4: Playlist and full composition (2026-09-12)
 
-**Current visual status: Playlist and full stack implemented; the row-pitch conflict and deviations below await an explicit user decision.** Player (`8a618e1`) and Equalizer (`eeace16`) approvals are preserved: their captures after all Step 4 changes are pixel-identical to the committed correction shots.
+**Playlist and full stack: APPROVED 2026-09-12.** After reviewing `correction-shots/playlist-side-by-side.png` and `stack-side-by-side.png` (build `c6e2f52`) with the row-height question and deviations 1–5 below, the user instructed "go with step 5". This is recorded as explicit approval of the concrete Playlist and composition including those deviations. No row-height change was requested, so the spec's 22 pt rows remain in effect. Player (`8a618e1`) and Equalizer (`eeace16`) approvals are preserved: their captures after all Step 4 changes are pixel-identical to the committed correction shots.
 
 **Measurements:** [ReferenceMeasurementsV2 — Playlist](reference-crops/v2/playlist-measurements-v2.md) · [JSON](reference-crops/v2/playlist-measurements-v2.json), from `measure_reference.py --module playlist`. Panel `(10,930,980,610)` px = 490 × 305 pt, content origin `(10,987)`, 51 landmarks across frame, header, rows, scrollbar and footer, with five annotated groups inspected. Reference rows advance 20.67 pt. The row area is 196 pt tall at content y 10–206; the footer starts 2 pt below the row area and its faces 9 pt below the well; non-row chrome is 80.5 pt (V1 inferred 103 pt).
 
@@ -148,7 +148,55 @@ The stack comparison crops the reference from the Player top (y 7) for 1532 px. 
 
 **Layout impact:** `playlistNonRowChrome` 103 → 80.5 pt, so the default Playlist viewport grows from 173.5 to 196 pt at the same 305 pt module height. Persisted custom viewport heights are unchanged, so modules restored from saved layouts are 22.5 pt shorter than before. The stack viewport scrollbar width follows `playlistScrollbar.width` (16 → 15 pt).
 
-**Not verified in this step:** live-window capture — `./scripts/shoot.sh` built and launched the app but `screencapture` failed ("could not create image from window"), so no live screenshot was taken. Module content still does not scale with UI scale ≠ 1.0 (pre-existing; header and frame do scale) — Task 5 scale checks. 1×/3× backing not captured.
+## Revision 5 correction — Step 5: interactive and live revalidation (2026-09-12)
+
+**Current status: two input/scaling defects found and fixed. Visual acceptance still awaits the user's decision on the host-sizing issue below and the final presentation.** Approved Player, EQ, Playlist and stack captures remain pixel-identical after the fixes.
+
+**Live app capture (screen recording granted 2026-09-12):** `./scripts/shoot.sh` built `c6e2f52`, relaunched AmpX and captured the stack window. The live window renders the reconstructed UI with real state: startup track, `194 kbps`/`44 kHz`, live spectrum, saved EQ gains and an empty playlist. It opened at its saved 490 × 600 pt frame, so the ~750 pt stack scrolls and the overflow scrollbar covers the right edge of each module, including every header ✕ button (see host sizing below).
+
+**Interactive states:** `testInteractiveStatesReturnToReferenceRendering` puts the real Player into hover (Previous), pressed (Pause), disabled (Stop), focus (Next, volume) and active (Repeat) states, captures [player-interactive-states](correction-shots/player-interactive-states.png), then restores every state. The restored capture is byte-identical to the approved Player rendering.
+
+**Defect 1 — module content did not scale (pre-existing):**
+- **Symptom:** at UI scale ≠ 1 the module frame and header scaled, but content kept reference-point geometry. At 1.35 content filled only the top-left 490 pt; at 0.85 it was clipped and overflowed into the next module. The Task 20 acceptance shots (`scale-1.35-expanded`, `scale-0.85-expanded`) show the same behavior, so the earlier "Layout and scale: Pass" did not hold for content.
+- **Fix:** `AmpXModuleView` now sets the content bounds to the reference-point size (`frame / scale`), so content keeps its measured layout while AppKit scales drawing, hit testing and event conversion together. Theater resets content bounds to scale 1.
+- **Evidence:** [stack-scale-0.85](correction-shots/stack-scale-0.85.png), [stack-scale-1.35](correction-shots/stack-scale-1.35.png), [detached-eq-1.35](correction-shots/detached-eq-1.35.png).
+
+**Defect 2 — clicks missed controls (pre-existing since `c245435`):**
+- **Symptom:** `AmpXControlView.hitTest(_:)` compared the superview-coordinate point with the control's zero-origin `bounds`, so a click at a control's center resolved to the module content view at every scale.
+- **Failing before:** `Test-AmpX-2026.09.12_19-05-43--0300.xcresult`. With the original `hitTest`, `testModuleContentScalesDrawingAndHitTestingTogether` hit `PlayerModuleContent` instead of Play at 0.85, 1.0 and 1.35, and `testSliderPointerKeyboardAndAccessibilityMappings` could not reach the 1.35-scaled volume slider.
+- **Fix:** convert the point into local coordinates before testing the expanded 44 pt hit area.
+- **After:** both tests pass. An earlier failure in the first test was a test error (the point was passed in the wrong coordinate space) and was corrected before the evidence run above.
+
+**Pointer, keyboard and accessibility:** `testSliderPointerKeyboardAndAccessibilityMappings` covers horizontal (volume) and vertical (60 Hz band) sliders. It checks thumb-travel start, end and midpoint values; dragging beyond either end clamps; arrow up/down steps (0.05 and 1 dB) with two `onChange` callbacks; and accessibility value/min/max. It also sends real mouse down, drag-outside, drag-to-midpoint and up events through a Player module laid out at scale 1.35 in a window.
+
+**Host states (offscreen, production views and hosts):**
+- [stack-collapsed-eq](correction-shots/stack-collapsed-eq.png): collapsed EQ keeps its header.
+- [stack-overflow-1.35](correction-shots/stack-overflow-1.35.png): production `AmpXStackViewport` at scale 1.35 in a 480 pt viewport.
+- The detached capture lays the module out the way `AmpXDetachedModuleWindowController.attachModuleView` does; it is not a live detached window.
+
+**Wired presentation:** every reference capture uses the production module contents with their model bindings installed (isolated `AudioPlayer`/`PlaylistManager`), with reference presentation overriding display values only.
+
+**Verification:**
+- **Full suite:** `./scripts/run-tests.sh` with AmpX quit → `** TEST SUCCEEDED **`, 486 passed (482 + 4 new), `Test-AmpX-2026.09.13_17-33-02--0300.xcresult`.
+- **Rejected run:** an earlier full run (`Test-AmpX-2026.09.12_19-08-03--0300.xcresult`, 485 passed) failed `PlaylistManagerTests.testShouldNotPlayStartupSoundAfterRestore` at `PlaylistManagerTests.swift:334`. That test covers asynchronous playlist restore behind a single main-queue wait, took 0.87 s against 0.06–0.07 s in the four previous full runs, and ran while a rebuilt AmpX instance was open. It passes in the clean rerun above; `PlaylistManager` and its tests are unchanged in this plan. This is recorded as timing-sensitive, not fixed.
+- **Lint:** the Step 5 tests live in `AmpXReferenceRenderingTests+Interaction.swift` to satisfy SwiftLint file/type length; SwiftLint reports 0 violations in the changed Swift files.
+- **Captures:** Player, EQ (reference, −12, 0, +12), Playlist and stack captures are pixel-identical to their approved correction shots.
+
+**Open decision — host sizing (pre-existing, not changed):**
+- `AmpXStackWindowController.updateLayout` passes the window's current content height as `availableHeight`, so a stack window shorter than its composition always scrolls and never grows back to the composition height.
+- The spec says height follows the composition and scrolls only when content exceeds the screen.
+- The overflow scrollbar is also laid over the module column rather than beside it, covering header ✕ buttons and the right edge of each module whenever the stack scrolls (live capture, Task 20 shots, `stack-overflow-1.35`).
+- Fixing either changes window/overflow policy, so a user decision is required.
+
+**Not exercised:**
+- **Live input:** clicks, drags, resize, detach/re-dock and theater in the running app. Synthetic input needs Accessibility permission (`osascript` assistive access was denied).
+- **Live model changes:** live playback, seek, volume, EQ and playlist changes driven by real input.
+- **VoiceOver:** a full walk.
+- **Backing scales:** physical 1× and 3× displays (only a 2× display is attached).
+
+---
+
+**Not verified in Step 2:** live-window capture — `./scripts/shoot.sh` built and launched the app but `screencapture` failed ("could not create image from window"), so no live screenshot was taken. Module content still does not scale with UI scale ≠ 1.0 (pre-existing; header and frame do scale) — Task 5 scale checks. 1×/3× backing not captured.
 
 ---
 

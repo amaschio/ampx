@@ -3,7 +3,7 @@ import AppKit
 import XCTest
 
 /// Flipped container matching the stack's top-down module layout.
-private final class ReferenceStackView: NSView {
+final class ReferenceStackView: NSView {
     override var isFlipped: Bool {
         true
     }
@@ -11,7 +11,7 @@ private final class ReferenceStackView: NSView {
 
 @MainActor
 final class AmpXReferenceRenderingTests: XCTestCase {
-    private let skin = ClassicModernSkin()
+    let skin = ClassicModernSkin()
     /// EqualizerModuleContent holds its player weakly in menu targets; keep models alive for the test.
     private var retainedPlayers: [AudioPlayer] = []
 
@@ -340,7 +340,7 @@ final class AmpXReferenceRenderingTests: XCTestCase {
         withExtendedLifetime([singleWindow, window]) {}
     }
 
-    private func deterministicPNG(of view: NSView) throws -> Data {
+    func deterministicPNG(of view: NSView) throws -> Data {
         let first = try capture(view)
         let second = try capture(view)
         XCTAssertEqual(first.pixelsWide, Int(view.bounds.width * 2))
@@ -351,7 +351,7 @@ final class AmpXReferenceRenderingTests: XCTestCase {
         return firstPNG
     }
 
-    private func export(_ png: Data, named name: String, backingScale: CGFloat) throws {
+    func export(_ png: Data, named name: String, backingScale: CGFloat) throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("AmpXReferenceRendering")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let url = directory.appendingPathComponent(name)
@@ -383,7 +383,7 @@ final class AmpXReferenceRenderingTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func makePlayerContent() -> PlayerModuleContent {
+    func makePlayerContent() -> PlayerModuleContent {
         let content = PlayerModuleContent(
             skin: skin,
             audioPlayer: AudioPlayer(installRemoteCommands: false),
@@ -404,7 +404,7 @@ final class AmpXReferenceRenderingTests: XCTestCase {
         return content
     }
 
-    private func makePlaylistContent() -> PlaylistModuleContent {
+    func makePlaylistContent() -> PlaylistModuleContent {
         let audioPlayer = AudioPlayer(installRemoteCommands: false)
         self.retainedPlayers.append(audioPlayer)
         return PlaylistModuleContent(
@@ -419,7 +419,7 @@ final class AmpXReferenceRenderingTests: XCTestCase {
         )
     }
 
-    private func makeEqualizerContent() -> EqualizerModuleContent {
+    func makeEqualizerContent() -> EqualizerModuleContent {
         let suite = "AmpXReferenceRenderingTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         let audioPlayer = AudioPlayer(
@@ -437,7 +437,7 @@ final class AmpXReferenceRenderingTests: XCTestCase {
         return content
     }
 
-    private func controlSliders(in root: NSView) -> [AmpXSlider] {
+    func controlSliders(in root: NSView) -> [AmpXSlider] {
         self.allSubviews(of: root).compactMap { $0 as? AmpXSlider }.filter { !($0.superview is PositionBarView) }
     }
 
@@ -445,7 +445,7 @@ final class AmpXReferenceRenderingTests: XCTestCase {
         self.allSubviews(of: root).compactMap { $0 as? AmpXSlider }.filter { $0.superview is PositionBarView }
     }
 
-    private func allSubviews(of root: NSView) -> [NSView] {
+    func allSubviews(of root: NSView) -> [NSView] {
         root.subviews.flatMap { [$0] + self.allSubviews(of: $0) }
     }
 }
