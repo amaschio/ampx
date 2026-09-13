@@ -28,7 +28,7 @@ final class AmpXLayoutTests: XCTestCase {
         XCTAssertEqual(layout.frames[.player]?.height, 223.5)
     }
 
-    func testWideLayoutCentersCompositionAtMaxScale() {
+    func testWideLayoutCentersCompositionAtMaxScale() throws {
         var state = AmpXModuleOrder()
         state.close(.equalizer)
         state.close(.playlist)
@@ -39,8 +39,8 @@ final class AmpXLayoutTests: XCTestCase {
             availableHeight: 1000
         )
         XCTAssertEqual(wide.scale, 1.35)
-        XCTAssertEqual(wide.frames[.player]!.minX, (800 - 490 * 1.35) / 2, accuracy: 0.0001)
-        XCTAssertEqual(wide.frames[.player]!.width, 490 * 1.35, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(wide.frames[.player]?.minX), (800 - 490 * 1.35) / 2, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(wide.frames[.player]?.width), 490 * 1.35, accuracy: 0.0001)
     }
 
     func testTableDrivenLayouts() {
@@ -79,7 +79,7 @@ final class AmpXLayoutTests: XCTestCase {
                 state: testCase.state,
                 width: 490,
                 playlistViewportHeight: AmpXMetrics.defaultPlaylistViewportHeight,
-                availableHeight: 10_000
+                availableHeight: 10000
             )
             XCTAssertEqual(
                 layout.contentHeight,
@@ -133,7 +133,7 @@ final class AmpXLayoutTests: XCTestCase {
             state: state,
             width: 490,
             playlistViewportHeight: 120,
-            availableHeight: 10_000
+            availableHeight: 10000
         )
         let expectedPlaylistHeight = AmpXMetrics.headerHeight
             + AmpXMetrics.playlistNonRowChrome

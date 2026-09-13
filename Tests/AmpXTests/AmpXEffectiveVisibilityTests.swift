@@ -24,19 +24,19 @@ final class AmpXEffectiveVisibilityTests: XCTestCase {
     }
 
     func testEachInputIndependentlyBlocksVisibility() {
-        XCTAssertFalse(makeInputs(closed: true).isVisible)
-        XCTAssertFalse(makeInputs(windowVisible: false).isVisible)
-        XCTAssertFalse(makeInputs(miniaturized: true).isVisible)
-        XCTAssertFalse(makeInputs(occluded: true).isVisible)
-        XCTAssertFalse(makeInputs(intersectsViewport: false).isVisible)
-        XCTAssertFalse(makeInputs(collapsed: true).isVisible)
+        XCTAssertFalse(self.makeInputs(closed: true).isVisible)
+        XCTAssertFalse(self.makeInputs(windowVisible: false).isVisible)
+        XCTAssertFalse(self.makeInputs(miniaturized: true).isVisible)
+        XCTAssertFalse(self.makeInputs(occluded: true).isVisible)
+        XCTAssertFalse(self.makeInputs(intersectsViewport: false).isVisible)
+        XCTAssertFalse(self.makeInputs(collapsed: true).isVisible)
     }
 
     func testDetachedHostPassesViewportGateButHonorsOtherInputs() {
         let visible = AmpXEffectiveVisibility.detachedInputs(
             collapsed: false,
             closed: false,
-            window: visibleWindow()
+            window: self.visibleWindow()
         )
         XCTAssertTrue(visible.intersectsViewport)
         if visible.windowVisible, !visible.occluded {
@@ -46,7 +46,7 @@ final class AmpXEffectiveVisibilityTests: XCTestCase {
         let collapsed = AmpXEffectiveVisibility.detachedInputs(
             collapsed: true,
             closed: false,
-            window: visibleWindow()
+            window: self.visibleWindow()
         )
         XCTAssertTrue(collapsed.intersectsViewport)
         XCTAssertFalse(collapsed.isVisible)
@@ -56,7 +56,7 @@ final class AmpXEffectiveVisibilityTests: XCTestCase {
         let visible = AmpXEffectiveVisibility.theaterInputs(
             collapsed: false,
             closed: false,
-            window: visibleWindow()
+            window: self.visibleWindow()
         )
         XCTAssertTrue(visible.intersectsViewport)
         if visible.windowVisible, !visible.occluded {
@@ -66,7 +66,7 @@ final class AmpXEffectiveVisibilityTests: XCTestCase {
         let closed = AmpXEffectiveVisibility.theaterInputs(
             collapsed: false,
             closed: true,
-            window: visibleWindow()
+            window: self.visibleWindow()
         )
         XCTAssertFalse(closed.isVisible)
         XCTAssertTrue(closed.intersectsViewport)
@@ -76,7 +76,7 @@ final class AmpXEffectiveVisibilityTests: XCTestCase {
         let outside = AmpXEffectiveVisibility.stackInputs(
             collapsed: false,
             closed: false,
-            window: visibleWindow(),
+            window: self.visibleWindow(),
             moduleFrame: CGRect(x: 0, y: 500, width: 490, height: 200),
             visibleContentRect: CGRect(x: 0, y: 0, width: 490, height: 400)
         )
@@ -85,7 +85,7 @@ final class AmpXEffectiveVisibilityTests: XCTestCase {
         let intersecting = AmpXEffectiveVisibility.stackInputs(
             collapsed: false,
             closed: false,
-            window: visibleWindow(),
+            window: self.visibleWindow(),
             moduleFrame: CGRect(x: 0, y: 100, width: 490, height: 200),
             visibleContentRect: CGRect(x: 0, y: 0, width: 490, height: 400)
         )
@@ -100,14 +100,14 @@ final class AmpXEffectiveVisibilityTests: XCTestCase {
     // MARK: - Display-link lifecycle
 
     func testBecomingVisibleStartsDisplayLinkOnce() {
-        let view = makeContinuousView()
+        let view = self.makeContinuousView()
         view.setEffectivelyVisible(true)
         XCTAssertEqual(view.displayLinkStartCount, 1)
         XCTAssertEqual(view.displayLinkStopCount, 0)
     }
 
     func testBecomingHiddenStopsDisplayLinkOnce() {
-        let view = makeContinuousView()
+        let view = self.makeContinuousView()
         view.setEffectivelyVisible(true)
         view.setEffectivelyVisible(false)
         XCTAssertEqual(view.displayLinkStartCount, 1)
@@ -115,7 +115,7 @@ final class AmpXEffectiveVisibilityTests: XCTestCase {
     }
 
     func testRepeatedFalseDoesNotStopTwice() {
-        let view = makeContinuousView()
+        let view = self.makeContinuousView()
         view.setEffectivelyVisible(false)
         view.setEffectivelyVisible(false)
         XCTAssertEqual(view.displayLinkStopCount, 0)
@@ -127,7 +127,7 @@ final class AmpXEffectiveVisibilityTests: XCTestCase {
     }
 
     func testRepeatedTrueDoesNotStartTwice() {
-        let view = makeContinuousView()
+        let view = self.makeContinuousView()
         view.setEffectivelyVisible(true)
         view.setEffectivelyVisible(true)
         XCTAssertEqual(view.displayLinkStartCount, 1)
@@ -149,7 +149,7 @@ final class AmpXEffectiveVisibilityTests: XCTestCase {
     func testForwarderDoesNotRetainContinuousView() {
         weak var weakView: AmpXContinuousView?
         autoreleasepool {
-            let view = makeContinuousView()
+            let view = self.makeContinuousView()
             weakView = view
             view.setEffectivelyVisible(true)
         }
@@ -158,25 +158,25 @@ final class AmpXEffectiveVisibilityTests: XCTestCase {
 
     // MARK: - Host integration
 
-    func testCoordinatorCollapseStopsContinuousRendering() {
-        let coordinator = makeCoordinator()
+    func testCoordinatorCollapseStopsContinuousRendering() throws {
+        let coordinator = self.makeCoordinator()
         coordinator.showStack()
-        let continuous = attachContinuousView(to: coordinator.moduleView(for: .player)!)
+        let continuous = try self.attachContinuousView(to: XCTUnwrap(coordinator.moduleView(for: .player)))
         continuous.setEffectivelyVisible(true)
 
         coordinator.setCollapsed(.player, true)
         XCTAssertEqual(continuous.displayLinkStopCount, 1)
     }
 
-    func testStackScrollOutsideViewportStopsContinuousRendering() {
-        let coordinator = makeCoordinator()
+    func testStackScrollOutsideViewportStopsContinuousRendering() throws {
+        let coordinator = self.makeCoordinator()
         coordinator.showStack()
 
         guard let stackController = coordinator.stackWindowController else {
             return XCTFail("Expected stack window controller")
         }
 
-        let continuous = attachContinuousView(to: coordinator.moduleView(for: .player)!)
+        let continuous = try self.attachContinuousView(to: XCTUnwrap(coordinator.moduleView(for: .player)))
         continuous.setEffectivelyVisible(true)
         XCTAssertEqual(continuous.displayLinkStartCount, 1)
 
@@ -256,7 +256,7 @@ private final class InstrumentedContinuousView: AmpXContinuousView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 }
@@ -265,7 +265,7 @@ private final class TrackingContinuousView: AmpXContinuousView {
     private(set) var invalidatedRect: NSRect?
 
     override func tick(at time: TimeInterval) {
-        invalidatedRect = bounds
+        self.invalidatedRect = bounds
         super.tick(at: time)
     }
 }

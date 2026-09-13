@@ -18,9 +18,9 @@ final class AmpXStackViewport: NSView {
     var visibleContentRect: CGRect {
         CGRect(
             x: 0,
-            y: scrollOffset,
+            y: self.scrollOffset,
             width: bounds.width,
-            height: min(viewportHeight, max(0, contentHeight - scrollOffset))
+            height: min(self.viewportHeight, max(0, self.contentHeight - self.scrollOffset))
         )
     }
 
@@ -30,71 +30,73 @@ final class AmpXStackViewport: NSView {
         wantsLayer = true
         layer?.masksToBounds = true
 
-        addSubview(stackView)
-        addSubview(scrollbar)
+        addSubview(self.stackView)
+        addSubview(self.scrollbar)
 
-        scrollbar.onScroll = { [weak self] offset in
+        self.scrollbar.onScroll = { [weak self] offset in
             self?.setScrollOffset(offset)
         }
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var isFlipped: Bool { true }
+    override var isFlipped: Bool {
+        true
+    }
 
     override func layout() {
         super.layout()
-        layoutScrollbar()
-        applyScrollTranslation()
+        self.layoutScrollbar()
+        self.applyScrollTranslation()
     }
 
     func applyLayoutMetrics(contentHeight: CGFloat, viewportHeight: CGFloat) {
-        let previousOffset = scrollOffset
+        let previousOffset = self.scrollOffset
         self.contentHeight = contentHeight
         self.viewportHeight = viewportHeight
         self.scrolls = contentHeight > viewportHeight
 
-        stackView.frame = CGRect(x: 0, y: 0, width: bounds.width, height: contentHeight)
-        setScrollOffset(previousOffset)
-        updateScrollbarMetrics(viewportHeight: viewportHeight)
-        layoutScrollbar()
+        self.stackView.frame = CGRect(x: 0, y: 0, width: bounds.width, height: contentHeight)
+        self.setScrollOffset(previousOffset)
+        self.updateScrollbarMetrics(viewportHeight: viewportHeight)
+        self.layoutScrollbar()
     }
 
     func applyLayout(_ result: AmpXLayoutResult, state: AmpXModuleOrder) {
-        let previousOffset = scrollOffset
-        contentHeight = result.contentHeight
-        viewportHeight = result.viewportHeight
-        scrolls = result.scrolls
+        let previousOffset = self.scrollOffset
+        self.contentHeight = result.contentHeight
+        self.viewportHeight = result.viewportHeight
+        self.scrolls = result.scrolls
 
-        stackView.applyLayout(result, state: state, playlistViewportHeight: result.playlistViewportHeight)
-        stackView.frame = CGRect(x: 0, y: 0, width: bounds.width, height: contentHeight)
+        self.stackView.applyLayout(result, state: state, playlistViewportHeight: result.playlistViewportHeight)
+        self.stackView.frame = CGRect(x: 0, y: 0, width: bounds.width, height: self.contentHeight)
 
-        setScrollOffset(previousOffset)
-        updateScrollbarMetrics(viewportHeight: result.viewportHeight)
-        layoutScrollbar()
+        self.setScrollOffset(previousOffset)
+        self.updateScrollbarMetrics(viewportHeight: result.viewportHeight)
+        self.layoutScrollbar()
     }
 
     func setScrollOffset(_ offset: CGFloat) {
         let clamped = AmpXControlMath.clampedScrollOffset(
             offset,
-            contentLength: contentHeight,
-            viewportLength: viewportHeight > 0 ? viewportHeight : bounds.height
+            contentLength: self.contentHeight,
+            viewportLength: self.viewportHeight > 0 ? self.viewportHeight : bounds.height
         )
-        guard clamped != scrollOffset else { return }
-        scrollOffset = clamped
-        applyScrollTranslation()
-        scrollbar.offset = scrollOffset
-        onVisibleRectChanged?(visibleContentRect)
+        guard clamped != self.scrollOffset else { return }
+        self.scrollOffset = clamped
+        self.applyScrollTranslation()
+        self.scrollbar.offset = self.scrollOffset
+        self.onVisibleRectChanged?(self.visibleContentRect)
     }
 
     func reveal(_ rect: CGRect) {
-        let viewportLength = viewportHeight > 0 ? viewportHeight : bounds.height
-        var target = scrollOffset
-        let visibleTop = scrollOffset
-        let visibleBottom = scrollOffset + viewportLength
+        let viewportLength = self.viewportHeight > 0 ? self.viewportHeight : bounds.height
+        var target = self.scrollOffset
+        let visibleTop = self.scrollOffset
+        let visibleBottom = self.scrollOffset + viewportLength
 
         if rect.minY < visibleTop {
             target = rect.minY
@@ -102,7 +104,7 @@ final class AmpXStackViewport: NSView {
             target = rect.maxY - viewportLength
         }
 
-        setScrollOffset(target)
+        self.setScrollOffset(target)
     }
 
     func viewportPoint(fromScreenPoint screenPoint: NSPoint) -> NSPoint {
@@ -112,16 +114,16 @@ final class AmpXStackViewport: NSView {
     }
 
     func contains(screenPoint: NSPoint) -> Bool {
-        bounds.contains(viewportPoint(fromScreenPoint: screenPoint))
+        bounds.contains(self.viewportPoint(fromScreenPoint: screenPoint))
     }
 
     func stackContentPoint(fromScreenPoint screenPoint: NSPoint) -> CGPoint {
         let viewportPoint = viewportPoint(fromScreenPoint: screenPoint)
-        return CGPoint(x: viewportPoint.x, y: viewportPoint.y + scrollOffset)
+        return CGPoint(x: viewportPoint.x, y: viewportPoint.y + self.scrollOffset)
     }
 
     func autoScrollSpeed(for viewportPoint: NSPoint) -> CGFloat {
-        guard scrolls else { return 0 }
+        guard self.scrolls else { return 0 }
 
         let topZone = bounds.minY + AmpXModuleDragController.autoScrollEdgeInset
         let bottomZone = bounds.maxY - AmpXModuleDragController.autoScrollEdgeInset
@@ -148,29 +150,29 @@ final class AmpXStackViewport: NSView {
             return
         }
 
-        guard scrolls else { return }
-        setScrollOffset(scrollOffset - event.deltaY * 8)
+        guard self.scrolls else { return }
+        self.setScrollOffset(self.scrollOffset - event.deltaY * 8)
     }
 
     private func applyScrollTranslation() {
-        stackView.frame.origin.y = -scrollOffset
+        self.stackView.frame.origin.y = -self.scrollOffset
     }
 
     private func updateScrollbarMetrics(viewportHeight: CGFloat) {
-        scrollbar.contentLength = contentHeight
-        scrollbar.viewportLength = viewportHeight
-        scrollbar.isEnabled = scrolls
-        scrollbar.isHidden = !scrolls
+        self.scrollbar.contentLength = self.contentHeight
+        self.scrollbar.viewportLength = viewportHeight
+        self.scrollbar.isEnabled = self.scrolls
+        self.scrollbar.isHidden = !self.scrolls
     }
 
     private func layoutScrollbar() {
-        guard scrolls else {
-            scrollbar.isHidden = true
+        guard self.scrolls else {
+            self.scrollbar.isHidden = true
             return
         }
 
         let width = AmpXMetrics.playlistScrollbar.width
-        scrollbar.frame = CGRect(
+        self.scrollbar.frame = CGRect(
             x: bounds.width - width,
             y: 0,
             width: width,

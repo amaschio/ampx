@@ -18,7 +18,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
 
     private(set) var dragController = AmpXModuleDragSession()
     private(set) var focusedModuleID: AmpXModuleID = .player
-    private(set) lazy var theaterController: AmpXTheaterController = AmpXTheaterController(
+    private(set) lazy var theaterController: AmpXTheaterController = .init(
         hosts: self,
         screenFrame: { [weak self] in self?.screen.frame ?? .zero },
         getPresentation: { NSApp.presentationOptions },
@@ -28,11 +28,11 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     private(set) var isStackVisible = false
 
     var stackWindow: NSWindow? {
-        stackWindowController?.window
+        self.stackWindowController?.window
     }
 
     var stackWindowFrame: CGRect? {
-        stackWindow?.frame
+        self.stackWindow?.frame
     }
 
     init(
@@ -62,105 +62,105 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     func showStack() {
-        if stackWindowController == nil {
-            stackWindowController = AmpXStackWindowController(
+        if self.stackWindowController == nil {
+            self.stackWindowController = AmpXStackWindowController(
                 coordinator: self,
-                skin: skin,
-                moduleViews: visibleStackModuleViews(),
-                playlistViewportHeight: playlistViewportHeight
+                skin: self.skin,
+                moduleViews: self.visibleStackModuleViews(),
+                playlistViewportHeight: self.playlistViewportHeight
             )
-            dragController.bind(viewport: stackWindowController!.stackViewport)
+            self.dragController.bind(viewport: self.stackWindowController!.stackViewport)
         }
 
-        stackWindowController?.updateLayout()
-        stackWindowController?.applyStackFrame(stackFrame)
-        stackWindowController?.showWindow(nil)
-        isStackVisible = true
-        refreshEffectiveVisibility()
+        self.stackWindowController?.updateLayout()
+        self.stackWindowController?.applyStackFrame(self.stackFrame)
+        self.stackWindowController?.showWindow(nil)
+        self.isStackVisible = true
+        self.refreshEffectiveVisibility()
     }
 
     func closeStack() {
         if let window = stackWindowController?.window {
-            stackFrame = window.frame
+            self.stackFrame = window.frame
         }
-        stackWindowController?.window?.orderOut(nil)
-        isStackVisible = false
-        refreshEffectiveVisibility()
-        persistLayout()
+        self.stackWindowController?.window?.orderOut(nil)
+        self.isStackVisible = false
+        self.refreshEffectiveVisibility()
+        self.persistLayout()
     }
 
     func closeModule(_ id: AmpXModuleID) {
-        let nextFocus = nextVisibleModule(after: id)
-        dragController.cancelDragIfDragging(moduleID: id)
-        if id == .enthea, theaterController.isActive {
-            theaterController.exit()
+        let nextFocus = self.nextVisibleModule(after: id)
+        self.dragController.cancelDragIfDragging(moduleID: id)
+        if id == .enthea, self.theaterController.isActive {
+            self.theaterController.exit()
         }
-        if state.detached.contains(id) {
-            tearDownDetachedWindow(for: id)
+        if self.state.detached.contains(id) {
+            self.tearDownDetachedWindow(for: id)
         }
         if id == .enthea {
-            (moduleViews[id]?.content as? EntheaModuleContent)?.closeHost()
+            (self.moduleViews[id]?.content as? EntheaModuleContent)?.closeHost()
         }
-        state.close(id)
-        focusModule(nextFocus)
-        stackWindowController?.updateLayout()
-        refreshEffectiveVisibility()
-        persistLayout()
+        self.state.close(id)
+        self.focusModule(nextFocus)
+        self.stackWindowController?.updateLayout()
+        self.refreshEffectiveVisibility()
+        self.persistLayout()
     }
 
     func reopenModule(_ id: AmpXModuleID) {
-        state.reopen(id)
+        self.state.reopen(id)
         if id == .enthea {
-            (moduleViews[id]?.content as? EntheaModuleContent)?.reopenHost()
+            (self.moduleViews[id]?.content as? EntheaModuleContent)?.reopenHost()
         }
-        stackWindowController?.updateLayout()
-        refreshEffectiveVisibility()
-        persistLayout()
+        self.stackWindowController?.updateLayout()
+        self.refreshEffectiveVisibility()
+        self.persistLayout()
     }
 
     func setCollapsed(_ id: AmpXModuleID, _ value: Bool) {
         if value {
-            dragController.cancelDragIfDragging(moduleID: id)
+            self.dragController.cancelDragIfDragging(moduleID: id)
         }
-        state.setCollapsed(id, value)
-        moduleViews[id]?.setContentCollapsed(value)
-        detachedWindowControllers[id]?.window?.contentView?.needsLayout = true
-        stackWindowController?.updateLayout()
-        for controller in detachedWindowControllers.values {
-            relayoutDetachedModule(controller)
+        self.state.setCollapsed(id, value)
+        self.moduleViews[id]?.setContentCollapsed(value)
+        self.detachedWindowControllers[id]?.window?.contentView?.needsLayout = true
+        self.stackWindowController?.updateLayout()
+        for controller in self.detachedWindowControllers.values {
+            self.relayoutDetachedModule(controller)
         }
-        refreshEffectiveVisibility()
-        persistLayout()
+        self.refreshEffectiveVisibility()
+        self.persistLayout()
     }
 
     func detach(_ id: AmpXModuleID, at screenPoint: CGPoint, inheritedWidth: CGFloat) {
-        guard id != .player, !state.detached.contains(id) else { return }
+        guard id != .player, !self.state.detached.contains(id) else { return }
         guard let view = moduleViews[id] else { return }
 
-        state.detach(id)
+        self.state.detach(id)
 
-        let frame = detachedFrames[id]
-            ?? defaultDetachedFrame(for: id, at: screenPoint, inheritedWidth: inheritedWidth)
+        let frame = self.detachedFrames[id]
+            ?? self.defaultDetachedFrame(for: id, at: screenPoint, inheritedWidth: inheritedWidth)
 
-        let controller = detachedWindowControllers[id]
+        let controller = self.detachedWindowControllers[id]
             ?? AmpXDetachedModuleWindowController(
                 moduleID: id,
                 coordinator: self,
-                skin: skin,
+                skin: self.skin,
                 inheritedWidth: inheritedWidth,
                 frame: frame
             )
 
-        detachedWindowControllers[id] = controller
-        detachedFrames[id] = frame
+        self.detachedWindowControllers[id] = controller
+        self.detachedFrames[id] = frame
 
-        transferModuleView(view, to: controller)
+        self.transferModuleView(view, to: controller)
         controller.applyFrame(frame)
         controller.showWindow(nil)
 
-        stackWindowController?.updateLayout()
-        refreshEffectiveVisibility()
-        persistLayout()
+        self.stackWindowController?.updateLayout()
+        self.refreshEffectiveVisibility()
+        self.persistLayout()
     }
 
     func redock(_ id: AmpXModuleID, at visibleDropIndex: Int) {
@@ -169,60 +169,60 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         let fullIndex = AmpXModuleDragController.fullOrderIndex(
             forVisibleDropIndex: visibleDropIndex,
             excluding: id,
-            in: state
+            in: self.state
         )
 
         if let detachedController = detachedWindowControllers[id] {
             _ = detachedController.detachModuleView()
             detachedController.window?.orderOut(nil)
-            detachedWindowControllers.removeValue(forKey: id)
+            self.detachedWindowControllers.removeValue(forKey: id)
         }
 
-        state.redock(id, at: fullIndex)
-        transferModuleView(view, to: stackWindowController?.stackViewport.stackView)
+        self.state.redock(id, at: fullIndex)
+        self.transferModuleView(view, to: self.stackWindowController?.stackViewport.stackView)
 
-        if !isStackVisible {
-            showStack()
+        if !self.isStackVisible {
+            self.showStack()
         } else {
-            stackWindowController?.updateLayout()
+            self.stackWindowController?.updateLayout()
         }
-        refreshEffectiveVisibility()
-        persistLayout()
+        self.refreshEffectiveVisibility()
+        self.persistLayout()
     }
 
     func menuRedock(_ id: AmpXModuleID, at visibleDropIndex: Int) {
-        if !isStackVisible {
-            showStack()
+        if !self.isStackVisible {
+            self.showStack()
         }
-        redock(id, at: visibleDropIndex)
+        self.redock(id, at: visibleDropIndex)
     }
 
     func reorder(_ id: AmpXModuleID, toVisibleDropIndex visibleDropIndex: Int) {
         let fullIndex = AmpXModuleDragController.fullOrderIndex(
             forVisibleDropIndex: visibleDropIndex,
             excluding: id,
-            in: state
+            in: self.state
         )
-        state.move(id, to: fullIndex)
-        stackWindowController?.updateLayout()
-        persistLayout()
+        self.state.move(id, to: fullIndex)
+        self.stackWindowController?.updateLayout()
+        self.persistLayout()
     }
 
     func updateDetachedFrame(_ id: AmpXModuleID, frame: CGRect) {
-        guard !theaterController.isActive || id != .enthea else { return }
+        guard !self.theaterController.isActive || id != .enthea else { return }
         guard AmpXLayoutStore.isValidFrame(frame) else { return }
-        let clamped = AmpXLayoutStore.clampedToVisibleFrame(frame, screen: screen)
-        detachedFrames[id] = clamped
-        detachedWindowControllers[id]?.applyFrame(clamped)
-        persistLayout()
+        let clamped = AmpXLayoutStore.clampedToVisibleFrame(frame, screen: self.screen)
+        self.detachedFrames[id] = clamped
+        self.detachedWindowControllers[id]?.applyFrame(clamped)
+        self.persistLayout()
     }
 
     func detachedWindowFrame(for id: AmpXModuleID) -> CGRect? {
-        detachedWindowControllers[id]?.window?.frame ?? detachedFrames[id]
+        self.detachedWindowControllers[id]?.window?.frame ?? self.detachedFrames[id]
     }
 
     func moduleView(for id: AmpXModuleID) -> AmpXModuleView? {
-        moduleViews[id]
+        self.moduleViews[id]
     }
 
     func makeDropGeometry(excluding draggedID: AmpXModuleID) -> AmpXDropGeometry {
@@ -230,19 +230,19 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
             return AmpXDropGeometry(bounds: .zero, orderedFrames: [])
         }
 
-        let width = stackWindow?.frame.width ?? AmpXMetrics.compositionWidth
+        let width = self.stackWindow?.frame.width ?? AmpXMetrics.compositionWidth
         let availableHeight = stackWindowController.stackViewport.bounds.height
         let layout = AmpXLayout.calculate(
-            state: state,
+            state: self.state,
             width: width,
-            playlistViewportHeight: playlistViewportHeight,
+            playlistViewportHeight: self.playlistViewportHeight,
             availableHeight: max(availableHeight, 1)
         )
 
-        let orderedFrames = state.order.compactMap { moduleID -> (AmpXModuleID, CGRect)? in
+        let orderedFrames = self.state.order.compactMap { moduleID -> (AmpXModuleID, CGRect)? in
             guard moduleID != draggedID,
-                  !state.closed.contains(moduleID),
-                  !state.detached.contains(moduleID),
+                  !self.state.closed.contains(moduleID),
+                  !self.state.detached.contains(moduleID),
                   let frame = layout.frames[moduleID]
             else { return nil }
             return (moduleID, frame)
@@ -256,103 +256,103 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
 
     func handleStackFrameChanged(_ frame: CGRect) {
         guard AmpXLayoutStore.isValidFrame(frame) else { return }
-        stackFrame = AmpXLayoutStore.clampedToVisibleFrame(frame, screen: screen)
-        persistLayout()
+        self.stackFrame = AmpXLayoutStore.clampedToVisibleFrame(frame, screen: self.screen)
+        self.persistLayout()
     }
 
     func handlePlayerHeaderClose() {
-        closeStack()
+        self.closeStack()
     }
 
     func handleModuleHeaderClose(_ id: AmpXModuleID) {
-        closeModule(id)
+        self.closeModule(id)
     }
 
     func handleModuleHeaderCollapse(_ id: AmpXModuleID) {
-        let collapsed = state.collapsed.contains(id)
-        setCollapsed(id, !collapsed)
+        let collapsed = self.state.collapsed.contains(id)
+        self.setCollapsed(id, !collapsed)
     }
 
     func handlePlayerHeaderMinimize() {
-        stackWindowController?.window?.miniaturize(nil)
+        self.stackWindowController?.window?.miniaturize(nil)
     }
 
     func adjustPlaylistViewport(byHeightDelta delta: CGFloat, width: CGFloat) {
         let scale = AmpXLayout.scale(width: width)
-        playlistViewportHeight = AmpXLayout.adjustedPlaylistViewportHeight(
-            preferred: playlistViewportHeight,
+        self.playlistViewportHeight = AmpXLayout.adjustedPlaylistViewportHeight(
+            preferred: self.playlistViewportHeight,
             heightDelta: delta,
             scale: scale
         )
-        stackWindowController?.setPreferredPlaylistViewportHeight(playlistViewportHeight)
-        stackWindowController?.updateLayout()
-        persistLayout()
+        self.stackWindowController?.setPreferredPlaylistViewportHeight(self.playlistViewportHeight)
+        self.stackWindowController?.updateLayout()
+        self.persistLayout()
     }
 
     func revealStackContent(_ rect: CGRect) {
-        stackWindowController?.revealContent(rect)
+        self.stackWindowController?.revealContent(rect)
     }
 
     func performModuleCommand(_ command: AmpXModuleCommand) {
         switch command {
         case .moveUp:
-            moveFocusedModule(by: -1)
+            self.moveFocusedModule(by: -1)
         case .moveDown:
-            moveFocusedModule(by: 1)
+            self.moveFocusedModule(by: 1)
         case .toggleDetach:
-            toggleDetachFocusedModule()
+            self.toggleDetachFocusedModule()
         case .toggleCollapse:
-            toggleCollapseFocusedModule()
+            self.toggleCollapseFocusedModule()
         }
     }
 
     func noteFocusedModule(_ id: AmpXModuleID) {
-        focusedModuleID = id
+        self.focusedModuleID = id
     }
 
     func toggleTheater() {
-        if theaterController.isActive {
-            theaterController.exit()
+        if self.theaterController.isActive {
+            self.theaterController.exit()
         } else {
-            theaterController.enter()
+            self.theaterController.enter()
         }
     }
 
     func exitTheater() {
-        theaterController.exit()
+        self.theaterController.exit()
     }
 
     var isInTheater: Bool {
-        theaterController.isActive
+        self.theaterController.isActive
     }
 
     private func moveFocusedModule(by offset: Int) {
-        guard focusedModuleID != .player else { return }
+        guard self.focusedModuleID != .player else { return }
         guard let currentIndex = visibleModuleOrder().firstIndex(of: focusedModuleID) else { return }
         let targetIndex = currentIndex + offset
-        guard targetIndex >= 0, targetIndex < visibleModuleOrder().count else { return }
-        let targetID = visibleModuleOrder()[targetIndex]
+        guard targetIndex >= 0, targetIndex < self.visibleModuleOrder().count else { return }
+        let targetID = self.visibleModuleOrder()[targetIndex]
         guard targetID != .player else { return }
 
-        if state.detached.contains(focusedModuleID) {
-            menuRedock(focusedModuleID, at: targetIndex)
+        if self.state.detached.contains(self.focusedModuleID) {
+            self.menuRedock(self.focusedModuleID, at: targetIndex)
         } else {
-            reorder(focusedModuleID, toVisibleDropIndex: targetIndex)
+            self.reorder(self.focusedModuleID, toVisibleDropIndex: targetIndex)
         }
     }
 
     private func toggleDetachFocusedModule() {
-        guard focusedModuleID != .player else { return }
-        if state.detached.contains(focusedModuleID) {
-            menuRedock(focusedModuleID, at: visibleModuleOrder().count)
+        guard self.focusedModuleID != .player else { return }
+        if self.state.detached.contains(self.focusedModuleID) {
+            self.menuRedock(self.focusedModuleID, at: self.visibleModuleOrder().count)
         } else if let moduleView = moduleViews[focusedModuleID], let stackWindow {
             let windowPoint = moduleView.convert(
                 NSPoint(x: moduleView.bounds.midX, y: moduleView.bounds.maxY),
                 to: nil
             )
             let screenPoint = stackWindow.convertPoint(toScreen: windowPoint)
-            detach(
-                focusedModuleID,
+            self.detach(
+                self.focusedModuleID,
                 at: CGPoint(x: screenPoint.x, y: screenPoint.y),
                 inheritedWidth: stackWindow.frame.width
             )
@@ -360,19 +360,19 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     private func toggleCollapseFocusedModule() {
-        let collapsed = state.collapsed.contains(focusedModuleID)
-        setCollapsed(focusedModuleID, !collapsed)
+        let collapsed = self.state.collapsed.contains(self.focusedModuleID)
+        self.setCollapsed(self.focusedModuleID, !collapsed)
     }
 
     private func focusModule(_ id: AmpXModuleID) {
-        focusedModuleID = id
+        self.focusedModuleID = id
         guard let view = moduleViews[id] else { return }
-        stackWindow?.makeFirstResponder(view.header)
-        detachedWindowControllers[id]?.window?.makeFirstResponder(view.header)
+        self.stackWindow?.makeFirstResponder(view.header)
+        self.detachedWindowControllers[id]?.window?.makeFirstResponder(view.header)
     }
 
     private func nextVisibleModule(after id: AmpXModuleID) -> AmpXModuleID {
-        let visible = visibleModuleOrder()
+        let visible = self.visibleModuleOrder()
         guard let index = visible.firstIndex(of: id) else { return .player }
         if index + 1 < visible.count {
             return visible[index + 1]
@@ -381,59 +381,59 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     private func visibleModuleOrder() -> [AmpXModuleID] {
-        state.order.filter { moduleID in
-            !state.closed.contains(moduleID) && !state.detached.contains(moduleID)
+        self.state.order.filter { moduleID in
+            !self.state.closed.contains(moduleID) && !self.state.detached.contains(moduleID)
         }
     }
 
     private func createModuleViews() {
         for moduleID in AmpXModuleID.allCases {
-            let content = makeModuleContent(for: moduleID)
+            let content = self.makeModuleContent(for: moduleID)
             let view = AmpXModuleView(moduleID: moduleID, content: content, skin: skin)
-            wireHeader(for: view)
-            moduleViews[moduleID] = view
+            self.wireHeader(for: view)
+            self.moduleViews[moduleID] = view
         }
-        if !state.closed.contains(.enthea) {
-            (moduleViews[.enthea]?.content as? EntheaModuleContent)?.reopenHost()
+        if !self.state.closed.contains(.enthea) {
+            (self.moduleViews[.enthea]?.content as? EntheaModuleContent)?.reopenHost()
         }
     }
 
     private func makeModuleContent(for moduleID: AmpXModuleID) -> AmpXModuleContent {
         switch moduleID {
         case .player:
-            return PlayerModuleContent(
-                skin: skin,
-                audioPlayer: audioPlayer,
-                playlistManager: playlistManager,
+            PlayerModuleContent(
+                skin: self.skin,
+                audioPlayer: self.audioPlayer,
+                playlistManager: self.playlistManager,
                 onToggleModule: { [weak self] id in
                     self?.toggleModuleVisibility(id)
                 }
             )
         case .equalizer:
-            return EqualizerModuleContent(skin: skin, audioPlayer: audioPlayer)
+            EqualizerModuleContent(skin: self.skin, audioPlayer: self.audioPlayer)
         case .playlist:
-            return PlaylistModuleContent(
-                skin: skin,
-                manager: playlistManager,
-                audioPlayer: audioPlayer
+            PlaylistModuleContent(
+                skin: self.skin,
+                manager: self.playlistManager,
+                audioPlayer: self.audioPlayer
             )
         case .enthea:
-            return EntheaModuleContent(
-                skin: skin,
-                audioPlayer: audioPlayer,
+            EntheaModuleContent(
+                skin: self.skin,
+                audioPlayer: self.audioPlayer,
                 isTheater: { [weak self] in self?.theaterController.isActive ?? false },
                 onToggleTheater: { [weak self] in self?.toggleTheater() }
             )
         default:
-            return AmpXModuleContent.make(moduleID: moduleID, skin: skin)
+            AmpXModuleContent.make(moduleID: moduleID, skin: self.skin)
         }
     }
 
     private func toggleModuleVisibility(_ id: AmpXModuleID) {
-        if state.closed.contains(id) {
-            reopenModule(id)
+        if self.state.closed.contains(id) {
+            self.reopenModule(id)
         } else {
-            closeModule(id)
+            self.closeModule(id)
         }
     }
 
@@ -478,7 +478,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     private func restoreDetachedModules() {
-        for moduleID in state.detached where moduleID != .player {
+        for moduleID in self.state.detached where moduleID != .player {
             guard let view = moduleViews[moduleID] else { continue }
 
             let frame = detachedFrames[moduleID]
@@ -507,7 +507,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         inheritedWidth: CGFloat
     ) -> CGRect {
         let scale = AmpXLayout.scale(width: inheritedWidth)
-        let height = detachedModuleHeight(for: id, scale: scale)
+        let height = self.detachedModuleHeight(for: id, scale: scale)
         return AmpXLayoutStore.clampedToVisibleFrame(
             CGRect(
                 x: screenPoint.x - inheritedWidth / 2,
@@ -515,25 +515,25 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
                 width: inheritedWidth,
                 height: height
             ),
-            screen: screen
+            screen: self.screen
         )
     }
 
     private func detachedModuleHeight(for id: AmpXModuleID, scale: CGFloat) -> CGFloat {
-        var moduleState = state
+        var moduleState = self.state
         moduleState.detached.remove(id)
         let layout = AmpXLayout.calculate(
             state: moduleState,
             width: AmpXMetrics.compositionWidth * scale,
-            playlistViewportHeight: playlistViewportHeight,
-            availableHeight: 10_000
+            playlistViewportHeight: self.playlistViewportHeight,
+            availableHeight: 10000
         )
         return layout.frames[id]?.height ?? AmpXMetrics.headerHeight * scale
     }
 
     private func visibleStackModuleViews() -> [AmpXModuleID: AmpXModuleView] {
-        moduleViews.filter { moduleID, _ in
-            !state.detached.contains(moduleID) && !state.closed.contains(moduleID)
+        self.moduleViews.filter { moduleID, _ in
+            !self.state.detached.contains(moduleID) && !self.state.closed.contains(moduleID)
         }
     }
 
@@ -544,26 +544,26 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
 
     private func transferModuleView(_ view: AmpXModuleView, to controller: AmpXDetachedModuleWindowController) {
         let width = controller.window?.frame.width ?? AmpXMetrics.compositionWidth
-        var moduleState = state
+        var moduleState = self.state
         moduleState.detached.remove(view.moduleID)
         let layout = AmpXLayout.calculate(
             state: moduleState,
             width: width,
-            playlistViewportHeight: playlistViewportHeight,
-            availableHeight: 10_000
+            playlistViewportHeight: self.playlistViewportHeight,
+            availableHeight: 10000
         )
         controller.attachModuleView(view, layout: layout)
     }
 
     private func relayoutDetachedModule(_ controller: AmpXDetachedModuleWindowController) {
         guard let view = controller.detachModuleView() else { return }
-        transferModuleView(view, to: controller)
+        self.transferModuleView(view, to: controller)
     }
 
     private func tearDownDetachedWindow(for id: AmpXModuleID) {
-        detachedWindowControllers[id]?.window?.orderOut(nil)
-        detachedWindowControllers.removeValue(forKey: id)
-        detachedFrames.removeValue(forKey: id)
+        self.detachedWindowControllers[id]?.window?.orderOut(nil)
+        self.detachedWindowControllers.removeValue(forKey: id)
+        self.detachedFrames.removeValue(forKey: id)
     }
 
     private func persistLayout() {
@@ -573,48 +573,48 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
             detachedFrames: detachedFrames,
             playlistViewportHeight: playlistViewportHeight
         )
-        layoutStore.save(layout)
+        self.layoutStore.save(layout)
     }
 
     func refreshEffectiveVisibility() {
         for moduleID in AmpXModuleID.allCases {
             guard let moduleView = moduleViews[moduleID] else { continue }
-            let inputs = visibilityInputs(for: moduleID)
+            let inputs = self.visibilityInputs(for: moduleID)
             moduleView.content.setEffectivelyVisible(inputs.isVisible)
         }
         if let playerContent = moduleViews[.player]?.content as? PlayerModuleContent {
             playerContent.updateModuleToggleStates(
-                eqOpen: !state.closed.contains(.equalizer),
-                plOpen: !state.closed.contains(.playlist)
+                eqOpen: !self.state.closed.contains(.equalizer),
+                plOpen: !self.state.closed.contains(.playlist)
             )
         }
     }
 
     private func visibilityInputs(for moduleID: AmpXModuleID) -> AmpXVisibilityInputs {
-        if state.detached.contains(moduleID) {
+        if self.state.detached.contains(moduleID) {
             return AmpXEffectiveVisibility.detachedInputs(
-                collapsed: state.collapsed.contains(moduleID),
-                closed: state.closed.contains(moduleID),
-                window: detachedWindowControllers[moduleID]?.window
+                collapsed: self.state.collapsed.contains(moduleID),
+                closed: self.state.closed.contains(moduleID),
+                window: self.detachedWindowControllers[moduleID]?.window
             )
         }
 
-        if moduleID == .enthea, theaterController.isActive {
+        if moduleID == .enthea, self.theaterController.isActive {
             return AmpXEffectiveVisibility.theaterInputs(
-                collapsed: state.collapsed.contains(moduleID),
-                closed: state.closed.contains(moduleID),
-                window: theaterController.window
+                collapsed: self.state.collapsed.contains(moduleID),
+                closed: self.state.closed.contains(moduleID),
+                window: self.theaterController.window
             )
         }
 
-        let moduleFrame = moduleFrameInStackContent(for: moduleID)
-        let visibleContentRect = stackWindowController?.stackViewport.visibleContentRect ?? .zero
-        let stackWindowVisible = isStackVisible && (stackWindow?.isVisible ?? false)
+        let moduleFrame = self.moduleFrameInStackContent(for: moduleID)
+        let visibleContentRect = self.stackWindowController?.stackViewport.visibleContentRect ?? .zero
+        let stackWindowVisible = self.isStackVisible && (self.stackWindow?.isVisible ?? false)
 
         var inputs = AmpXEffectiveVisibility.stackInputs(
-            collapsed: state.collapsed.contains(moduleID),
-            closed: state.closed.contains(moduleID),
-            window: stackWindow,
+            collapsed: self.state.collapsed.contains(moduleID),
+            closed: self.state.closed.contains(moduleID),
+            window: self.stackWindow,
             moduleFrame: moduleFrame,
             visibleContentRect: visibleContentRect
         )
@@ -625,20 +625,19 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     private func refreshEntheaPresentation() {
-        (moduleViews[.enthea]?.content as? EntheaModuleContent)?.refreshTheaterPresentation()
+        (self.moduleViews[.enthea]?.content as? EntheaModuleContent)?.refreshTheaterPresentation()
     }
 
     func captureTheaterSnapshot(for moduleID: AmpXModuleID) -> AmpXTheaterSnapshot {
-        let view = moduleViews[moduleID]
-        let originalHostID = state.detached.contains(moduleID) ? moduleID : nil
-        let position = state.order.firstIndex(of: moduleID) ?? 0
-        let frame: CGRect
-        if state.detached.contains(moduleID) {
-            frame = detachedWindowFrame(for: moduleID) ?? view?.frame ?? .zero
+        let view = self.moduleViews[moduleID]
+        let originalHostID = self.state.detached.contains(moduleID) ? moduleID : nil
+        let position = self.state.order.firstIndex(of: moduleID) ?? 0
+        let frame: CGRect = if self.state.detached.contains(moduleID) {
+            self.detachedWindowFrame(for: moduleID) ?? view?.frame ?? .zero
         } else {
-            frame = view?.frame ?? .zero
+            view?.frame ?? .zero
         }
-        let scale = moduleScale(for: moduleID)
+        let scale = self.moduleScale(for: moduleID)
         return AmpXTheaterSnapshot(
             originalHostID: originalHostID,
             modulePosition: position,
@@ -651,10 +650,10 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     func extractModuleViewForTheater(_ moduleID: AmpXModuleID) {
         guard let view = moduleViews[moduleID] else { return }
         view.removeFromSuperview()
-        if state.detached.contains(moduleID) {
-            detachedWindowControllers[moduleID]?.window?.orderOut(nil)
+        if self.state.detached.contains(moduleID) {
+            self.detachedWindowControllers[moduleID]?.window?.orderOut(nil)
         }
-        stackWindowController?.updateLayout()
+        self.stackWindowController?.updateLayout()
     }
 
     func reinstallModuleViewFromTheater(_ moduleID: AmpXModuleID, snapshot: AmpXTheaterSnapshot) {
@@ -668,25 +667,25 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
 
         if snapshot.originalHostID != nil {
             guard let controller = detachedWindowControllers[moduleID] else { return }
-            let restoredFrame = AmpXLayoutStore.clampedToVisibleFrame(snapshot.frame, screen: screen)
-            transferModuleView(view, to: controller)
+            let restoredFrame = AmpXLayoutStore.clampedToVisibleFrame(snapshot.frame, screen: self.screen)
+            self.transferModuleView(view, to: controller)
             controller.applyFrame(restoredFrame)
             controller.showWindow(nil)
         } else {
-            transferModuleView(view, to: stackWindowController?.stackViewport.stackView)
-            stackWindowController?.updateLayout()
+            self.transferModuleView(view, to: self.stackWindowController?.stackViewport.stackView)
+            self.stackWindowController?.updateLayout()
         }
 
-        refreshEntheaPresentation()
-        refreshEffectiveVisibility()
+        self.refreshEntheaPresentation()
+        self.refreshEffectiveVisibility()
     }
 
     func moduleScale(for moduleID: AmpXModuleID) -> CGFloat {
-        if state.detached.contains(moduleID) {
-            let width = detachedWindowControllers[moduleID]?.window?.frame.width ?? AmpXMetrics.compositionWidth
+        if self.state.detached.contains(moduleID) {
+            let width = self.detachedWindowControllers[moduleID]?.window?.frame.width ?? AmpXMetrics.compositionWidth
             return AmpXLayout.scale(width: width)
         }
-        let width = stackWindow?.frame.width ?? AmpXMetrics.compositionWidth
+        let width = self.stackWindow?.frame.width ?? AmpXMetrics.compositionWidth
         return AmpXLayout.scale(width: width)
     }
 

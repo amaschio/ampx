@@ -22,7 +22,7 @@ final class AmpXLayoutStore {
     }
 
     func load() -> AmpXSavedLayout {
-        load(screen: screen)
+        self.load(screen: self.screen)
     }
 
     func load(screen: NSScreen) -> AmpXSavedLayout {
@@ -42,13 +42,13 @@ final class AmpXLayoutStore {
     func save(_ layout: AmpXSavedLayout) {
         let dto = AmpXLayoutV1DTO(layout: layout)
         guard let data = try? JSONEncoder().encode(dto) else { return }
-        defaults.set(data, forKey: Self.storageKey)
+        self.defaults.set(data, forKey: Self.storageKey)
     }
 
     static func defaultLayout(for screen: NSScreen) -> AmpXSavedLayout {
         AmpXSavedLayout(
             state: AmpXModuleOrder(),
-            stackFrame: defaultStackFrame(for: screen),
+            stackFrame: self.defaultStackFrame(for: screen),
             detachedFrames: [:],
             playlistViewportHeight: AmpXMetrics.defaultPlaylistViewportHeight
         )
@@ -68,16 +68,16 @@ final class AmpXLayoutStore {
 
     fileprivate static func normalizedLayout(from dto: AmpXLayoutV1DTO, screen: NSScreen) -> AmpXSavedLayout {
         var state = AmpXModuleOrder()
-        state.order = normalizedOrder(dto.order)
-        state.collapsed = normalizedIDSet(dto.collapsed)
-        state.detached = normalizedIDSet(dto.detached)
-        state.closed = normalizedIDSet(dto.closed)
+        state.order = self.normalizedOrder(dto.order)
+        state.collapsed = self.normalizedIDSet(dto.collapsed)
+        state.detached = self.normalizedIDSet(dto.detached)
+        state.closed = self.normalizedIDSet(dto.closed)
 
-        enforcePlayerRules(on: &state)
+        self.enforcePlayerRules(on: &state)
 
-        let stackFrame = validatedFrame(dto.stackFrame?.cgRect, fallback: defaultStackFrame(for: screen), screen: screen)
-        let detachedFrames = normalizedDetachedFrames(dto.detachedFrames, screen: screen)
-        let playlistViewportHeight = validatedPlaylistViewportHeight(dto.playlistViewportHeight)
+        let stackFrame = self.validatedFrame(dto.stackFrame?.cgRect, fallback: self.defaultStackFrame(for: screen), screen: screen)
+        let detachedFrames = self.normalizedDetachedFrames(dto.detachedFrames, screen: screen)
+        let playlistViewportHeight = self.validatedPlaylistViewportHeight(dto.playlistViewportHeight)
 
         return AmpXSavedLayout(
             state: state,
@@ -129,7 +129,7 @@ final class AmpXLayoutStore {
 
     private static func validatedFrame(_ frame: CGRect?, fallback: CGRect, screen: NSScreen) -> CGRect {
         guard let frame, isValidFrame(frame) else { return fallback }
-        return clampedToVisibleFrame(frame, screen: screen)
+        return self.clampedToVisibleFrame(frame, screen: screen)
     }
 
     private static func normalizedDetachedFrames(
@@ -144,7 +144,7 @@ final class AmpXLayoutStore {
                   let frame = dto.cgRect,
                   isValidFrame(frame)
             else { continue }
-            frames[id] = clampedToVisibleFrame(frame, screen: screen)
+            frames[id] = self.clampedToVisibleFrame(frame, screen: screen)
         }
         return frames
     }
@@ -204,16 +204,16 @@ private struct AmpXLayoutV1DTO: Codable {
     let playlistViewportHeight: Double?
 
     init(layout: AmpXSavedLayout) {
-        version = 1
-        order = layout.state.order.map(\.rawValue)
-        collapsed = layout.state.collapsed.map(\.rawValue).sorted()
-        detached = layout.state.detached.map(\.rawValue).sorted()
-        closed = layout.state.closed.map(\.rawValue).sorted()
-        stackFrame = AmpXFrameDTO(layout.stackFrame)
-        detachedFrames = Dictionary(
+        self.version = 1
+        self.order = layout.state.order.map(\.rawValue)
+        self.collapsed = layout.state.collapsed.map(\.rawValue).sorted()
+        self.detached = layout.state.detached.map(\.rawValue).sorted()
+        self.closed = layout.state.closed.map(\.rawValue).sorted()
+        self.stackFrame = AmpXFrameDTO(layout.stackFrame)
+        self.detachedFrames = Dictionary(
             uniqueKeysWithValues: layout.detachedFrames.map { ($0.key.rawValue, AmpXFrameDTO($0.value)) }
         )
-        playlistViewportHeight = Double(layout.playlistViewportHeight)
+        self.playlistViewportHeight = Double(layout.playlistViewportHeight)
     }
 }
 
@@ -224,16 +224,16 @@ private struct AmpXFrameDTO: Codable {
     let height: Double
 
     init(_ rect: CGRect) {
-        x = rect.origin.x
-        y = rect.origin.y
-        width = rect.size.width
-        height = rect.size.height
+        self.x = rect.origin.x
+        self.y = rect.origin.y
+        self.width = rect.size.width
+        self.height = rect.size.height
     }
 
     var cgRect: CGRect? {
-        guard x.isFinite, y.isFinite, width.isFinite, height.isFinite, width > 0, height > 0 else {
+        guard self.x.isFinite, self.y.isFinite, self.width.isFinite, self.height.isFinite, self.width > 0, self.height > 0 else {
             return nil
         }
-        return CGRect(x: x, y: y, width: width, height: height)
+        return CGRect(x: self.x, y: self.y, width: self.width, height: self.height)
     }
 }

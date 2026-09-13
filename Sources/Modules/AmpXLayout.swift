@@ -31,13 +31,13 @@ enum AmpXLayout {
         playlistViewportHeight: CGFloat,
         availableHeight: CGFloat
     ) -> AmpXLayoutResult {
-        let layoutScale = scale(width: width)
+        let layoutScale = self.scale(width: width)
         let compositionWidth = AmpXMetrics.compositionWidth * layoutScale
         let originX = max(0, (width - compositionWidth) / 2)
-        let visibleModules = stackModules(in: state)
+        let visibleModules = self.stackModules(in: state)
 
         var effectivePlaylistViewport = playlistViewportHeight
-        var contentHeight = totalContentHeight(
+        var contentHeight = self.totalContentHeight(
             state: state,
             modules: visibleModules,
             scale: layoutScale,
@@ -45,10 +45,10 @@ enum AmpXLayout {
         )
 
         if contentHeight > availableHeight,
-           shouldShrinkPlaylist(state: state, modules: visibleModules)
+           self.shouldShrinkPlaylist(state: state, modules: visibleModules)
         {
             effectivePlaylistViewport = AmpXMetrics.minimumPlaylistViewportHeight
-            contentHeight = totalContentHeight(
+            contentHeight = self.totalContentHeight(
                 state: state,
                 modules: visibleModules,
                 scale: layoutScale,
@@ -58,7 +58,7 @@ enum AmpXLayout {
 
         let scrolls = contentHeight > availableHeight
         let viewportHeight = scrolls ? availableHeight : contentHeight
-        let frames = layoutFrames(
+        let frames = self.layoutFrames(
             modules: visibleModules,
             state: state,
             originX: originX,
@@ -124,7 +124,7 @@ enum AmpXLayout {
 
         var total: CGFloat = 0
         for (index, moduleID) in modules.enumerated() {
-            total += moduleHeight(
+            total += self.moduleHeight(
                 moduleID: moduleID,
                 state: state,
                 playlistViewportHeight: playlistViewportHeight
@@ -148,7 +148,7 @@ enum AmpXLayout {
         var y: CGFloat = 0
 
         for (index, moduleID) in modules.enumerated() {
-            let height = moduleHeight(
+            let height = self.moduleHeight(
                 moduleID: moduleID,
                 state: state,
                 playlistViewportHeight: playlistViewportHeight

@@ -44,16 +44,16 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
     var stackViewport: AmpXStackViewport {
-        viewport
+        self.viewport
     }
 
     func setPreferredPlaylistViewportHeight(_ height: CGFloat) {
-        preferredPlaylistViewportHeight = height
+        self.preferredPlaylistViewportHeight = height
     }
 
     func applyStackFrame(_ frame: CGRect) {
@@ -69,24 +69,24 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
         guard let window, let coordinator else { return }
 
         let width = window.frame.width
-        let availableHeight = max(viewport.bounds.height > 0 ? viewport.bounds.height : window.contentView?.bounds.height ?? 0, 1)
+        let availableHeight = max(viewport.bounds.height > 0 ? self.viewport.bounds.height : window.contentView?.bounds.height ?? 0, 1)
         let layout = AmpXLayout.calculate(
             state: coordinator.state,
             width: width,
-            playlistViewportHeight: preferredPlaylistViewportHeight,
+            playlistViewportHeight: self.preferredPlaylistViewportHeight,
             availableHeight: availableHeight
         )
-        viewport.applyLayout(layout, state: coordinator.state)
-        resizeWindowPreservingTop(width: width, contentHeight: layout.viewportHeight)
-        refreshEffectiveVisibility()
+        self.viewport.applyLayout(layout, state: coordinator.state)
+        self.resizeWindowPreservingTop(width: width, contentHeight: layout.viewportHeight)
+        self.refreshEffectiveVisibility()
     }
 
     func revealContent(_ rect: CGRect) {
-        viewport.reveal(rect)
+        self.viewport.reveal(rect)
     }
 
     func clampedFrameSize(for window: NSWindow, to frameSize: NSSize) -> NSSize {
-        windowWillResize(window, to: frameSize)
+        self.windowWillResize(window, to: frameSize)
     }
 
     func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
@@ -97,79 +97,79 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowWillStartLiveResize(_: Notification) {
-        isLiveResizing = true
-        lastLiveResizeContentSize = viewport.bounds.size
+        self.isLiveResizing = true
+        self.lastLiveResizeContentSize = self.viewport.bounds.size
     }
 
     func windowDidEndLiveResize(_: Notification) {
-        isLiveResizing = false
-        lastLiveResizeContentSize = .zero
+        self.isLiveResizing = false
+        self.lastLiveResizeContentSize = .zero
         guard let window else { return }
-        coordinator?.handleStackFrameChanged(window.frame)
+        self.coordinator?.handleStackFrameChanged(window.frame)
     }
 
     func windowDidResize(_: Notification) {
-        guard isLiveResizing, let window else { return }
+        guard self.isLiveResizing, let window else { return }
 
-        let newSize = viewport.bounds.size
-        guard lastLiveResizeContentSize != .zero else {
-            lastLiveResizeContentSize = newSize
+        let newSize = self.viewport.bounds.size
+        guard self.lastLiveResizeContentSize != .zero else {
+            self.lastLiveResizeContentSize = newSize
             return
         }
 
-        let widthDelta = newSize.width - lastLiveResizeContentSize.width
-        let heightDelta = newSize.height - lastLiveResizeContentSize.height
+        let widthDelta = newSize.width - self.lastLiveResizeContentSize.width
+        let heightDelta = newSize.height - self.lastLiveResizeContentSize.height
 
         if abs(widthDelta) >= abs(heightDelta) {
-            updateLayout()
+            self.updateLayout()
         } else if abs(heightDelta) > 0.5 {
-            if isStackScrolling(width: window.frame.width, availableHeight: newSize.height) {
-                updateLayout()
+            if self.isStackScrolling(width: window.frame.width, availableHeight: newSize.height) {
+                self.updateLayout()
             } else {
-                coordinator?.adjustPlaylistViewport(
+                self.coordinator?.adjustPlaylistViewport(
                     byHeightDelta: heightDelta,
                     width: window.frame.width
                 )
             }
         }
 
-        lastLiveResizeContentSize = newSize
+        self.lastLiveResizeContentSize = newSize
     }
 
     func windowShouldClose(_: NSWindow) -> Bool {
-        guard !isHandlingClose else { return true }
-        isHandlingClose = true
-        coordinator?.closeStack()
-        isHandlingClose = false
+        guard !self.isHandlingClose else { return true }
+        self.isHandlingClose = true
+        self.coordinator?.closeStack()
+        self.isHandlingClose = false
         return false
     }
 
     func windowDidMove(_: Notification) {
         guard let window, !window.inLiveResize else { return }
 
-        moveSaveWorkItem?.cancel()
+        self.moveSaveWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             guard let self, let window = self.window else { return }
             self.coordinator?.handleStackFrameChanged(window.frame)
         }
-        moveSaveWorkItem = workItem
+        self.moveSaveWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
     }
 
     func windowDidMiniaturize(_: Notification) {
-        refreshEffectiveVisibility()
+        self.refreshEffectiveVisibility()
     }
 
     func windowDidDeminiaturize(_: Notification) {
-        refreshEffectiveVisibility()
+        self.refreshEffectiveVisibility()
     }
 
     func windowDidChangeOcclusionState(_: Notification) {
-        refreshEffectiveVisibility()
+        self.refreshEffectiveVisibility()
     }
 
     private func refreshEffectiveVisibility() {
-        coordinator?.refreshEffectiveVisibility()
+        self.coordinator?.refreshEffectiveVisibility()
     }
 
     private func applyChrome() {
@@ -182,7 +182,7 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
         return AmpXLayout.calculate(
             state: coordinator.state,
             width: width,
-            playlistViewportHeight: preferredPlaylistViewportHeight,
+            playlistViewportHeight: self.preferredPlaylistViewportHeight,
             availableHeight: availableHeight
         ).scrolls
     }

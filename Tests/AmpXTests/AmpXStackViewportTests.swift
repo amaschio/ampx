@@ -19,7 +19,7 @@ final class AmpXStackViewportTests: XCTestCase {
     }
 
     func testScrollOffsetClampsToContentLimits() {
-        let viewport = makeViewport()
+        let viewport = self.makeViewport()
         viewport.applyLayoutMetrics(contentHeight: 1000, viewportHeight: 600)
 
         viewport.setScrollOffset(-50)
@@ -33,7 +33,7 @@ final class AmpXStackViewportTests: XCTestCase {
     }
 
     func testVisibleContentRectReflectsScrollOffset() {
-        let viewport = makeViewport()
+        let viewport = self.makeViewport()
         viewport.applyLayoutMetrics(contentHeight: 800, viewportHeight: 400)
         viewport.setScrollOffset(150)
 
@@ -41,7 +41,7 @@ final class AmpXStackViewportTests: XCTestCase {
     }
 
     func testRevealScrollsToExposeRect() {
-        let viewport = makeViewport()
+        let viewport = self.makeViewport()
         viewport.applyLayoutMetrics(contentHeight: 1000, viewportHeight: 400)
 
         viewport.reveal(CGRect(x: 0, y: 700, width: 490, height: 50))
@@ -52,7 +52,7 @@ final class AmpXStackViewportTests: XCTestCase {
     }
 
     func testContentHeightChangePreservesTopEdge() {
-        let viewport = makeViewport()
+        let viewport = self.makeViewport()
         viewport.applyLayoutMetrics(contentHeight: 1000, viewportHeight: 400)
         viewport.setScrollOffset(300)
 
@@ -83,7 +83,7 @@ final class AmpXStackViewportTests: XCTestCase {
     }
 
     func testOnVisibleRectChangedFiresWhenOffsetChanges() {
-        let viewport = makeViewport()
+        let viewport = self.makeViewport()
         viewport.applyLayoutMetrics(contentHeight: 800, viewportHeight: 400)
         var observed: [CGRect] = []
         viewport.onVisibleRectChanged = { observed.append($0) }
@@ -92,26 +92,26 @@ final class AmpXStackViewportTests: XCTestCase {
         XCTAssertEqual(observed.last, CGRect(x: 0, y: 100, width: 490, height: 400))
     }
 
-    func testStackContentPointIncludesScrollOffset() {
-        let viewport = makeViewport(inWindowAt: NSPoint(x: 100, y: 200))
+    func testStackContentPointIncludesScrollOffset() throws {
+        let viewport = self.makeViewport(inWindowAt: NSPoint(x: 100, y: 200))
         viewport.applyLayoutMetrics(contentHeight: 800, viewportHeight: 400)
         viewport.setScrollOffset(120)
 
         let viewportPoint = NSPoint(x: 50, y: 80)
         let windowPoint = viewport.convert(viewportPoint, to: nil)
-        let screenPoint = viewport.window!.convertPoint(toScreen: windowPoint)
+        let screenPoint = try XCTUnwrap(viewport.window?.convertPoint(toScreen: windowPoint))
         let contentPoint = viewport.stackContentPoint(fromScreenPoint: screenPoint)
 
         XCTAssertEqual(contentPoint.x, viewportPoint.x, accuracy: 0.5)
         XCTAssertEqual(contentPoint.y, viewportPoint.y + viewport.scrollOffset, accuracy: 0.5)
     }
 
-    func testStackContentPointRecomputesWhenScrollOffsetChanges() {
-        let viewport = makeViewport(inWindowAt: NSPoint(x: 100, y: 200))
+    func testStackContentPointRecomputesWhenScrollOffsetChanges() throws {
+        let viewport = self.makeViewport(inWindowAt: NSPoint(x: 100, y: 200))
         viewport.applyLayoutMetrics(contentHeight: 800, viewportHeight: 400)
         let viewportPoint = NSPoint(x: 50, y: 80)
         let windowPoint = viewport.convert(viewportPoint, to: nil)
-        let screenPoint = viewport.window!.convertPoint(toScreen: windowPoint)
+        let screenPoint = try XCTUnwrap(viewport.window?.convertPoint(toScreen: windowPoint))
 
         viewport.setScrollOffset(100)
         let before = viewport.stackContentPoint(fromScreenPoint: screenPoint)
@@ -123,16 +123,16 @@ final class AmpXStackViewportTests: XCTestCase {
         XCTAssertEqual(after.x, before.x, accuracy: 0.5)
     }
 
-    func testContainsUsesScreenConversionFromForeignWindow() {
+    func testContainsUsesScreenConversionFromForeignWindow() throws {
         let stackWindow = NSWindow(
             contentRect: CGRect(x: 100, y: 200, width: 490, height: 400),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
-        let viewport = makeViewport()
+        let viewport = self.makeViewport()
         stackWindow.contentView = viewport
-        viewport.frame = stackWindow.contentView!.bounds
+        viewport.frame = try XCTUnwrap(stackWindow.contentView?.bounds)
 
         let foreignWindow = NSWindow(
             contentRect: CGRect(x: 700, y: 500, width: 200, height: 200),

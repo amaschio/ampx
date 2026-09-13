@@ -36,7 +36,7 @@ final class AmpXAccessibilityTests: XCTestCase {
         XCTAssertEqual(slider.value, 0, accuracy: 0.0001)
     }
 
-    func testModuleHeaderIsFocusableAndExposesActions() throws {
+    func testModuleHeaderIsFocusableAndExposesActions() {
         let skin = ClassicModernSkin()
         let header = AmpXModuleHeaderView(moduleID: .playlist, skin: skin)
         XCTAssertTrue(header.acceptsFirstResponder)

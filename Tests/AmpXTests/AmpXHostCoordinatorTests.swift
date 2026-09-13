@@ -13,14 +13,14 @@ final class AmpXHostCoordinatorTests: XCTestCase {
     }
 
     func testModuleViewsAreCreatedForEveryModule() {
-        let coordinator = makeCoordinator()
+        let coordinator = self.makeCoordinator()
         for moduleID in AmpXModuleID.allCases {
             XCTAssertNotNil(coordinator.moduleView(for: moduleID))
         }
     }
 
     func testCloseModuleUpdatesStateAndPersists() {
-        let (defaults, name) = isolatedDefaults()
+        let (defaults, name) = self.isolatedDefaults()
         defer { cleanup(name) }
 
         let store = AmpXLayoutStore(defaults: defaults, screen: testScreen())
@@ -39,14 +39,14 @@ final class AmpXHostCoordinatorTests: XCTestCase {
     }
 
     func testReopenModuleRestoresVisibilityState() {
-        let coordinator = makeCoordinator()
+        let coordinator = self.makeCoordinator()
         coordinator.closeModule(.playlist)
         coordinator.reopenModule(.playlist)
         XCTAssertFalse(coordinator.state.closed.contains(.playlist))
     }
 
     func testSetCollapsedUpdatesStateAndPersists() {
-        let (defaults, name) = isolatedDefaults()
+        let (defaults, name) = self.isolatedDefaults()
         defer { cleanup(name) }
 
         let store = AmpXLayoutStore(defaults: defaults, screen: testScreen())
@@ -65,7 +65,7 @@ final class AmpXHostCoordinatorTests: XCTestCase {
     }
 
     func testCloseStackHidesWindowButRetainsControllerAndState() {
-        let coordinator = makeCoordinator()
+        let coordinator = self.makeCoordinator()
         coordinator.showStack()
         XCTAssertTrue(coordinator.isStackVisible)
 
@@ -81,7 +81,7 @@ final class AmpXHostCoordinatorTests: XCTestCase {
     }
 
     func testShowStackUsesSavedFrame() {
-        let (defaults, name) = isolatedDefaults()
+        let (defaults, name) = self.isolatedDefaults()
         defer { cleanup(name) }
 
         let savedFrame = CGRect(x: 200, y: 300, width: 490, height: 600)
@@ -99,7 +99,7 @@ final class AmpXHostCoordinatorTests: XCTestCase {
             state: store.load().state,
             skin: ClassicModernSkin(),
             layoutStore: store,
-            screen: testScreen()
+            screen: self.testScreen()
         )
         coordinator.showStack()
 
@@ -108,7 +108,7 @@ final class AmpXHostCoordinatorTests: XCTestCase {
     }
 
     func testDockReopenShowsStackWhenHidden() {
-        let coordinator = makeCoordinator()
+        let coordinator = self.makeCoordinator()
         coordinator.showStack()
         coordinator.closeStack()
         XCTAssertFalse(coordinator.isStackVisible)
@@ -130,7 +130,7 @@ final class AmpXHostCoordinatorTests: XCTestCase {
     }
 
     func testClosedEntheaStateDoesNotMountHostOnInit() {
-        let coordinator = makeCoordinator()
+        let coordinator = self.makeCoordinator()
         let content = coordinator.moduleView(for: .enthea)?.content as? EntheaModuleContent
         XCTAssertNil(content?.hostViewForTesting)
     }
@@ -139,7 +139,7 @@ final class AmpXHostCoordinatorTests: XCTestCase {
         AmpXHostCoordinator(
             state: AmpXModuleOrder(),
             skin: ClassicModernSkin(),
-            screen: testScreen()
+            screen: self.testScreen()
         )
     }
 
