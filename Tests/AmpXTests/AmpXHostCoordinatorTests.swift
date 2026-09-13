@@ -103,8 +103,36 @@ final class AmpXHostCoordinatorTests: XCTestCase {
         )
         coordinator.showStack()
 
-        XCTAssertEqual(coordinator.stackWindowFrame?.origin, savedFrame.origin)
+        // Height follows the composition; the saved left edge, top edge and width are restored.
+        XCTAssertEqual(coordinator.stackWindowFrame?.minX, savedFrame.minX)
+        XCTAssertEqual(coordinator.stackWindowFrame?.maxY ?? 0, savedFrame.maxY, accuracy: 0.5)
         XCTAssertEqual(coordinator.stackWindowFrame?.width, savedFrame.width)
+    }
+
+    func testStackWindowFollowsCompositionHeightWithoutScrolling() throws {
+        let (defaults, name) = self.isolatedDefaults()
+        defer { cleanup(name) }
+        let coordinator = AmpXHostCoordinator(
+            state: AmpXModuleOrder(),
+            skin: ClassicModernSkin(),
+            layoutStore: AmpXLayoutStore(defaults: defaults, screen: testScreen()),
+            screen: testScreen()
+        )
+        coordinator.showStack()
+        let window = try XCTUnwrap(coordinator.stackWindow)
+        let visible = try XCTUnwrap(window.screen ?? NSScreen.main).visibleFrame
+        let stackModules = [AmpXModuleID.player, .equalizer, .playlist].compactMap { coordinator.moduleView(for: $0) }
+        let compositionBottom = try XCTUnwrap(stackModules.map(\.frame.maxY).max())
+
+        XCTAssertEqual(window.frame.height, compositionBottom, accuracy: 0.5, "Stack window must be as tall as its modules")
+        XCTAssertLessThanOrEqual(window.frame.height, visible.height + 0.5, "Stack must fit the screen's visible frame")
+        func subviews(of view: NSView) -> [NSView] {
+            view.subviews.flatMap { [$0] + subviews(of: $0) }
+        }
+        let stackScrollbars = try subviews(of: XCTUnwrap(window.contentView)).filter {
+            $0 is AmpXScrollbar && $0.superview is AmpXStackViewport && !$0.isHidden
+        }
+        XCTAssertTrue(stackScrollbars.isEmpty, "The module stack must not show a scrollbar")
     }
 
     func testDockReopenShowsStackWhenHidden() {

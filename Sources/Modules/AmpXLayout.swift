@@ -3,10 +3,10 @@ import CoreGraphics
 struct AmpXLayoutResult: Equatable {
     var scale: CGFloat
     var frames: [AmpXModuleID: CGRect]
+    /// Stack height; the host window is always exactly this tall.
     var contentHeight: CGFloat
-    var viewportHeight: CGFloat
+    /// Effective Playlist viewport after fitting the stack into the available height.
     var playlistViewportHeight: CGFloat
-    var scrolls: Bool
 }
 
 enum AmpXLayout {
@@ -25,6 +25,8 @@ enum AmpXLayout {
         return max(AmpXMetrics.minimumPlaylistViewportHeight, adjusted)
     }
 
+    /// Lays the stack out top-down. The stack never scrolls: when it is taller than `availableHeight`,
+    /// only the expanded Playlist viewport shrinks, by the excess, down to its three-row minimum.
     static func calculate(
         state: AmpXModuleOrder,
         width: CGFloat,
@@ -37,27 +39,28 @@ enum AmpXLayout {
         let visibleModules = self.stackModules(in: state)
 
         var effectivePlaylistViewport = playlistViewportHeight
-        var contentHeight = self.totalContentHeight(
+        let preferredHeight = self.totalContentHeight(
+            state: state,
+            modules: visibleModules,
+            scale: layoutScale,
+            playlistViewportHeight: playlistViewportHeight
+        )
+        if preferredHeight > availableHeight,
+           self.shouldShrinkPlaylist(state: state, modules: visibleModules)
+        {
+            let excess = (preferredHeight - availableHeight) / layoutScale
+            effectivePlaylistViewport = max(
+                AmpXMetrics.minimumPlaylistViewportHeight,
+                playlistViewportHeight - excess
+            )
+        }
+
+        let contentHeight = self.totalContentHeight(
             state: state,
             modules: visibleModules,
             scale: layoutScale,
             playlistViewportHeight: effectivePlaylistViewport
         )
-
-        if contentHeight > availableHeight,
-           self.shouldShrinkPlaylist(state: state, modules: visibleModules)
-        {
-            effectivePlaylistViewport = AmpXMetrics.minimumPlaylistViewportHeight
-            contentHeight = self.totalContentHeight(
-                state: state,
-                modules: visibleModules,
-                scale: layoutScale,
-                playlistViewportHeight: effectivePlaylistViewport
-            )
-        }
-
-        let scrolls = contentHeight > availableHeight
-        let viewportHeight = scrolls ? availableHeight : contentHeight
         let frames = self.layoutFrames(
             modules: visibleModules,
             state: state,
@@ -71,9 +74,7 @@ enum AmpXLayout {
             scale: layoutScale,
             frames: frames,
             contentHeight: contentHeight,
-            viewportHeight: viewportHeight,
-            playlistViewportHeight: effectivePlaylistViewport,
-            scrolls: scrolls
+            playlistViewportHeight: effectivePlaylistViewport
         )
     }
 

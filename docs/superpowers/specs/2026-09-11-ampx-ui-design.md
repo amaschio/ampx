@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-11
 
-**Status:** Revision 5 — visual fidelity and acceptance amended 2026-09-12
+**Status:** Revision 6 — stack sizing amended 2026-09-13 (no stack scrolling; only the Playlist resizes vertically). Revision 5 — visual fidelity and acceptance amended 2026-09-12
 
 **Review history:** [Design review](./2026-09-11-ampx-ui-design-review.md)
 
@@ -124,9 +124,10 @@ hostHeight = (sum(moduleHeight) + moduleGap * (visibleCount - 1)) * scale
 Here the composition contains open modules in that host; collapsed modules contribute header height. All modules within a stack share scale.
 
 - Horizontal resize changes scale and recomputes content height. Minimum width is `490 * 0.85`; beyond `490 * 1.35`, the window grows while the composition remains centered at scale 1.35.
-- Vertical resize adjusts the expanded Playlist's viewport, changing visible row count rather than zoom. Otherwise height follows the composition. Persist viewport height independently of scale; respect scaled header-height minimums.
+- The Playlist is the only module that resizes vertically. Vertical resize adjusts the expanded Playlist's viewport, changing visible row count rather than zoom. Otherwise the window height always equals the composition height. Persist viewport height independently of scale; respect scaled header-height minimums.
 - Collapse, expansion, close, and reopen change height, not scale. Detached Playlist also supports viewport resizing; other detached modules use their scaled height.
-- When content exceeds screen height, first shrink Playlist to a three-row viewport. If still too tall, scroll the stack inside a viewport clamped to the visible frame, using the custom scrollbar. Dragging near its edges auto-scrolls to expose all drop targets. Never automatically collapse, close, or detach modules.
+- The stack never scrolls and has no stack scrollbar. Available height is the screen's visible frame, not the window's current height. When the composition is taller than that, the expanded Playlist viewport shrinks by exactly the excess, down to its three-row minimum; every other module keeps its height. The saved window position keeps its top edge and is kept inside the visible frame. Never automatically collapse, close, or detach modules.
+- *Pending user decision:* behavior when the composition is still taller than the visible frame with the Playlist at three rows (or with no expanded Playlist in the stack).
 - Tear-off inherits source scale. Re-dock adopts destination stack scale; transfer frames adjust accordingly. Hosts can otherwise be resized independently.
 
 ### Theater
@@ -151,7 +152,7 @@ isEffectivelyVisible = !module.isCollapsed && !module.isClosed
     && intersectsHostViewport
 ```
 
-For a stack, viewport intersection accounts for scrolling in a common coordinate space. Detached and theater hosts pass that viewport gate while retaining the other checks. Terms combine; scrolling into view cannot reactivate a collapsed or hidden module. Apply transitions only when the result changes.
+The stack does not scroll, so docked modules always intersect the stack viewport; the term is retained for host symmetry. Detached and theater hosts pass that viewport gate while retaining the other checks. Terms combine; viewport intersection cannot reactivate a collapsed or hidden module. Apply transitions only when the result changes.
 
 | Transition | Display links and ENTHEA behavior |
 |---|---|
@@ -160,7 +161,7 @@ For a stack, viewport intersection accounts for scrolling in a common coordinate
 | ENTHEA module closes | Call `teardown()` and release the host/WebView to release its WebContent resources |
 | Detach, re-dock, enter/exit theater | Transfer ownership of the same view; work follows effective visibility in the destination host |
 
-These rules apply to collapse, window hide/miniaturize/occlusion, and scrolling completely out of the stack viewport, including while the stack window itself remains visible.
+These rules apply to collapse, close, and window hide/miniaturize/occlusion.
 
 ## Module composition and controls
 
@@ -236,10 +237,10 @@ Then compare EQ and Playlist individually and as a complete expanded stack with 
 | Visual fidelity | Approved Player checkpoint and reference/result comparisons for all three panels through static, interactive, and wired states; only documented approved deviations. Check crisp geometry at 1×/2×/3× backing scales and UI scales 0.85–1.35; font registration and fallback. Identify offscreen checks separately from physical-display captures |
 | Layout and scale | Full, collapsed, Player-only, ENTHEA-expanded, and detached layouts at scale bounds and 1.0; gaps, viewport row counts, and scale transfer |
 | Module state and persistence | Reorder/collapse/detach/re-dock/close/reopen, anchor enforcement, idempotence, insertion targets; JSON round-trip and missing/corrupt/unknown-version/unknown-ID handling |
-| Overflow | All four modules at scale 1.35 on a short screen; every module and drop target reachable, with playlist shrinking before stack scrolling |
+| Stack height | Window height equals the composition at every scale; no stack scrollbar. All four modules at scale 1.35 on a short screen shrink only the Playlist viewport, down to three rows; every module and drop target remains reachable |
 | Drawing models | Pixel/stroke snapping, segment count/color boundaries/peak decay, playlist row geometry, duration column, and visible ranges |
 | Input and accessibility | Playlist-adapter parity, focus-routing precedence, keyboard-only operation, and VoiceOver actions/values/focus in both hosts |
-| Visibility and lifecycle | Each gate independently suspends work; scrolling in cannot override other gates; ENTHEA stops while collapsed or clipped inside a visible window; close releases its host |
+| Visibility and lifecycle | Each gate independently suspends work; viewport intersection cannot override other gates; ENTHEA stops while collapsed or hidden; close releases its host |
 | Theater | Display-filling content, restored host/scale/frame/presentation options, identical view instance across transitions, and continued window-visibility gating |
 | Regression and cutover | Existing audio/playlist/ENTHEA/visualization/parsing suites stay green; playlist action tests unchanged; retired UI, assets, panel family, and flag removed |
 

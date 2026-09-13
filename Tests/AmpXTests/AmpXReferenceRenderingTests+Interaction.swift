@@ -180,7 +180,8 @@ extension AmpXReferenceRenderingTests {
         var collapsed = AmpXModuleOrder()
         collapsed.setCollapsed(.equalizer, true)
         try self.exportStack(named: "stack-collapsed-eq.png", width: width, state: collapsed, availableHeight: 10000)
-        try self.exportStack(named: "stack-overflow-1.35.png", width: width * 1.35, state: AmpXModuleOrder(), availableHeight: 480)
+        // Short screen: the Playlist shrinks to fit and nothing scrolls.
+        try self.exportStack(named: "stack-short-screen-1.35.png", width: width * 1.35, state: AmpXModuleOrder(), availableHeight: 900)
 
         // Detached hosts lay the module out at the origin with the stack layout's scaled height.
         let detachedWidth = width * 1.35
@@ -206,8 +207,8 @@ extension AmpXReferenceRenderingTests {
             playlistViewportHeight: AmpXMetrics.defaultPlaylistViewportHeight,
             availableHeight: availableHeight
         )
-        let viewport = AmpXStackViewport(skin: self.skin)
-        viewport.frame = CGRect(x: 0, y: 0, width: width, height: layout.viewportHeight)
+        let viewport = AmpXStackViewport()
+        viewport.frame = CGRect(x: 0, y: 0, width: width, height: layout.contentHeight)
         let window = NSWindow(contentRect: viewport.frame, styleMask: .borderless, backing: .buffered, defer: false)
         window.contentView?.addSubview(viewport)
         let modules = self.referenceModules()

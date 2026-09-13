@@ -168,26 +168,6 @@ final class AmpXEffectiveVisibilityTests: XCTestCase {
         XCTAssertEqual(continuous.displayLinkStopCount, 1)
     }
 
-    func testStackScrollOutsideViewportStopsContinuousRendering() throws {
-        let coordinator = self.makeCoordinator()
-        coordinator.showStack()
-
-        guard let stackController = coordinator.stackWindowController else {
-            return XCTFail("Expected stack window controller")
-        }
-
-        let continuous = try self.attachContinuousView(to: XCTUnwrap(coordinator.moduleView(for: .player)))
-        continuous.setEffectivelyVisible(true)
-        XCTAssertEqual(continuous.displayLinkStartCount, 1)
-
-        let viewport = stackController.stackViewport
-        viewport.applyLayoutMetrics(contentHeight: 2000, viewportHeight: 400)
-        viewport.setScrollOffset(500)
-        coordinator.refreshEffectiveVisibility()
-
-        XCTAssertEqual(continuous.displayLinkStopCount, 1)
-    }
-
     // MARK: - Helpers
 
     private func makeInputs(

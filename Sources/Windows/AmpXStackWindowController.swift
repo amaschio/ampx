@@ -20,10 +20,10 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
         self.coordinator = coordinator
         self.skin = skin
         self.preferredPlaylistViewportHeight = playlistViewportHeight
-        self.viewport = AmpXStackViewport(skin: skin)
+        self.viewport = AmpXStackViewport()
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: AmpXMetrics.compositionWidth, height: 600),
+            contentRect: NSRect(x: 0, y: 0, width: AmpXMetrics.compositionWidth, height: AmpXMetrics.playerHeight),
             styleMask: [.borderless, .resizable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -35,9 +35,6 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
 
         window.delegate = self
         self.viewport.stackView.setModuleViews(moduleViews)
-        self.viewport.onVisibleRectChanged = { [weak coordinator] _ in
-            coordinator?.refreshEffectiveVisibility()
-        }
         self.applyChrome()
         self.updateLayout()
         self.refreshEffectiveVisibility()
@@ -52,37 +49,41 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
         self.viewport
     }
 
+    /// Height the stack may occupy: the visible frame of the window's screen, not the window's own height.
+    static func availableHeight(for window: NSWindow?) -> CGFloat {
+        let screen = window?.screen ?? NSScreen.main ?? NSScreen.screens.first
+        return max(screen?.visibleFrame.height ?? .greatestFiniteMagnitude, 1)
+    }
+
     func setPreferredPlaylistViewportHeight(_ height: CGFloat) {
         self.preferredPlaylistViewportHeight = height
     }
 
+    /// Restores a saved frame by its top edge and width; the height always follows the composition.
     func applyStackFrame(_ frame: CGRect) {
         guard let window, AmpXLayoutStore.isValidFrame(frame) else { return }
 
         var adjusted = window.frame
-        adjusted.origin = frame.origin
+        adjusted.origin.x = frame.minX
         adjusted.size.width = frame.width
-        window.setFrame(adjusted, display: false)
+        adjusted.origin.y = frame.maxY - adjusted.height
+        window.setFrame(self.constrainedToVisibleFrame(adjusted), display: false)
+        self.updateLayout()
     }
 
     func updateLayout() {
         guard let window, let coordinator else { return }
 
         let width = window.frame.width
-        let availableHeight = max(viewport.bounds.height > 0 ? self.viewport.bounds.height : window.contentView?.bounds.height ?? 0, 1)
         let layout = AmpXLayout.calculate(
             state: coordinator.state,
             width: width,
             playlistViewportHeight: self.preferredPlaylistViewportHeight,
-            availableHeight: availableHeight
+            availableHeight: Self.availableHeight(for: window)
         )
         self.viewport.applyLayout(layout, state: coordinator.state)
-        self.resizeWindowPreservingTop(width: width, contentHeight: layout.viewportHeight)
+        self.resizeWindowPreservingTop(width: width, contentHeight: layout.contentHeight)
         self.refreshEffectiveVisibility()
-    }
-
-    func revealContent(_ rect: CGRect) {
-        self.viewport.reveal(rect)
     }
 
     func clampedFrameSize(for window: NSWindow, to frameSize: NSSize) -> NSSize {
@@ -123,17 +124,15 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
         if abs(widthDelta) >= abs(heightDelta) {
             self.updateLayout()
         } else if abs(heightDelta) > 0.5 {
-            if self.isStackScrolling(width: window.frame.width, availableHeight: newSize.height) {
-                self.updateLayout()
+            // Only the expanded Playlist resizes vertically; any other vertical drag snaps back.
+            if let coordinator, Self.hasExpandedDockedPlaylist(coordinator.state) {
+                coordinator.adjustPlaylistViewport(byHeightDelta: heightDelta, width: window.frame.width)
             } else {
-                self.coordinator?.adjustPlaylistViewport(
-                    byHeightDelta: heightDelta,
-                    width: window.frame.width
-                )
+                self.updateLayout()
             }
         }
 
-        self.lastLiveResizeContentSize = newSize
+        self.lastLiveResizeContentSize = self.viewport.bounds.size
     }
 
     func windowShouldClose(_: NSWindow) -> Bool {
@@ -177,14 +176,10 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
         AmpXWindowChrome.apply(to: window, minimumHeaderHeight: AmpXMetrics.headerHeight)
     }
 
-    private func isStackScrolling(width: CGFloat, availableHeight: CGFloat) -> Bool {
-        guard let coordinator else { return false }
-        return AmpXLayout.calculate(
-            state: coordinator.state,
-            width: width,
-            playlistViewportHeight: self.preferredPlaylistViewportHeight,
-            availableHeight: availableHeight
-        ).scrolls
+    private static func hasExpandedDockedPlaylist(_ state: AmpXModuleOrder) -> Bool {
+        !state.closed.contains(.playlist)
+            && !state.detached.contains(.playlist)
+            && !state.collapsed.contains(.playlist)
     }
 
     private func resizeWindowPreservingTop(width: CGFloat, contentHeight: CGFloat) {
@@ -194,6 +189,18 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
         window.setContentSize(NSSize(width: width, height: contentHeight))
         var frame = window.frame
         frame.origin.y = topY - frame.height
-        window.setFrame(frame, display: false)
+        window.setFrame(self.constrainedToVisibleFrame(frame), display: false)
+    }
+
+    /// Keeps the window's vertical extent inside the visible frame when it fits; a taller stack stays top-aligned.
+    private func constrainedToVisibleFrame(_ frame: CGRect) -> CGRect {
+        guard let visible = (window?.screen ?? NSScreen.main)?.visibleFrame else { return frame }
+        var result = frame
+        if result.height <= visible.height {
+            result.origin.y = min(max(result.minY, visible.minY), visible.maxY - result.height)
+        } else {
+            result.origin.y = visible.maxY - result.height
+        }
+        return result
     }
 }

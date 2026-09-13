@@ -226,17 +226,16 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     func makeDropGeometry(excluding draggedID: AmpXModuleID) -> AmpXDropGeometry {
-        guard let stackWindowController else {
+        guard self.stackWindowController != nil else {
             return AmpXDropGeometry(bounds: .zero, orderedFrames: [])
         }
 
         let width = self.stackWindow?.frame.width ?? AmpXMetrics.compositionWidth
-        let availableHeight = stackWindowController.stackViewport.bounds.height
         let layout = AmpXLayout.calculate(
             state: self.state,
             width: width,
             playlistViewportHeight: self.playlistViewportHeight,
-            availableHeight: max(availableHeight, 1)
+            availableHeight: AmpXStackWindowController.availableHeight(for: self.stackWindow)
         )
 
         let orderedFrames = self.state.order.compactMap { moduleID -> (AmpXModuleID, CGRect)? in
@@ -279,18 +278,21 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
 
     func adjustPlaylistViewport(byHeightDelta delta: CGFloat, width: CGFloat) {
         let scale = AmpXLayout.scale(width: width)
-        self.playlistViewportHeight = AmpXLayout.adjustedPlaylistViewportHeight(
+        let adjusted = AmpXLayout.adjustedPlaylistViewportHeight(
             preferred: self.playlistViewportHeight,
             heightDelta: delta,
             scale: scale
         )
+        // A preference taller than the screen allows would only be shrunk back; keep the height that fits.
+        self.playlistViewportHeight = AmpXLayout.calculate(
+            state: self.state,
+            width: width,
+            playlistViewportHeight: adjusted,
+            availableHeight: AmpXStackWindowController.availableHeight(for: self.stackWindow)
+        ).playlistViewportHeight
         self.stackWindowController?.setPreferredPlaylistViewportHeight(self.playlistViewportHeight)
         self.stackWindowController?.updateLayout()
         self.persistLayout()
-    }
-
-    func revealStackContent(_ rect: CGRect) {
-        self.stackWindowController?.revealContent(rect)
     }
 
     func performModuleCommand(_ command: AmpXModuleCommand) {

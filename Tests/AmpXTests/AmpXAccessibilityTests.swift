@@ -117,19 +117,4 @@ final class AmpXAccessibilityTests: XCTestCase {
         coordinator.closeModule(.playlist)
         XCTAssertEqual(coordinator.focusedModuleID, .player)
     }
-
-    func testFocusRevealScrollsStackViewport() throws {
-        let coordinator = AmpXHostCoordinator(state: AmpXModuleOrder(), skin: ClassicModernSkin())
-        coordinator.showStack()
-
-        let viewport = try XCTUnwrap(coordinator.stackWindowController?.stackViewport)
-        viewport.setScrollOffset(0)
-        let targetRect = CGRect(x: 0, y: viewport.visibleContentRect.maxY + 120, width: 100, height: 20)
-
-        let slider = try XCTUnwrap(coordinator.moduleView(for: .equalizer)?.content.subviews.compactMap { $0 as? AmpXSlider }.first)
-        slider.frame = targetRect
-        coordinator.stackWindow?.makeFirstResponder(slider)
-
-        XCTAssertGreaterThan(viewport.scrollOffset, 0)
-    }
 }

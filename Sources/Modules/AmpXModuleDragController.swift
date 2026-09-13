@@ -9,8 +9,6 @@ enum AmpXModuleDragController {
     static let tearOffThreshold: CGFloat = 40
     static let settleDuration: TimeInterval = 0.175
     static let insertionMarkerHeight: CGFloat = 2
-    static let autoScrollEdgeInset: CGFloat = 24
-    static let autoScrollMaxSpeed: CGFloat = 8
 
     static func dropIndex(geometry: AmpXDropGeometry, point: CGPoint) -> Int? {
         guard geometry.bounds.contains(point) else { return nil }
@@ -61,9 +59,7 @@ final class AmpXModuleDragSession {
     private(set) var isDragging = false
     private var draggedModuleID: AmpXModuleID?
     private var didTearOff = false
-    private var autoScrollTimer: Timer?
     private var pendingDropIndex: Int?
-    private var lastDragScreenPoint: NSPoint?
 
     func bind(coordinator: AmpXHostCoordinator, viewport: AmpXStackViewport? = nil) {
         self.coordinator = coordinator
@@ -140,13 +136,11 @@ final class AmpXModuleDragSession {
     }
 
     func cancelDrag() {
-        self.stopAutoScroll()
         self.viewport?.stackView.setInsertionMarker(at: nil, width: 0)
         self.isDragging = false
         self.draggedModuleID = nil
         self.didTearOff = false
         self.pendingDropIndex = nil
-        self.lastDragScreenPoint = nil
     }
 
     func cancelDragIfDragging(moduleID: AmpXModuleID) {
@@ -182,12 +176,10 @@ final class AmpXModuleDragSession {
         }
 
         let screenPoint = screenPoint(for: event.locationInWindow, in: window)
-        self.lastDragScreenPoint = screenPoint
 
         guard self.isPointOverStack(screenPoint: screenPoint) else {
             self.pendingDropIndex = nil
             viewport.stackView.setInsertionMarker(at: nil, width: 0)
-            self.stopAutoScroll()
             return
         }
 
@@ -195,7 +187,6 @@ final class AmpXModuleDragSession {
         let geometry = coordinator.makeDropGeometry(excluding: moduleID)
         self.pendingDropIndex = AmpXModuleDragController.dropIndex(geometry: geometry, point: contentPoint)
         self.updateInsertionMarker(for: geometry, dropIndex: self.pendingDropIndex)
-        self.updateAutoScroll(for: screenPoint)
     }
 
     private func updateInsertionMarker(for geometry: AmpXDropGeometry, dropIndex: Int?) {
@@ -220,50 +211,6 @@ final class AmpXModuleDragSession {
         }
 
         viewport.stackView.setInsertionMarker(at: markerY, width: geometry.bounds.width)
-    }
-
-    private func updateAutoScroll(for screenPoint: NSPoint) {
-        guard let viewport else { return }
-
-        let viewportPoint = viewport.viewportPoint(fromScreenPoint: screenPoint)
-        let speed = viewport.autoScrollSpeed(for: viewportPoint)
-        guard speed != 0 else {
-            self.stopAutoScroll()
-            return
-        }
-
-        if self.autoScrollTimer == nil {
-            self.autoScrollTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
-                Task { @MainActor in
-                    self?.performAutoScrollTick()
-                }
-            }
-        }
-
-        viewport.pendingAutoScrollSpeed = speed
-    }
-
-    private func performAutoScrollTick() {
-        guard let viewport,
-              let moduleID = draggedModuleID,
-              let coordinator,
-              viewport.pendingAutoScrollSpeed != 0
-        else { return }
-
-        viewport.setScrollOffset(viewport.scrollOffset + viewport.pendingAutoScrollSpeed)
-
-        guard let lastDragScreenPoint else { return }
-
-        let contentPoint = viewport.stackContentPoint(fromScreenPoint: lastDragScreenPoint)
-        let geometry = coordinator.makeDropGeometry(excluding: moduleID)
-        self.pendingDropIndex = AmpXModuleDragController.dropIndex(geometry: geometry, point: contentPoint)
-        self.updateInsertionMarker(for: geometry, dropIndex: self.pendingDropIndex)
-    }
-
-    private func stopAutoScroll() {
-        self.autoScrollTimer?.invalidate()
-        self.autoScrollTimer = nil
-        self.viewport?.pendingAutoScrollSpeed = 0
     }
 
     private func shouldTearOff(event: NSEvent) -> Bool {

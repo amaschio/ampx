@@ -150,7 +150,7 @@ The stack comparison crops the reference from the Player top (y 7) for 1532 px. 
 
 ## Revision 5 correction — Step 5: interactive and live revalidation (2026-09-12)
 
-**Current status: two input/scaling defects found and fixed. Visual acceptance still awaits the user's decision on the host-sizing issue below and the final presentation.** Approved Player, EQ, Playlist and stack captures remain pixel-identical after the fixes.
+**Current status: two input/scaling defects found and fixed; the host-sizing defect was resolved by user decision (spec Revision 6, below). Visual acceptance awaits the final presentation.** Approved Player, EQ, Playlist and stack captures remain pixel-identical after the fixes.
 
 **Live app capture (screen recording granted 2026-09-12):** `./scripts/shoot.sh` built `c6e2f52`, relaunched AmpX and captured the stack window. The live window renders the reconstructed UI with real state: startup track, `194 kbps`/`44 kHz`, live spectrum, saved EQ gains and an empty playlist. It opened at its saved 490 × 600 pt frame, so the ~750 pt stack scrolls and the overflow scrollbar covers the right edge of each module, including every header ✕ button (see host sizing below).
 
@@ -171,7 +171,7 @@ The stack comparison crops the reference from the Player top (y 7) for 1532 px. 
 
 **Host states (offscreen, production views and hosts):**
 - [stack-collapsed-eq](correction-shots/stack-collapsed-eq.png): collapsed EQ keeps its header.
-- [stack-overflow-1.35](correction-shots/stack-overflow-1.35.png): production `AmpXStackViewport` at scale 1.35 in a 480 pt viewport.
+- [stack-short-screen-1.35](correction-shots/stack-short-screen-1.35.png): production `AmpXStackViewport` at scale 1.35 with 900 pt available; the Playlist shrinks and nothing scrolls (replaces the removed scrolling `stack-overflow-1.35` capture).
 - The detached capture lays the module out the way `AmpXDetachedModuleWindowController.attachModuleView` does; it is not a live detached window.
 
 **Wired presentation:** every reference capture uses the production module contents with their model bindings installed (isolated `AudioPlayer`/`PlaylistManager`), with reference presentation overriding display values only.
@@ -182,11 +182,23 @@ The stack comparison crops the reference from the Player top (y 7) for 1532 px. 
 - **Lint:** the Step 5 tests live in `AmpXReferenceRenderingTests+Interaction.swift` to satisfy SwiftLint file/type length; SwiftLint reports 0 violations in the changed Swift files.
 - **Captures:** Player, EQ (reference, −12, 0, +12), Playlist and stack captures are pixel-identical to their approved correction shots.
 
-**Open decision — host sizing (pre-existing, not changed):**
-- `AmpXStackWindowController.updateLayout` passes the window's current content height as `availableHeight`, so a stack window shorter than its composition always scrolls and never grows back to the composition height.
-- The spec says height follows the composition and scrolls only when content exceeds the screen.
-- The overflow scrollbar is also laid over the module column rather than beside it, covering header ✕ buttons and the right edge of each module whenever the stack scrolls (live capture, Task 20 shots, `stack-overflow-1.35`).
-- Fixing either changes window/overflow policy, so a user decision is required.
+**Host sizing — resolved by user decision 2026-09-13 (spec Revision 6):**
+- **Defect (pre-existing since `1b37473`):** `AmpXStackWindowController.updateLayout` passed the window's current height as `availableHeight` with a hardcoded 600 pt frame, so the ~766 pt stack always scrolled and an overlay scrollbar covered the header ✕ buttons (live capture, Task 20 shots).
+- **Origin:** the spec added stack scrolling as a last-resort overflow policy (design review R2-2); the migration plan (Task 9) chose an overlay scrollbar and treated a 600 pt window as a short screen; the implementation scrolled in normal use; and the Task 20 verification passed it.
+- **User decision:** the scrolling stack was never part of the design. Only the Playlist resizes vertically; when the stack is taller than the screen, the Playlist shrinks.
+- **Fix:**
+  - `AmpXLayout` never scrolls: the expanded Playlist viewport shrinks by exactly the excess over the screen's visible-frame height, down to three rows, and every other module keeps its height.
+  - The stack window height always equals the composition; a restored frame keeps its saved top edge and is kept inside the visible frame; vertical live resize changes only an expanded docked Playlist and otherwise snaps back.
+  - The stack scrollbar, scroll offset, focus-reveal scrolling and drag auto-scroll are removed.
+  - The default stack frame uses the composition height instead of 600 pt.
+- **Failing before:** `testStackWindowFollowsCompositionHeightWithoutScrolling` (`Test-AmpX-2026.09.13_17-54-06--0300.xcresult`): window 600 pt against a 766 pt composition, and a visible stack scrollbar. The test was later changed to compare the window with the laid-out module bottom and to use isolated defaults, because coordinators without a layout store read the app's saved layout.
+- **Open:** behavior when the stack is still taller than the visible frame with the Playlist at three rows, or with no expanded docked Playlist.
+- **Verification:**
+  - `./scripts/run-tests.sh` with AmpX quit → `** TEST SUCCEEDED **`, 481 passed (`Test-AmpX-2026.09.13_18-06-03--0300.xcresult`). The count is 486, minus 7 removed scrolling tests (5 viewport, 1 visibility scroll-out, 1 focus-reveal scroll), plus the new window-height test and the collapsed-Playlist layout test.
+  - The approved Player, EQ, Playlist and stack captures remain pixel-identical.
+  - Formatting of the touched files is isolated in `73ce71a`; SwiftLint reports no new violations (only the pre-existing `AmpXHostCoordinator` file/type length counts moved by 2 lines).
+  - **Live app:** [live-stack-no-scroll](correction-shots/live-stack-no-scroll.png). Launched via `shoot.sh --no-build` with an argument-domain `AmpXModuleLayoutV1` (Equalizer open, saved 600 pt frame with its top at y 900), leaving the user's saved defaults untouched. The window opened at 490 × 766 pt with its top at y 900 inside the 1,290 pt visible frame, with all three modules and no stack scrollbar.
+- **Found while verifying (not fixed here):** tests that build `AmpXHostCoordinator` without a layout store persist to the app's real `com.ampx.macos` defaults. After a full run the user's saved layout had the Equalizer closed. This was flagged as a separate task.
 
 **Not exercised:**
 - **Live input:** clicks, drags, resize, detach/re-dock and theater in the running app. Synthetic input needs Accessibility permission (`osascript` assistive access was denied).

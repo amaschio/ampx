@@ -20,8 +20,6 @@ final class AmpXLayoutTests: XCTestCase {
         )
         XCTAssertEqual(layout.scale, 1)
         XCTAssertEqual(layout.contentHeight, 223.5)
-        XCTAssertEqual(layout.viewportHeight, 223.5)
-        XCTAssertFalse(layout.scrolls)
         XCTAssertEqual(layout.frames.count, 1)
         XCTAssertEqual(layout.frames[.player]?.minX, 0)
         XCTAssertEqual(layout.frames[.player]?.width, 490)
@@ -111,20 +109,55 @@ final class AmpXLayoutTests: XCTestCase {
         XCTAssertNil(layout.frames[.equalizer])
     }
 
-    func testOverflowShrinksPlaylistViewportBeforeScrolling() {
+    func testShortScreenShrinksOnlyThePlaylistViewportByTheExcess() throws {
         var state = AmpXModuleOrder()
         state.reopen(.enthea)
-        let result = AmpXLayout.calculate(
+        let tall = AmpXLayout.calculate(
+            state: state,
+            width: 661.5,
+            playlistViewportHeight: 180,
+            availableHeight: 10000
+        )
+        let available = tall.contentHeight - 50
+        let fitted = AmpXLayout.calculate(
+            state: state,
+            width: 661.5,
+            playlistViewportHeight: 180,
+            availableHeight: available
+        )
+
+        XCTAssertEqual(fitted.scale, 1.35)
+        XCTAssertEqual(fitted.contentHeight, available, accuracy: 0.001, "Stack exactly fills the available height")
+        XCTAssertEqual(fitted.playlistViewportHeight, 180 - 50 / 1.35, accuracy: 0.001)
+        for id: AmpXModuleID in [.player, .equalizer, .enthea] {
+            XCTAssertEqual(
+                try XCTUnwrap(fitted.frames[id]).height,
+                try XCTUnwrap(tall.frames[id]).height,
+                accuracy: 0.001,
+                "\(id) must keep its height"
+            )
+        }
+
+        let tooShort = AmpXLayout.calculate(
             state: state,
             width: 661.5,
             playlistViewportHeight: 180,
             availableHeight: 600
         )
-        XCTAssertEqual(result.scale, 1.35)
-        XCTAssertEqual(result.playlistViewportHeight, 66)
-        XCTAssertTrue(result.scrolls)
-        XCTAssertEqual(result.viewportHeight, 600)
-        XCTAssertGreaterThan(result.contentHeight, result.viewportHeight)
+        XCTAssertEqual(tooShort.playlistViewportHeight, AmpXMetrics.minimumPlaylistViewportHeight)
+    }
+
+    func testCollapsedPlaylistIsNotResizedToFit() {
+        var state = AmpXModuleOrder()
+        state.setCollapsed(.playlist, true)
+        let result = AmpXLayout.calculate(
+            state: state,
+            width: 490,
+            playlistViewportHeight: 180,
+            availableHeight: 300
+        )
+        XCTAssertEqual(result.playlistViewportHeight, 180)
+        XCTAssertEqual(result.frames[.playlist]?.height, AmpXMetrics.headerHeight)
     }
 
     func testCustomPlaylistViewportAdjustsPlaylistModuleHeight() {

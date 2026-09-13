@@ -57,7 +57,13 @@ final class AmpXLayoutStore {
     static func defaultStackFrame(for screen: NSScreen) -> CGRect {
         let visible = screen.visibleFrame
         let width = AmpXMetrics.compositionWidth
-        let height: CGFloat = 600
+        // The window height always follows the composition; start with the default stack's height.
+        let height = AmpXLayout.calculate(
+            state: AmpXModuleOrder(),
+            width: width,
+            playlistViewportHeight: AmpXMetrics.defaultPlaylistViewportHeight,
+            availableHeight: max(visible.height - 20, 1)
+        ).contentHeight
         return CGRect(
             x: visible.midX - width / 2,
             y: visible.maxY - height - 20,

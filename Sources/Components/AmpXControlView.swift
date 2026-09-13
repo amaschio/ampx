@@ -26,7 +26,6 @@ class AmpXControlView: AmpXDrawingView {
         if became {
             self.showsFocusRing = true
             self.noteFocusedModuleIfNeeded()
-            self.revealInStackViewportIfNeeded()
         }
         return became
     }
@@ -70,18 +69,5 @@ class AmpXControlView: AmpXDrawingView {
         context.setStrokeColor(skin.green.cgColor)
         context.setLineWidth(1 / backingScale)
         context.stroke(aligned)
-    }
-
-    func revealInStackViewportIfNeeded() {
-        var ancestor: NSView? = superview
-        while let view = ancestor {
-            if let stackView = view as? AmpXModuleStackView,
-               let viewport = stackView.superview as? AmpXStackViewport
-            {
-                viewport.reveal(convert(bounds, to: stackView))
-                return
-            }
-            ancestor = view.superview
-        }
     }
 }
