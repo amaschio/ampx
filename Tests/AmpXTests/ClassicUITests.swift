@@ -40,6 +40,22 @@ final class ClassicMarqueeTypographyTests: XCTestCase {
         // travelled = 120 → rem 20 → -20
         XCTAssertEqual(offset, -20)
     }
+
+    func testScrollingSequenceRepeatsTextAfterSeparators() {
+        let glyphs = ClassicMarqueeTypography.glyphs(for: "AB")
+        let sequence = ClassicMarqueeTypography.scrollingSequence(glyphs: glyphs)
+        XCTAssertEqual(String(sequence), "ab***ab")
+    }
+
+    func testScrollCycleDurationMatchesSpeed() {
+        let duration = ClassicMarqueeTypography.scrollCycleDuration(periodWidth: 100, scale: 1)
+        XCTAssertEqual(duration, 5)
+    }
+
+    func testScrollCycleDurationScalesWithPixelSpeed() {
+        let duration = ClassicMarqueeTypography.scrollCycleDuration(periodWidth: 130, scale: 2)
+        XCTAssertEqual(duration, 3.25)
+    }
 }
 
 final class AmpXSkinFilmstripTests: XCTestCase {
@@ -259,5 +275,53 @@ final class AmpXUIScaleLevelMigrationTests: XCTestCase {
     func testNearestLevelClampsBelowAndAboveRange() {
         XCTAssertEqual(AmpXUIScale.nearestLevel(to: 0.5), .standard)
         XCTAssertEqual(AmpXUIScale.nearestLevel(to: 3.0), .huge)
+    }
+}
+
+final class TitleBarHitTestingTests: XCTestCase {
+    private let bounds = CGRect(x: 0, y: 0, width: 275, height: 14)
+
+    func testMiddleOfBarReceivesHit() {
+        XCTAssertTrue(
+            TitleBarHitTesting.shouldReceiveHit(
+                localPoint: CGPoint(x: 137, y: 7),
+                bounds: self.bounds,
+                excludedLeadingWidth: 20,
+                excludedTrailingWidth: 60
+            )
+        )
+    }
+
+    func testLeadingControlHoleRejectsHit() {
+        XCTAssertFalse(
+            TitleBarHitTesting.shouldReceiveHit(
+                localPoint: CGPoint(x: 10, y: 7),
+                bounds: self.bounds,
+                excludedLeadingWidth: 20,
+                excludedTrailingWidth: 60
+            )
+        )
+    }
+
+    func testTrailingControlHoleRejectsHit() {
+        XCTAssertFalse(
+            TitleBarHitTesting.shouldReceiveHit(
+                localPoint: CGPoint(x: 250, y: 7),
+                bounds: self.bounds,
+                excludedLeadingWidth: 20,
+                excludedTrailingWidth: 60
+            )
+        )
+    }
+
+    func testPointOutsideBoundsRejectsHit() {
+        XCTAssertFalse(
+            TitleBarHitTesting.shouldReceiveHit(
+                localPoint: CGPoint(x: 10, y: 40),
+                bounds: self.bounds,
+                excludedLeadingWidth: 0,
+                excludedTrailingWidth: 0
+            )
+        )
     }
 }

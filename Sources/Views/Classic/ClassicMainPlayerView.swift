@@ -250,20 +250,27 @@ private struct ClassicBitmapTimeDisplayWrapper: View {
     @Binding var showRemainingTime: Bool
     var scale: CGFloat = 1.0
 
+    @State private var blinkOff = false
+
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 0.5)) { context in
-            let paused = !self.audioPlayer.isPlaying && self.audioPlayer.duration > 0
-            let blinkOff = paused && Int(context.date.timeIntervalSinceReferenceDate * 2) % 2 == 1
-            ClassicBitmapTimeDisplay(
-                text: AmpXTimeFormatting.format(
-                    self.showRemainingTime
-                        ? -(self.audioPlayer.duration - self.clock.currentTime)
-                        : self.clock.currentTime,
-                    showNegative: self.showRemainingTime
-                ),
-                blinkOff: blinkOff,
-                scale: self.scale
-            )
+        let paused = !self.audioPlayer.isPlaying && self.audioPlayer.duration > 0
+        ClassicBitmapTimeDisplay(
+            text: AmpXTimeFormatting.format(
+                self.showRemainingTime
+                    ? -(self.audioPlayer.duration - self.clock.currentTime)
+                    : self.clock.currentTime,
+                showNegative: self.showRemainingTime
+            ),
+            blinkOff: paused && self.blinkOff,
+            scale: self.scale
+        )
+        .task(id: paused) {
+            self.blinkOff = false
+            guard paused else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                self.blinkOff.toggle()
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture { self.showRemainingTime.toggle() }

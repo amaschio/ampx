@@ -6,13 +6,60 @@ enum AmpXTitleBarMetrics {
     static let buttonAreaWidth: CGFloat = 60
 }
 
+/// Pure hit-test geometry so `DraggableWindowView.hitTest` can stay `nonisolated`
+/// (macOS 26 Swift 6: AppKit calls `hitTest` without a Swift task, and a MainActor
+/// thunk SIGTRAPs in `swift_task_isCurrentExecutor`).
+enum TitleBarHitTesting {
+    static func localPoint(superviewPoint: CGPoint, frameInSuperview: CGRect) -> CGPoint {
+        CGPoint(
+            x: superviewPoint.x - frameInSuperview.minX,
+            y: superviewPoint.y - frameInSuperview.minY
+        )
+    }
+
+    static func shouldReceiveHit(
+        localPoint: CGPoint,
+        bounds: CGRect,
+        excludedLeadingWidth: CGFloat,
+        excludedTrailingWidth: CGFloat
+    ) -> Bool {
+        guard bounds.width > 0, bounds.height > 0, bounds.contains(localPoint) else {
+            return false
+        }
+        if excludedLeadingWidth > 0, localPoint.x < excludedLeadingWidth {
+            return false
+        }
+        if excludedTrailingWidth > 0, localPoint.x > bounds.width - excludedTrailingWidth {
+            return false
+        }
+        return true
+    }
+}
+
 /// Drag surface for a panel title bar. Double-click toggles windowshade; drag moves the window.
 ///
 /// `excludedLeadingWidth` / `excludedTrailingWidth` are holes in hit-testing so SwiftUI buttons
 /// drawn in the same title bar still receive clicks (`NSView` hit-testing otherwise steals them).
 final class DraggableWindowView: NSView {
-    var excludedLeadingWidth: CGFloat = 0
-    var excludedTrailingWidth: CGFloat = 0
+    nonisolated(unsafe) var excludedLeadingWidth: CGFloat = 0
+    nonisolated(unsafe) var excludedTrailingWidth: CGFloat = 0
+    nonisolated(unsafe) private var cachedFrame: CGRect = .zero
+    nonisolated(unsafe) private var cachedBounds: CGRect = .zero
+
+    override func layout() {
+        super.layout()
+        self.cacheHitGeometry()
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        self.cacheHitGeometry()
+    }
+
+    private func cacheHitGeometry() {
+        self.cachedFrame = self.frame
+        self.cachedBounds = self.bounds
+    }
 
     override func mouseDown(with event: NSEvent) {
         guard let window = self.window else { return }
@@ -24,20 +71,21 @@ final class DraggableWindowView: NSView {
         AmpXPanelWindowManager.shared.startDrag(leading: window, event: event)
     }
 
-    override func acceptsFirstMouse(for _: NSEvent?) -> Bool {
+    nonisolated override func acceptsFirstMouse(for _: NSEvent?) -> Bool {
         true
     }
 
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        // `point` is in the superview's coordinate system.
-        let local = self.convert(point, from: self.superview)
-        guard self.bounds.width > 0, self.bounds.height > 0, self.bounds.contains(local) else {
-            return nil
-        }
-        if self.excludedLeadingWidth > 0, local.x < self.excludedLeadingWidth {
-            return nil
-        }
-        if self.excludedTrailingWidth > 0, local.x > self.bounds.width - self.excludedTrailingWidth {
+    nonisolated override func hitTest(_ point: NSPoint) -> NSView? {
+        let local = TitleBarHitTesting.localPoint(
+            superviewPoint: point,
+            frameInSuperview: self.cachedFrame
+        )
+        guard TitleBarHitTesting.shouldReceiveHit(
+            localPoint: local,
+            bounds: self.cachedBounds,
+            excludedLeadingWidth: self.excludedLeadingWidth,
+            excludedTrailingWidth: self.excludedTrailingWidth
+        ) else {
             return nil
         }
         return self

@@ -339,8 +339,6 @@ struct ClassicBitmapMarquee: View {
     let text: String
     var scale: CGFloat = 1.0
 
-    @State private var epoch = Date()
-
     var body: some View {
         GeometryReader { geo in
             let glyphs = ClassicMarqueeTypography.glyphs(for: self.text)
@@ -352,53 +350,64 @@ struct ClassicBitmapMarquee: View {
 
             Group {
                 if needsScroll {
-                    TimelineView(.animation(minimumInterval: 0.05)) { context in
-                        let elapsed = context.date.timeIntervalSince(self.epoch)
-                        let offset = ClassicMarqueeTypography.scrollOffset(
-                            elapsed: elapsed,
-                            periodWidth: periodWidth,
-                            viewWidth: geo.size.width,
-                            scale: self.scale
-                        )
-                        self.marqueeCanvas(glyphs: glyphs, offset: offset, size: geo.size)
-                    }
+                    ClassicScrollingMarqueeStrip(
+                        sequence: ClassicMarqueeTypography.scrollingSequence(glyphs: glyphs),
+                        periodWidth: periodWidth,
+                        scale: self.scale
+                    )
+                    .id(self.text)
                 } else {
-                    self.marqueeCanvas(glyphs: glyphs, offset: 0, size: geo.size)
+                    ClassicMarqueeStrip(sequence: glyphs, offset: 0, scale: self.scale)
                 }
             }
         }
         .clipped()
-        .onChange(of: self.text) { _ in self.epoch = Date() }
     }
+}
 
-    @ViewBuilder
-    private func marqueeCanvas(glyphs: [Character], offset: CGFloat, size: CGSize) -> some View {
-        Canvas { context, canvasSize in
-            let cellW = 5 * self.scale
-            let cellH = 6 * self.scale
-            let y = (canvasSize.height - cellH) / 2
-            let separator = Array(repeating: ClassicMarqueeTypography.separator, count: 3)
-            let sequence = glyphs + separator + glyphs
+/// Linear wrap of a doubled glyph run. Offset animation stays on a normal View.body update,
+/// not a TimelineView display-link callback.
+private struct ClassicScrollingMarqueeStrip: View {
+    let sequence: [Character]
+    let periodWidth: CGFloat
+    let scale: CGFloat
 
-            var x = offset
-            for char in sequence {
-                guard let pos = ClassicMarqueeTypography.fontLookup[char],
-                      let nsImage = AmpXSkinAtlas.shared.image(
-                          for: classicTextSprite(row: pos.row, col: pos.col)
-                      )
-                else {
-                    x += cellW
-                    continue
+    @State private var offset: CGFloat = 0
+
+    var body: some View {
+        ClassicMarqueeStrip(sequence: self.sequence, offset: self.offset, scale: self.scale)
+            .task(id: self.periodWidth) {
+                self.offset = 0
+                let duration = ClassicMarqueeTypography.scrollCycleDuration(
+                    periodWidth: self.periodWidth,
+                    scale: self.scale
+                )
+                guard duration > 0 else { return }
+                withAnimation(.linear(duration: duration).repeatForever(autoreverses: false)) {
+                    self.offset = -self.periodWidth
                 }
-                let rect = CGRect(x: x, y: y, width: cellW, height: cellH)
-                context.draw(Image(nsImage: nsImage), in: rect)
-                x += cellW
-                if x > canvasSize.width {
-                    break
+            }
+    }
+}
+
+private struct ClassicMarqueeStrip: View {
+    let sequence: [Character]
+    let offset: CGFloat
+    let scale: CGFloat
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(self.sequence.enumerated()), id: \.offset) { _, char in
+                if let pos = ClassicMarqueeTypography.fontLookup[char] {
+                    SkinSpriteView(
+                        sprite: classicTextSprite(row: pos.row, col: pos.col),
+                        scale: self.scale
+                    )
                 }
             }
         }
-        .frame(width: size.width, height: size.height)
+        .offset(x: self.offset)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }
 

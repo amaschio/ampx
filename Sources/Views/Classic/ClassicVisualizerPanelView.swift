@@ -173,15 +173,21 @@ struct ClassicVisualizerPanelView: View {
 
     private var vizBody: some View {
         GeometryReader { geo in
-            EntheaWebView(
-                isActive: self.showVisualizer && !self.isMinimized,
-                size: geo.size,
-                isTheater: self.isTheater,
-                trackURL: self.audioPlayer.currentTrack?.url,
-                currentTime: self.audioPlayer.currentTime,
-                isPlaying: self.audioPlayer.isPlaying,
-                controller: self.entheaController
-            )
+            Group {
+                if EntheaWebViewLaunch.isRunningUnderTest {
+                    Color.black
+                } else {
+                    EntheaWebView(
+                        isActive: self.showVisualizer && !self.isMinimized,
+                        size: geo.size,
+                        isTheater: self.isTheater,
+                        trackURL: self.audioPlayer.currentTrack?.url,
+                        currentTime: self.audioPlayer.currentTime,
+                        isPlaying: self.audioPlayer.isPlaying,
+                        controller: self.entheaController
+                    )
+                }
+            }
             .frame(width: geo.size.width, height: geo.size.height)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

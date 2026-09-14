@@ -29,6 +29,23 @@ enum ClassicMarqueeTypography {
         text.lowercased().map { self.fontLookup[$0] == nil ? " " : $0 }
     }
 
+    /// One painted period plus a second copy so a linear wrap (`offset = -periodWidth`) is seamless.
+    static func scrollingSequence(glyphs: [Character], separatorCells: Int = 3) -> [Character] {
+        let separator = Array(repeating: self.separator, count: separatorCells)
+        return glyphs + separator + glyphs
+    }
+
+    /// Seconds to travel one `periodWidth` at the same speed `scrollOffset` uses.
+    static func scrollCycleDuration(
+        periodWidth: CGFloat,
+        scale: CGFloat,
+        speed: CGFloat = 20
+    ) -> TimeInterval {
+        let pixelsPerSecond = speed * scale
+        guard pixelsPerSecond > 0 else { return 0 }
+        return TimeInterval(periodWidth / pixelsPerSecond)
+    }
+
     /// Width of one scroll repetition: the text plus its trailing separator run.
     static func scrollPeriodWidth(
         glyphCount: Int,
