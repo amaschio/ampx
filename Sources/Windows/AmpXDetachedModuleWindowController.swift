@@ -20,7 +20,7 @@ final class AmpXDetachedModuleWindowController: NSWindowController, NSWindowDele
         self.coordinator = coordinator
         self.skin = skin
 
-        let window = NSWindow(
+        let window = AmpXHostWindow(
             contentRect: frame,
             styleMask: [.borderless, .resizable, .miniaturizable],
             backing: .buffered,

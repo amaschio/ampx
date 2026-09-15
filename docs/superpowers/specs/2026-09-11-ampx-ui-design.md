@@ -183,10 +183,12 @@ Buttons distinguish normal, hover, pressed, active, and disabled states; active 
 
 | Priority | Context | Behavior |
 |---|---|---|
-| 1 | Focused control | Space activates a button; arrows adjust a slider/EQ band; Escape moves focus out. Consumed keys do not reach playback |
+| 1 | Focused control (reached by keyboard navigation; a click does not focus a control) | Return/Enter activates a button; arrows adjust a slider/EQ band; Escape moves focus out. Consumed keys do not reach playback |
 | 2 | Focused Playlist module | Existing navigation, selection, removal, cropping, playback, and reorder bindings |
 | 3 | Focused ENTHEA module | F toggles theater; Escape exits theater |
-| 4 | Global, when no control has focus | Existing playback, next/previous, volume, and seek bindings |
+| 4 | Global, including while a control has focus | Existing playback, next/previous, volume, and seek bindings. Space always toggles play/pause (decided by user 2026-09-15). Space and unmodified letters are skipped while a text field has focus |
+
+Stack, detached, and theater hosts are borderless but must accept key and main status; a borderless window that refuses key status receives no key events, so no binding above can run.
 
 Module commands appear in the Window menu: `⌘⌥↑/↓` reorder the focused module, `⌘⌥D` detaches/re-docks, and `⌘⌥C` collapses/expands. All module operations must be reachable without dragging.
 

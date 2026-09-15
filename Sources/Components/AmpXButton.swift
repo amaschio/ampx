@@ -250,8 +250,10 @@ final class AmpXButton: AmpXControlView {
         }
     }
 
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        guard isEnabled, event.keyCode == 49 else { return false }
+    /// Presses the button from the keyboard (Return/Enter while focused). Space stays global play/pause.
+    @discardableResult
+    func performKeyboardPress() -> Bool {
+        guard isEnabled else { return false }
         self.action?()
         self.isPressed = true
         self.schedulePressReset()

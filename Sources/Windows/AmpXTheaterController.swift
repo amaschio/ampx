@@ -114,7 +114,7 @@ final class AmpXTheaterController: NSObject, NSWindowDelegate {
     private func ensureTheaterWindow(frame: CGRect) {
         guard theaterWindow == nil else { return }
 
-        let window = NSWindow(
+        let window = AmpXHostWindow(
             contentRect: frame,
             styleMask: [.borderless, .fullSizeContentView],
             backing: .buffered,

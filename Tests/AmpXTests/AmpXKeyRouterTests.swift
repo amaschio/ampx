@@ -3,10 +3,20 @@ import XCTest
 
 @MainActor
 final class AmpXKeyRouterTests: XCTestCase {
-    func testSpaceWithFocusedButtonRoutesToControl() {
+    func testSpaceWithFocusedButtonRoutesToGlobalPlayPause() {
         let event = keyDown(keyCode: 49, characters: " ")
-        let context = AmpXFocusContext(module: .playlist, control: .button)
-        XCTAssertEqual(AmpXKeyRouter.route(event: event, context: context), .control)
+        let context = AmpXFocusContext(module: .player, control: .button)
+        XCTAssertEqual(AmpXKeyRouter.route(event: event, context: context), .global)
+    }
+
+    func testReturnWithFocusedButtonRoutesToControl() {
+        let context = AmpXFocusContext(module: .player, control: .button)
+        for keyCode: UInt16 in [36, 76] {
+            XCTAssertEqual(
+                AmpXKeyRouter.route(event: keyDown(keyCode: keyCode), context: context),
+                .control
+            )
+        }
     }
 
     func testArrowsWithFocusedSliderRouteToControl() {
@@ -88,18 +98,24 @@ final class AmpXKeyRouterTests: XCTestCase {
         )
     }
 
-    func testGlobalDoesNotRouteWhenControlFocused() {
-        let context = AmpXFocusContext(module: .player, control: .button)
-        XCTAssertEqual(
-            AmpXKeyRouter.route(event: keyDown(keyCode: 6), context: context),
-            .unhandled
-        )
+    func testGlobalLetterShortcutsRouteWhenControlFocused() {
+        for control: AmpXControlFocus in [.button, .slider] {
+            let context = AmpXFocusContext(module: .player, control: control)
+            XCTAssertEqual(
+                AmpXKeyRouter.route(event: keyDown(keyCode: 6), context: context),
+                .global
+            )
+        }
     }
 
     func testTextResponderBypassesGlobalSingleLetterShortcuts() {
         let context = AmpXFocusContext(module: .player, control: nil, textResponderActive: true)
         XCTAssertEqual(
             AmpXKeyRouter.route(event: keyDown(keyCode: 8), context: context),
+            .unhandled
+        )
+        XCTAssertEqual(
+            AmpXKeyRouter.route(event: keyDown(keyCode: 49, characters: " "), context: context),
             .unhandled
         )
         XCTAssertEqual(
@@ -141,7 +157,7 @@ final class AmpXKeyRouterTests: XCTestCase {
             .playlist
         )
         XCTAssertEqual(
-            AmpXKeyRouter.route(event: keyDown(keyCode: 49), context: context),
+            AmpXKeyRouter.route(event: keyDown(keyCode: 36), context: context),
             .control
         )
     }
@@ -149,7 +165,7 @@ final class AmpXKeyRouterTests: XCTestCase {
     func testDispatchInvokesRecipientOnce() {
         var controlCount = 0
         var globalCount = 0
-        let event = keyDown(keyCode: 49)
+        let event = keyDown(keyCode: 36)
         let context = AmpXFocusContext(module: .player, control: .button)
         let handled = AmpXKeyRouter.dispatch(
             event,

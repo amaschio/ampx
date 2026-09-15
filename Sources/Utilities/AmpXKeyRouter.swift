@@ -52,13 +52,11 @@ enum AmpXKeyRouter {
             return .enthea
         }
 
-        if context.control == nil {
-            if context.textResponderActive, isSingleLetterGlobalKey(key, flags: flags) {
-                return .unhandled
-            }
-            if matchesGlobalKey(event, flags: flags, playlistFocused: context.module == .playlist) {
-                return .global
-            }
+        if context.textResponderActive, isTypingGlobalKey(key, flags: flags) {
+            return .unhandled
+        }
+        if matchesGlobalKey(event, flags: flags, playlistFocused: context.module == .playlist) {
+            return .global
         }
 
         return .unhandled
@@ -216,7 +214,7 @@ enum AmpXKeyRouter {
     private static func matchesControlKey(_ key: UInt16, control: AmpXControlFocus) -> Bool {
         switch control {
         case .button:
-            return key == 49 || key == 53
+            return key == 36 || key == 76 || key == 53
         case .slider:
             return key == 123 || key == 124 || key == 125 || key == 126 || key == 53
         }
@@ -294,10 +292,11 @@ enum AmpXKeyRouter {
         return false
     }
 
-    private static func isSingleLetterGlobalKey(_ key: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
+    /// Unmodified global keys that a focused text field needs as typed characters.
+    private static func isTypingGlobalKey(_ key: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
         guard flags.isEmpty else { return false }
         switch key {
-        case 8, 15, 1, 7, 9, 6, 11, 37:
+        case 49, 8, 15, 1, 7, 9, 6, 11, 37:
             return true
         default:
             return false
@@ -313,9 +312,9 @@ enum AmpXKeyRouter {
         guard let responder = window?.firstResponder else { return false }
 
         switch event.keyCode {
-        case 49:
+        case 36, 76:
             if let button = responder as? AmpXButton {
-                return button.performKeyEquivalent(with: event)
+                return button.performKeyboardPress()
             }
         case 123, 124, 125, 126:
             if let slider = responder as? AmpXSlider {

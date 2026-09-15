@@ -9,8 +9,9 @@ class AmpXControlView: AmpXDrawingView {
         didSet { needsDisplay = true }
     }
 
+    /// Keyboard navigation can focus a control, but a click cannot, so global shortcuts keep working after mouse use.
     override var acceptsFirstResponder: Bool {
-        self.isEnabled
+        self.isEnabled && (window as? AmpXHostWindow)?.isDispatchingMouseDown != true
     }
 
     /// `point` is in the superview's coordinate system; the expanded hit area is tested in local coordinates.

@@ -22,7 +22,7 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
         self.preferredPlaylistViewportHeight = playlistViewportHeight
         self.viewport = AmpXStackViewport()
 
-        let window = NSWindow(
+        let window = AmpXHostWindow(
             contentRect: NSRect(x: 0, y: 0, width: AmpXMetrics.compositionWidth, height: AmpXMetrics.playerHeight),
             styleMask: [.borderless, .resizable, .miniaturizable],
             backing: .buffered,
