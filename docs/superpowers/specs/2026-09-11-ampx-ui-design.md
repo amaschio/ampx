@@ -171,7 +171,7 @@ These rules apply to collapse, close, and window hide/miniaturize/occlusion.
 
 **Equalizer:** ON/AUTO indicators, curve using `CatmullRomSpline`, PRESETS menu, preamp, and ten bands at 60 / 170 / 310 / 600 / 1K / 3K / 6K / 12K / 14K / 16K. Vertical tracks use rectangular metallic thumbs and a +12 / 0 / −12 dB scale. Bind existing EQ values, preamp, enabled, and auto-enabled state.
 
-**Playlist:** Custom rows, 22 pt high; index and Artist – Title left, duration right in a 42 pt column. Green text on black, flat selection fill with selected text in `text`, amber scrollbar arrows, gold thumb. Footer contains ADD/REM/SEL/MISC, mini transport, combined time counter, remaining-time readout, and LIST OPTS.
+**Playlist:** Custom rows, 22 pt high; index and Artist – Title left, duration right in a 42 pt column. Green text on black; the playing track's text is white (`text`) whether or not it is selected, and selection only draws a flat fill behind the row without changing text color (Winamp PLEDIT behavior, decided by user 2026-09-15). When the playing track changes and its row is not fully visible, the rows scroll to center it. Amber scrollbar arrows, gold thumb. Footer contains ADD/REM/SEL/MISC, mini transport, combined time counter, remaining-time readout, and LIST OPTS.
 
 **ENTHEA:** Host the existing visualization surface inside standard module chrome, under the lifecycle and theater contracts above; internals remain unchanged.
 

@@ -102,7 +102,7 @@ final class PlaylistRowsView: AmpXControlView {
                 context.fill(row)
             }
 
-            let color = (item.isSelected || item.isCurrent) ? skin.text : skin.green
+            let color = PlaylistRowLayout.textColor(isSelected: item.isSelected, isCurrent: item.isCurrent, skin: skin)
             let text = PlaylistRowLayout.textLayout(number: index + 1, title: item.title, duration: item.duration, in: row, skin: skin)
             let size = AmpXMetrics.playlistRowFontSize
             AmpXLabel(text: "\(index + 1).", color: color, fontSize: size)

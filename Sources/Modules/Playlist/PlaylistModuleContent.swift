@@ -148,8 +148,10 @@ final class PlaylistModuleContent: AmpXModuleContent {
 
         self.manager.$currentIndex
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.rowsView.needsDisplay = true
+            .sink { [weak self] index in
+                guard let self else { return }
+                self.revealPlayingRow(index)
+                self.rowsView.needsDisplay = true
             }
             .store(in: &self.cancellables)
     }
@@ -157,6 +159,17 @@ final class PlaylistModuleContent: AmpXModuleContent {
     private func setScrollOffset(_ offset: CGFloat) {
         self.scrollbar.offset = offset
         self.rowsView.scrollOffset = offset
+    }
+
+    /// Follows the playing track like Winamp: scrolls only when its row is not fully visible.
+    private func revealPlayingRow(_ index: Int) {
+        guard let offset = PlaylistRowLayout.revealOffset(
+            forRow: index,
+            offset: self.scrollbar.offset,
+            viewport: self.rowViewportHeight,
+            count: self.manager.tracks.count
+        ) else { return }
+        self.setScrollOffset(offset)
     }
 
     private func updateScrollbarMetrics() {
@@ -170,6 +183,10 @@ final class PlaylistModuleContent: AmpXModuleContent {
         if clamped != self.scrollbar.offset {
             self.setScrollOffset(clamped)
         }
+    }
+
+    var scrollOffset: CGFloat {
+        self.scrollbar.offset
     }
 
     // MARK: - Layout

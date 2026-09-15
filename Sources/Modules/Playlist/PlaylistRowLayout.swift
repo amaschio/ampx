@@ -21,6 +21,25 @@ enum PlaylistRowLayout {
         return first ..< last
     }
 
+    /// Winamp PLEDIT colors: the playing track is white; selection only fills the row behind the text.
+    static func textColor(isSelected _: Bool, isCurrent: Bool, skin: any AmpXSkin) -> NSColor {
+        isCurrent ? skin.text : skin.green
+    }
+
+    /// Offset that centers `row` when it is not fully visible, clamped to the playlist; `nil` when it already is.
+    static func revealOffset(forRow row: Int, offset: CGFloat, viewport: CGFloat, count: Int) -> CGFloat? {
+        guard row >= 0, row < count, viewport > 0 else { return nil }
+        let top = CGFloat(row) * self.rowHeight
+        if top >= offset, top + self.rowHeight <= offset + viewport {
+            return nil
+        }
+        return AmpXControlMath.clampedScrollOffset(
+            top - (viewport - self.rowHeight) / 2,
+            contentLength: CGFloat(count) * self.rowHeight,
+            viewportLength: viewport
+        )
+    }
+
     static func rowRect(index: Int, width: CGFloat) -> CGRect {
         CGRect(
             x: 0,
