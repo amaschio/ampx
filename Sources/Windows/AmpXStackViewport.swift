@@ -24,7 +24,9 @@ final class AmpXStackViewport: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var isFlipped: Bool {
+    /// `nonisolated`: AppKit reads this from its layer-display path with no Swift task, and on
+    /// macOS 26 an isolated getter crashes in `swift_task_isCurrentExecutor` (see commit 5562af8).
+    override nonisolated var isFlipped: Bool {
         true
     }
 

@@ -815,7 +815,9 @@ class AudioPlayer: NSObject, ObservableObject {
     private func startTimer() {
         self.timer?.invalidate()
         self.timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
+            // A real `Task`, not `MainActor.assumeIsolated`: the timer fires with no Swift task and
+            // on macOS 26 the executor check inside `assumeIsolated` crashes (see commit 5562af8).
+            Task { @MainActor in
                 self?.tickPlaybackUI()
             }
         }

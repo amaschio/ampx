@@ -9,9 +9,20 @@ class AmpXControlView: AmpXDrawingView {
         didSet { needsDisplay = true }
     }
 
-    /// Keyboard navigation can focus a control, but a click cannot, so global shortcuts keep working after mouse use.
+    /// Keyboard navigation can focus a control, but a click cannot, so global shortcuts keep working
+    /// after mouse use. AppKit's current event is what identifies the click.
+    static func acceptsFocus(isEnabled: Bool, currentEventType: NSEvent.EventType?) -> Bool {
+        guard isEnabled else { return false }
+        switch currentEventType {
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+            return false
+        default:
+            return true
+        }
+    }
+
     override var acceptsFirstResponder: Bool {
-        self.isEnabled && (window as? AmpXHostWindow)?.isDispatchingMouseDown != true
+        Self.acceptsFocus(isEnabled: self.isEnabled, currentEventType: NSApp.currentEvent?.type)
     }
 
     /// `point` is in the superview's coordinate system; the expanded hit area is tested in local coordinates.

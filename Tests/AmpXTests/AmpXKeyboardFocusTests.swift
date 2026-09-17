@@ -54,17 +54,17 @@ final class AmpXKeyboardFocusTests: XCTestCase {
         )
     }
 
-    func testControlsRefuseFocusWhileWindowDispatchesMouseDown() {
-        let (window, button) = self.makeWindowWithButton()
-        let probe = MouseDownProbe(frame: CGRect(x: 0, y: 0, width: 40, height: 40))
-        probe.control = button
-        window.contentView?.addSubview(probe)
+    /// A click must not move keyboard focus, or global shortcuts stop working after any mouse use.
+    /// AppKit's current event identifies the click; `sendEvent` cannot be overridden for this
+    /// because an isolated `@objc` override crashes on macOS 26.
+    func testClicksRefuseFocusWhileKeyboardNavigationKeepsIt() {
+        for mouseDown in [NSEvent.EventType.leftMouseDown, .rightMouseDown, .otherMouseDown] {
+            XCTAssertFalse(AmpXControlView.acceptsFocus(isEnabled: true, currentEventType: mouseDown))
+        }
 
-        self.click(at: CGPoint(x: 20, y: 20), in: window)
-
-        XCTAssertFalse(probe.observedControlAcceptsFocus.isEmpty, "mouse-down never reached the probe")
-        XCTAssertFalse(probe.observedControlAcceptsFocus.contains(true))
-        XCTAssertTrue(button.acceptsFirstResponder)
+        XCTAssertTrue(AmpXControlView.acceptsFocus(isEnabled: true, currentEventType: .keyDown))
+        XCTAssertTrue(AmpXControlView.acceptsFocus(isEnabled: true, currentEventType: nil))
+        XCTAssertFalse(AmpXControlView.acceptsFocus(isEnabled: false, currentEventType: nil))
     }
 
     func testKeyboardFocusStillReachesButton() {
