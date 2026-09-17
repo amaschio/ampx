@@ -2,12 +2,28 @@ import AppKit
 import SwiftUI
 import WebKit
 
+/// Timing for macOS 26 + Swift 6: a `WKWebView` created during the first SwiftUI
+/// CATransaction at process start SIGSEGVs in `swift_task_isCurrentExecutor`
+/// when WebKit applies its remote layer tree (~1s later). Spawn from a real
+/// `@MainActor` task after this delay instead.
+enum EntheaWebViewLaunch {
+    static let webKitSpawnDelayNanoseconds: UInt64 = 300_000_000
+
+    /// XCTest injects into the app process; spawning WKWebView during clone bootstrap
+    /// SIGSEGVs the same WebKit executor check. Keep the host black in tests.
+    static var isRunningUnderTest: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+    }
+}
+
 /// Hosts a `WKWebView` that always fills its AppKit bounds, mirroring `MilkdropMTKHostView`.
 /// Needed because panel `NSHostingController`s use `sizingOptions = []`, which often leaves
 /// a bare web view at 0×0 inside SwiftUI layout.
 final class EntheaWKHostView: NSView, WKNavigationDelegate {
-    let webView: WKWebView
-    private let jsEvaluator: EntheaWKJavaScriptEvaluator
+    /// Created lazily after the host is windowed — never during `init` / `makeNSView`.
+    private(set) var webView: WKWebView?
+    private var jsEvaluator: EntheaWKJavaScriptEvaluator?
     private let audioBridge: EntheaAudioBridge
     private let trackBridge: EntheaTrackBridge
     private var pushTimer: Timer?
@@ -21,25 +37,21 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
     private var occlusionObserver: NSObjectProtocol?
     private var isPlaying = false
     private var isTheater = false
+    private var lastSeconds: TimeInterval = 0
+    private var pendingContentSize: CGSize = .zero
     /// Panel wants audio/timeline IPC; actual `audioBridge.isActive` also requires visible window.
     private var wantsAudioBridge = false
+    /// SwiftUI asked for a live page. WKWebView spawn is deferred until we are in a window
+    /// and a real `@MainActor` task has slept past the first process-start CATransaction.
+    private var desiredActive = false
+    private var spawnTask: Task<Void, Never>?
 
     override init(frame frameRect: NSRect) {
-        let configuration = WKWebViewConfiguration()
-        configuration.websiteDataStore = .nonPersistent()
-        configuration.suppressesIncrementalRendering = true
-        let webView = WKWebView(frame: .zero, configuration: configuration)
-        self.webView = webView
-        let jsEvaluator = EntheaWKJavaScriptEvaluator(webView: webView)
-        self.jsEvaluator = jsEvaluator
-        self.audioBridge = EntheaAudioBridge(featureBus: .shared, evaluator: jsEvaluator)
-        self.trackBridge = EntheaTrackBridge(evaluator: jsEvaluator)
+        self.audioBridge = EntheaAudioBridge(featureBus: .shared, evaluator: nil)
+        self.trackBridge = EntheaTrackBridge(evaluator: nil)
         super.init(frame: frameRect)
         self.wantsLayer = true
         self.layer?.backgroundColor = NSColor.black.cgColor
-        self.webView.underPageBackgroundColor = .black
-        self.webView.navigationDelegate = self
-        self.addSubview(self.webView)
     }
 
     @available(*, unavailable)
@@ -47,7 +59,7 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
 
     override func layout() {
         super.layout()
-        self.webView.frame = self.bounds
+        self.webView?.frame = self.bounds
     }
 
     override func viewDidMoveToWindow() {
@@ -62,9 +74,12 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
             object: window,
             queue: .main
         ) { [weak self] _ in
-            self?.applyRenderAndPushPolicy()
+            Task { @MainActor in
+                self?.applyRenderAndPushPolicy()
+            }
         }
         self.applyRenderAndPushPolicy()
+        self.scheduleContentLoadIfNeeded()
     }
 
     private func clearOcclusionObserver() {
@@ -74,17 +89,72 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
         }
     }
 
+    @discardableResult
+    private func ensureWebView() -> WKWebView {
+        if let webView { return webView }
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        configuration.suppressesIncrementalRendering = true
+        let webView = WKWebView(frame: self.bounds, configuration: configuration)
+        webView.underPageBackgroundColor = .black
+        webView.navigationDelegate = self
+        self.addSubview(webView)
+        self.webView = webView
+        let evaluator = EntheaWKJavaScriptEvaluator(webView: webView)
+        self.jsEvaluator = evaluator
+        self.audioBridge.attach(evaluator: evaluator)
+        self.trackBridge.attach(evaluator: evaluator)
+        return webView
+    }
+
+    private func evaluatePageJavaScript(_ javaScript: String) {
+        self.jsEvaluator?.evaluateJavaScript(javaScript, completionHandler: nil)
+    }
+
     /// Load vendored ENTHEA from the folder-reference bundle, or a tiny placeholder if missing.
     func loadEnthea() {
+        let webView = self.ensureWebView()
         if let index = EntheaBundleLoader.indexHTMLURL(),
            let directory = EntheaBundleLoader.directoryURL()
         {
             self.didLoadEnthea = true
-            self.webView.loadFileURL(index, allowingReadAccessTo: directory)
+            webView.loadFileURL(index, allowingReadAccessTo: directory)
             return
         }
-        self.didLoadEnthea = false
+        self.didLoadEnthea = true
         self.loadPlaceholder()
+    }
+
+    func setDesiredActive(_ active: Bool, contentSize: CGSize) {
+        self.desiredActive = active
+        self.pendingContentSize = contentSize
+        if active {
+            self.applyBackingScale(for: contentSize)
+            self.scheduleContentLoadIfNeeded()
+        } else {
+            self.teardown()
+        }
+    }
+
+    private func scheduleContentLoadIfNeeded() {
+        guard self.desiredActive, self.window != nil else { return }
+        if self.didLoadEnthea {
+            self.setAudioBridgeActive(true)
+            return
+        }
+        guard self.spawnTask == nil else { return }
+        self.spawnTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: EntheaWebViewLaunch.webKitSpawnDelayNanoseconds)
+            guard let self, !Task.isCancelled else { return }
+            self.spawnTask = nil
+            guard self.desiredActive, self.window != nil, !self.didLoadEnthea else { return }
+            self.ensureWebView()
+            self.loadEnthea()
+            self.applyBackingScale(for: self.pendingContentSize)
+            self.setAudioBridgeActive(true)
+            self.trackBridge.tickPosition(seconds: self.lastSeconds, paused: !self.isPlaying)
+            self.applyRenderAndPushPolicy()
+        }
     }
 
     func loadPlaceholder() {
@@ -94,7 +164,7 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
         ENTHEA
         </body>
         """
-        self.webView.loadHTMLString(html, baseURL: nil)
+        self.ensureWebView().loadHTMLString(html, baseURL: nil)
     }
 
     func applyBackingScale(for size: CGSize) {
@@ -103,7 +173,7 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
             ?? 2
         let scale = EntheaBackingScale.scale(forSize: size, screenScale: screenScale)
         let js = "window.winampEnthea && window.winampEnthea.setBackingScale(\(scale));"
-        self.webView.evaluateJavaScript(js, completionHandler: nil)
+        self.evaluatePageJavaScript(js)
     }
 
     func setAudioBridgeActive(_ active: Bool) {
@@ -115,6 +185,7 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
     func updatePlayback(trackURL: URL?, seconds: TimeInterval, isPlaying: Bool, isTheater: Bool) {
         self.isPlaying = isPlaying
         self.isTheater = isTheater
+        self.lastSeconds = seconds
         if trackURL != self.lastTrackURL {
             self.lastTrackURL = trackURL
             self.trackBridge.trackDidChange(url: trackURL)
@@ -125,10 +196,12 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
     }
 
     /// Blanking the page does NOT stop the WebContent process — only releasing the
-    /// `WKWebView` does. Detaching or closing the ENTHEA module host nils `contentViewController`
+    /// `WKWebView` does. `AmpXPanelWindowManager.hidePanel` nils `contentViewController`
     /// for `.visualizer`, which deallocates this view; this just stops work in the window
     /// between that and dealloc.
     func teardown() {
+        self.spawnTask?.cancel()
+        self.spawnTask = nil
         self.clearOcclusionObserver()
         self.setAudioBridgeActive(false)
         self.trackBridge.clearTimeline()
@@ -142,15 +215,17 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
             controller?.hostDidTeardown()
         }
         self.didLoadEnthea = false
-        self.webView.stopLoading()
-        self.webView.load(URLRequest(url: URL(string: "about:blank")!))
+        self.desiredActive = false
+        if let webView {
+            webView.stopLoading()
+            webView.load(URLRequest(url: URL(string: "about:blank")!))
+        }
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         self.applyBackingScale(for: self.bounds.size)
-        webView.evaluateJavaScript(
-            "window.winampEnthea && window.winampEnthea.hideChrome();",
-            completionHandler: nil
+        self.evaluatePageJavaScript(
+            "window.winampEnthea && window.winampEnthea.hideChrome();"
         )
         self.applyRenderAndPushPolicy()
         // Re-push cover art after a reload so Image Warp survives WebContent restarts.
@@ -158,8 +233,7 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
             self.lastArtworkTrackURL = nil
             self.loadCoverArt(for: url)
         }
-        guard self.didLoadEnthea, let controller = self.panelController else { return }
-        let evaluator = self.jsEvaluator
+        guard self.didLoadEnthea, let controller = self.panelController, let evaluator = self.jsEvaluator else { return }
         Task { @MainActor in
             controller.attach(evaluator: evaluator)
             controller.hostDidFinishLoad()
@@ -194,7 +268,7 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
         guard self.lastRenderPaused != paused else { return }
         self.lastRenderPaused = paused
         let js = "window.winampEnthea&&window.winampEnthea.setRenderPaused(\(paused ? "true" : "false"));"
-        self.webView.evaluateJavaScript(js, completionHandler: nil)
+        self.evaluatePageJavaScript(js)
     }
 
     private func loadCoverArt(for trackURL: URL?) {
@@ -216,15 +290,16 @@ final class EntheaWKHostView: NSView, WKNavigationDelegate {
                 guard !Task.isCancelled else { return }
                 self.lastArtworkTrackURL = trackURL
                 let js = "window.winampEnthea&&window.winampEnthea.setCoverArt(\(encoded));"
-                self.webView.evaluateJavaScript(js, completionHandler: nil)
+                self.evaluatePageJavaScript(js)
             }
         }
     }
 
     private func startPushTimerIfNeeded() {
         guard self.pushTimer == nil else { return }
-        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
-            self?.audioBridge.tick()
+        let audioBridge = self.audioBridge
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { _ in
+            audioBridge.tick()
         }
         RunLoop.main.add(timer, forMode: .common)
         self.pushTimer = timer
@@ -248,42 +323,26 @@ struct EntheaWebView: NSViewRepresentable {
     func makeNSView(context: Context) -> EntheaWKHostView {
         let host = EntheaWKHostView(frame: CGRect(origin: .zero, size: self.size))
         host.panelController = self.controller
-        if self.isActive {
-            host.loadEnthea()
-            host.setAudioBridgeActive(true)
-            host.updatePlayback(
-                trackURL: self.trackURL,
-                seconds: self.currentTime,
-                isPlaying: self.isPlaying,
-                isTheater: self.isTheater
-            )
-        }
+        host.updatePlayback(
+            trackURL: self.trackURL,
+            seconds: self.currentTime,
+            isPlaying: self.isPlaying,
+            isTheater: self.isTheater
+        )
+        host.setDesiredActive(self.isActive, contentSize: self.size)
         return host
     }
 
     func updateNSView(_ host: EntheaWKHostView, context: Context) {
         host.panelController = self.controller
         host.frame.size = self.size
-        if self.isActive {
-            let url = host.webView.url
-            let needsLoad = url == nil
-                || url?.absoluteString == "about:blank"
-                || !(url?.isFileURL ?? false)
-            if needsLoad {
-                host.loadEnthea()
-            } else {
-                host.applyBackingScale(for: self.size)
-            }
-            host.setAudioBridgeActive(true)
-            host.updatePlayback(
-                trackURL: self.trackURL,
-                seconds: self.currentTime,
-                isPlaying: self.isPlaying,
-                isTheater: self.isTheater
-            )
-        } else {
-            host.teardown()
-        }
+        host.updatePlayback(
+            trackURL: self.trackURL,
+            seconds: self.currentTime,
+            isPlaying: self.isPlaying,
+            isTheater: self.isTheater
+        )
+        host.setDesiredActive(self.isActive, contentSize: self.size)
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView _: EntheaWKHostView, context _: Context) -> CGSize? {

@@ -216,11 +216,13 @@ final class EntheaModuleContent: AmpXModuleContent {
         guard hostView == nil, !isModuleClosed else { return }
         let host = EntheaWKHostView(frame: hostBodyFrame)
         host.panelController = panelController
-        host.loadEnthea()
         hostView = host
         lifecycle = EntheaHostLifecycle(host: host)
         playbackTickView.hostView = host
         addSubview(host)
+        // Deferred spawn (ported from develop 5562af8): creating the WKWebView during launch layout
+        // crashes WebKit's executor check on macOS 26. The host spawns it once windowed.
+        host.setDesiredActive(true, contentSize: self.hostBodyFrame.size)
         layoutControls()
     }
 

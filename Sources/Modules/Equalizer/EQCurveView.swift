@@ -166,11 +166,22 @@ final class EQCurveView: AmpXDrawingView {
     }
 }
 
-@MainActor
+/// Deliberately not `@MainActor`: AppKit calls this `@objc` selector from its display-link callback
+/// without a Swift task, and on macOS 26 an isolated entry point traps in
+/// `swift_task_isCurrentExecutor`. The link runs on the main run loop, so hopping is safe.
+/// Deliberately not `@MainActor`, and the work hops through a real `Task`: AppKit calls this `@objc`
+/// selector from its display-link callback with no Swift task, and on macOS 26 the executor check
+/// then crashes in `swift_task_isCurrentExecutor` — both at an isolated entry point and inside
+/// `MainActor.assumeIsolated`. Entering a task gives the check a valid context (see commit 5562af8).
 private final class EQCurveAnimationForwarder: NSObject {
-    weak var view: EQCurveView?
+    nonisolated(unsafe) weak var view: EQCurveView?
 
     @objc func displayLinkFired(_ link: CADisplayLink) {
-        self.view?.animationTick(at: link.timestamp)
+        // Only the timestamp crosses the boundary; `CADisplayLink` is not Sendable.
+        let timestamp = link.timestamp
+        let view = self.view
+        Task { @MainActor in
+            view?.animationTick(at: timestamp)
+        }
     }
 }

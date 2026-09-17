@@ -21,12 +21,16 @@ final class EntheaWKJavaScriptEvaluator: EntheaJavaScriptEvaluating, @unchecked 
         _ javaScriptString: String,
         completionHandler: (@Sendable (Any?, (any Error)?) -> Void)?
     ) {
-        // WKWebView is MainActor-isolated; hop there, then call the Sendable completion.
+        // Use the async API so WebKit does not invoke a @MainActor completion from C++
+        // (macOS 26 Swift 6 executor check SIGSEGV).
         let script = javaScriptString
         let webView = self.webView
         Task { @MainActor in
-            webView.evaluateJavaScript(script) { result, error in
-                completionHandler?(result, error)
+            do {
+                let result = try await webView.evaluateJavaScript(script)
+                completionHandler?(result, nil)
+            } catch {
+                completionHandler?(nil, error)
             }
         }
     }

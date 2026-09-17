@@ -1,12 +1,20 @@
 import AppKit
 import QuartzCore
 
-@MainActor
+/// Deliberately not `@MainActor`, and the work hops through a real `Task`: AppKit calls this `@objc`
+/// selector from its display-link callback with no Swift task, and on macOS 26 the executor check
+/// then crashes in `swift_task_isCurrentExecutor` — both at an isolated entry point and inside
+/// `MainActor.assumeIsolated`. Entering a task gives the check a valid context (see commit 5562af8).
 final class AmpXDisplayLinkForwarder: NSObject {
-    weak var view: AmpXContinuousView?
+    nonisolated(unsafe) weak var view: AmpXContinuousView?
 
     @objc func displayLinkFired(_ link: CADisplayLink) {
-        view?.displayLinkTick(at: link.timestamp)
+        // Only the timestamp crosses the boundary; `CADisplayLink` is not Sendable.
+        let timestamp = link.timestamp
+        let view = self.view
+        Task { @MainActor in
+            view?.displayLinkTick(at: timestamp)
+        }
     }
 }
 
