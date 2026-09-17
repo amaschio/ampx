@@ -33,7 +33,10 @@ final class PlayerModuleContent: AmpXModuleContent {
         didSet { self.applyReferencePresentation() }
     }
 
-    private let spectrumWell: SpectrumWellView
+    private let modeStore: AmpXMiniVisualizerModeStore
+
+    /// Internal so the host and tests can park or wake the display-rate spectrum rendering.
+    let spectrumWell: SpectrumWellView
     private let timeDisplay: TimeDisplayView
     private let volumeSlider: AmpXSlider
     private let balanceSlider: AmpXSlider
@@ -54,11 +57,13 @@ final class PlayerModuleContent: AmpXModuleContent {
         skin: any AmpXSkin,
         audioPlayer: AudioPlayer,
         playlistManager: PlaylistManager,
-        onToggleModule: @escaping (AmpXModuleID) -> Void
+        onToggleModule: @escaping (AmpXModuleID) -> Void,
+        modeStore: AmpXMiniVisualizerModeStore = AmpXMiniVisualizerModeStore()
     ) {
         self.audioPlayer = audioPlayer
         self.playlistManager = playlistManager
         self.onToggleModule = onToggleModule
+        self.modeStore = modeStore
         self.spectrumWell = SpectrumWellView(skin: skin)
         self.timeDisplay = TimeDisplayView(skin: skin)
         self.volumeSlider = AmpXSlider(skin: skin)
@@ -85,6 +90,14 @@ final class PlayerModuleContent: AmpXModuleContent {
     private func configureControls() {
         self.timeDisplay.audioPlayer = self.audioPlayer
         self.positionBar.audioPlayer = self.audioPlayer
+
+        self.spectrumWell.mode = self.modeStore.load()
+        self.spectrumWell.onModeChanged = { [weak self] mode in
+            self?.modeStore.save(mode)
+        }
+        self.spectrumWell.onDoubleClick = { [weak self] in
+            self?.onToggleModule(.enthea)
+        }
 
         for slider in [self.volumeSlider, self.balanceSlider] {
             slider.range = 0 ... 1
@@ -214,6 +227,10 @@ final class PlayerModuleContent: AmpXModuleContent {
             .sink { [weak self] isPlaying in
                 self?.isPlaying = isPlaying
                 self?.transportButtons[safe: 1]?.isActive = isPlaying
+                if isPlaying {
+                    // A parked well gets no ticks, so playback is what brings it back.
+                    self?.spectrumWell.wakeRendering()
+                }
                 self?.needsDisplay = true
             }
             .store(in: &self.cancellables)

@@ -16,10 +16,74 @@ final class SpectrumWellView: AmpXContinuousView {
         didSet { needsDisplay = true }
     }
 
+    /// Live spectrum source. Injectable so tests drive deterministic data instead of the shared bus,
+    /// which any playing `AudioPlayer` can update from its audio thread.
+    var spectrumSource: (TimeInterval) -> (targets: [Float], isPlaying: Bool) = { time in
+        AudioFeatureBus.shared.spectrumSnapshot(at: time)
+    }
+
+    /// Spectrum plus waveform, read in one go for oscilloscope mode.
+    var featureSource: (TimeInterval, Int) -> AudioFeatures = { time, waveformSampleCount in
+        AudioFeatureBus.shared.snapshot(at: time, waveformSampleCount: waveformSampleCount)
+    }
+
+    /// Which mini visualizer mode draws. Clicking the well cycles it.
+    var mode: VisualizationMode = .bars {
+        didSet { needsDisplay = true }
+    }
+
+    /// Receives the new mode after a click cycled it, for persistence.
+    var onModeChanged: ((VisualizationMode) -> Void)?
+
+    /// Classic behavior: a double-click shows or hides the visualizer.
+    var onDoubleClick: (() -> Void)?
+
+    /// Peak-hold marks are an analyzer-mode feature.
+    static func drawsPeakMarks(in mode: VisualizationMode) -> Bool {
+        mode == .analyzer
+    }
+
+    /// The waveform line replaces the columns in oscilloscope mode.
+    static func drawsScopeLine(in mode: VisualizationMode) -> Bool {
+        mode == .oscilloscope
+    }
+
+    /// Downsamples a mono waveform to one level per polyline point. The shared sampler quantizes to
+    /// Metal's clip space, where a positive sample is negative, so the sign is flipped for drawing.
+    static func scopeLevels(fromWaveform waveform: [Float], width: CGFloat) -> [Float] {
+        OscilloscopeColumnSampler
+            .columns(from: waveform, count: AmpXScopeLineLayout.columnCount(forWidth: width))
+            .map { -$0 }
+    }
+
+    /// A click cycles the mode, but only once AppKit can no longer turn it into a double-click,
+    /// so opening the visualizer never also advances the mode.
+    override func mouseDown(with event: NSEvent) {
+        self.pendingModeCycle?.cancel()
+        self.pendingModeCycle = nil
+
+        guard event.clickCount < 2 else {
+            self.onDoubleClick?()
+            return
+        }
+
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.pendingModeCycle = nil
+            let next = self.mode.advanced()
+            self.mode = next
+            self.onModeChanged?(next)
+        }
+        self.pendingModeCycle = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + NSEvent.doubleClickInterval, execute: work)
+    }
+
     private let segmentCount = AmpXSpectrumColumnModel.segmentCount
     private let columnCount = AmpXSpectrumColumnModel.columnCount
-    private var peakTracker = SpectrumPeakTracker()
-    private var columnPeaks = Array(repeating: AmpXSpectrumColumnModel(), count: AmpXSpectrumColumnModel.columnCount)
+    private var pipeline = AmpXSpectrumColumnPipeline()
+    private var idleGate = VisualizerIdleGate()
+    private var pendingModeCycle: DispatchWorkItem?
+    private var scopeLineLevels: [Float] = []
     private var columnLevels = [Float](repeating: 0, count: AmpXSpectrumColumnModel.columnCount)
     private var columnPeakLevels = [Float](repeating: 0, count: AmpXSpectrumColumnModel.columnCount)
     private var lastTimestamp: TimeInterval?
@@ -42,21 +106,42 @@ final class SpectrumWellView: AmpXContinuousView {
         }
         self.lastTimestamp = time
 
-        let snapshot = AudioFeatureBus.shared.spectrumSnapshot(at: time)
-        let smoothed = self.peakTracker.update(
-            targets: snapshot.targets,
-            isPlaying: snapshot.isPlaying,
-            deltaTime: deltaTime
-        )
-
-        for column in 0 ..< self.columnCount {
-            let bandIndex = Self.bandIndex(forColumn: column)
-            let level = smoothed.bars[bandIndex]
-            self.columnLevels[column] = level
-            self.columnPeakLevels[column] = self.columnPeaks[column].updatePeak(level: level, at: time)
+        let frame: AmpXSpectrumColumnPipeline.Frame
+        if Self.drawsScopeLine(in: self.mode) {
+            // Scope mode also needs the waveform, so take one combined snapshot.
+            let features = self.featureSource(time, AudioFeatures.scopeWaveformSampleCount)
+            let mono = zip(features.waveformLeft, features.waveformRight).map { ($0 + $1) * 0.5 }
+            self.scopeLineLevels = Self.scopeLevels(fromWaveform: mono, width: self.spectrumRect.width)
+            frame = self.pipeline.update(
+                bands: features.spectrum,
+                isPlaying: features.isPlaying,
+                deltaTime: deltaTime
+            )
+        } else {
+            let snapshot = self.spectrumSource(time)
+            frame = self.pipeline.update(
+                bands: snapshot.targets,
+                isPlaying: snapshot.isPlaying,
+                deltaTime: deltaTime
+            )
         }
+        self.columnLevels = frame.levels
+        self.columnPeakLevels = frame.peaks
 
         setNeedsDisplay(bounds)
+
+        // Park the link only after the final decayed frame has been requested, so the well freezes
+        // on an empty display rather than mid-decay. `PlayerModuleContent` wakes it on playback.
+        self.setContinuousRenderingPaused(
+            self.idleGate.update(isActive: frame.isActive, deltaTime: CFTimeInterval(deltaTime))
+        )
+    }
+
+    /// Resumes a parked well on a genuine external event (playback started). Only this clears the
+    /// idle window: the tick loop must never reset it, or the well could never reach the hold time.
+    func wakeRendering() {
+        self.idleGate.wake()
+        self.setContinuousRenderingPaused(false)
     }
 
     /// Spectrum area in this view's coordinates (the view is placed on the display well).
@@ -80,8 +165,12 @@ final class SpectrumWellView: AmpXContinuousView {
         let levels = self.reference?.levels ?? self.columnLevels
         let peaks = self.reference?.peaks ?? self.columnPeakLevels
 
-        for column in 0 ..< min(self.columnCount, levels.count) {
-            self.drawColumn(column, level: levels[column], peak: column < peaks.count ? peaks[column] : 0, context: context)
+        if Self.drawsScopeLine(in: self.mode), self.reference == nil {
+            self.drawScopeLine(in: context)
+        } else {
+            for column in 0 ..< min(self.columnCount, levels.count) {
+                self.drawColumn(column, level: levels[column], peak: column < peaks.count ? peaks[column] : 0, context: context)
+            }
         }
 
         let labelColor = NSColor(srgbRed: 133 / 255, green: 148 / 255, blue: 179 / 255, alpha: 1)
@@ -96,6 +185,18 @@ final class SpectrumWellView: AmpXContinuousView {
                 skin: skin
             )
         }
+    }
+
+    /// One-point-per-column waveform line, zero amplitude on the centre of the spectrum area.
+    private func drawScopeLine(in context: CGContext) {
+        let points = AmpXScopeLineLayout.points(levels: self.scopeLineLevels, in: self.spectrumRect)
+        guard points.count > 1 else { return }
+
+        context.setStrokeColor(skin.green.cgColor)
+        context.setLineWidth(1)
+        context.setLineJoin(.round)
+        context.addLines(between: points)
+        context.strokePath()
     }
 
     private func drawColumn(_ column: Int, level: Float, peak: Float, context: CGContext) {
@@ -114,6 +215,7 @@ final class SpectrumWellView: AmpXContinuousView {
             context.fill(CGRect(x: slot.minX, y: slot.maxY - height, width: slot.width, height: height))
         }
 
+        guard Self.drawsPeakMarks(in: self.mode) else { return }
         let peakLevel = CGFloat(min(max(peak, 0), 1)) * CGFloat(self.segmentCount)
         guard peakLevel > lit + 0.25 else { return }
         let peakSegment = min(segmentCount - 1, max(0, Int(peakLevel.rounded(.up)) - 1))
@@ -121,12 +223,5 @@ final class SpectrumWellView: AmpXContinuousView {
         context.setFillColor(Self.segmentColors[peakSegment].withAlphaComponent(0.8).cgColor)
         context.fill(CGRect(x: slot.minX + 0.25, y: slot.minY, width: 2, height: 1.5))
         context.fill(CGRect(x: slot.maxX - 2.25, y: slot.minY, width: 2, height: 1.5))
-    }
-
-    private static func bandIndex(forColumn column: Int) -> Int {
-        min(
-            AudioFeatures.spectrumBandCount - 1,
-            (column * AudioFeatures.spectrumBandCount) / AmpXSpectrumColumnModel.columnCount
-        )
     }
 }

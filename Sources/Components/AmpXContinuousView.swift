@@ -27,9 +27,11 @@ class AmpXContinuousView: AmpXDrawingView {
     var displayLinkFactory: DisplayLinkFactory = { view, target, selector in
         view.displayLink(target: target, selector: selector)
     }
+
     var displayLinkStarter: DisplayLinkStarter = { link in
         link.add(to: .main, forMode: .common)
     }
+
     var displayLinkStopper: DisplayLinkStopper = { link in
         link.invalidate()
     }
@@ -38,37 +40,53 @@ class AmpXContinuousView: AmpXDrawingView {
     private var activeDisplayLink: CADisplayLink?
     private var displayLinkForwarder: AmpXDisplayLinkForwarder?
 
+    /// True while an idle gate has parked the display link although the view is still visible.
+    private(set) var isContinuousRenderingPaused = false
+
     func setEffectivelyVisible(_ value: Bool) {
-        guard value != isEffectivelyVisible else { return }
-        isEffectivelyVisible = value
-        if value {
-            startContinuousRendering()
-        } else {
-            stopContinuousRendering()
+        guard value != self.isEffectivelyVisible else { return }
+        self.isEffectivelyVisible = value
+        if value, !self.isContinuousRenderingPaused {
+            self.startContinuousRendering()
+        } else if !value {
+            self.stopContinuousRendering()
         }
     }
 
-    func tick(at time: TimeInterval) {
+    /// Parks or resumes the display link without changing effective visibility, so an idle gate can
+    /// stop redrawing a static image and wake it again when audio returns.
+    func setContinuousRenderingPaused(_ paused: Bool) {
+        guard paused != self.isContinuousRenderingPaused else { return }
+        self.isContinuousRenderingPaused = paused
+        guard self.isEffectivelyVisible else { return }
+        if paused {
+            self.stopContinuousRendering()
+        } else {
+            self.startContinuousRendering()
+        }
+    }
+
+    func tick(at _: TimeInterval) {
         setNeedsDisplay(bounds)
     }
 
     fileprivate func displayLinkTick(at time: TimeInterval) {
-        tick(at: time)
+        self.tick(at: time)
     }
 
     override func viewWillMove(toWindow newWindow: NSWindow?) {
         super.viewWillMove(toWindow: newWindow)
-        if newWindow == nil, isEffectivelyVisible {
-            setEffectivelyVisible(false)
+        if newWindow == nil, self.isEffectivelyVisible {
+            self.setEffectivelyVisible(false)
         }
     }
 
     private func startContinuousRendering() {
-        stopContinuousRendering()
+        self.stopContinuousRendering()
 
         let forwarder = AmpXDisplayLinkForwarder()
         forwarder.view = self
-        displayLinkForwarder = forwarder
+        self.displayLinkForwarder = forwarder
 
         guard let link = displayLinkFactory(
             self,
@@ -76,15 +94,15 @@ class AmpXContinuousView: AmpXDrawingView {
             #selector(AmpXDisplayLinkForwarder.displayLinkFired(_:))
         ) else { return }
 
-        activeDisplayLink = link
-        displayLinkStarter(link)
+        self.activeDisplayLink = link
+        self.displayLinkStarter(link)
     }
 
     private func stopContinuousRendering() {
         guard let link = activeDisplayLink else { return }
-        displayLinkStopper(link)
-        activeDisplayLink = nil
-        displayLinkForwarder = nil
+        self.displayLinkStopper(link)
+        self.activeDisplayLink = nil
+        self.displayLinkForwarder = nil
     }
 
     nonisolated deinit {
