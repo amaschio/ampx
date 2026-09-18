@@ -64,10 +64,53 @@ final class PlaylistManagerTests: XCTestCase {
         XCTAssertEqual(self.mockPlayer.playCallCount, 1)
     }
 
-    func testNextAtEndWithoutRepeatStops() {
+    func testTrackFinishedAtEndWithoutRepeatStops() {
+        self.manager.tracks = self.makeTracks(2)
+        self.manager.currentIndex = 1
+        self.manager.advanceAfterTrackFinished()
+        waitForMainQueue()
+        XCTAssertEqual(self.mockPlayer.stopCallCount, 1)
+        XCTAssertEqual(self.mockPlayer.playCallCount, 0)
+    }
+
+    func testTrackFinishedAtEndWithRepeatWraps() {
+        self.manager.tracks = self.makeTracks(2)
+        self.manager.currentIndex = 1
+        self.manager.repeatEnabled = true
+        self.manager.advanceAfterTrackFinished()
+        waitForMainQueue()
+        XCTAssertEqual(self.manager.currentIndex, 0)
+        XCTAssertEqual(self.mockPlayer.playCallCount, 1)
+    }
+
+    func testManualNextAtEndWithoutRepeatWrapsToFirst() {
         self.manager.tracks = self.makeTracks(2)
         self.manager.currentIndex = 1
         self.manager.next()
+        waitForMainQueue()
+        XCTAssertEqual(self.manager.currentIndex, 0)
+        XCTAssertEqual(self.mockPlayer.stopCallCount, 0)
+        XCTAssertEqual(self.mockPlayer.playCallCount, 1)
+    }
+
+    func testManualShuffleNextPastEndStartsNewOrder() {
+        self.manager.tracks = self.makeTracks(3)
+        self.manager.currentIndex = 2
+        self.manager.shuffleEnabled = true
+        self.manager.test_setShuffledIndices([0, 1, 2], position: 2)
+        self.manager.next()
+        waitForMainQueue()
+        XCTAssertEqual(self.mockPlayer.stopCallCount, 0)
+        XCTAssertEqual(self.mockPlayer.playCallCount, 1)
+        XCTAssertNotEqual(self.manager.currentIndex, 2, "new shuffle order should not replay the current track")
+    }
+
+    func testShuffleTrackFinishedAtEndWithoutRepeatStops() {
+        self.manager.tracks = self.makeTracks(3)
+        self.manager.currentIndex = 2
+        self.manager.shuffleEnabled = true
+        self.manager.test_setShuffledIndices([0, 1, 2], position: 2)
+        self.manager.advanceAfterTrackFinished()
         waitForMainQueue()
         XCTAssertEqual(self.mockPlayer.stopCallCount, 1)
         XCTAssertEqual(self.mockPlayer.playCallCount, 0)
@@ -143,13 +186,13 @@ final class PlaylistManagerTests: XCTestCase {
         XCTAssertEqual(self.mockPlayer.playCallCount, 1)
     }
 
-    func testClearPlaylistStopsPlayback() {
+    func testClearPlaylistKeepsPlaying() {
         self.manager.tracks = self.makeTracks(2)
         self.manager.currentIndex = 0
         self.manager.clearPlaylist()
         XCTAssertTrue(self.manager.tracks.isEmpty)
         XCTAssertEqual(self.manager.currentIndex, -1)
-        XCTAssertEqual(self.mockPlayer.stopCallCount, 1)
+        XCTAssertEqual(self.mockPlayer.stopCallCount, 0)
     }
 
     func testPlayTrackOnlyPlaysAfterSuccessfulLoad() {

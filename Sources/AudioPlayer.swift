@@ -78,6 +78,9 @@ class AudioPlayer: NSObject, ObservableObject {
     private nonisolated(unsafe) var shouldAutoAdvance = true
     private let playStateLock = OSAllocatedUnfairLock()
     private nonisolated(unsafe) var isPlayingInternalStorage = false
+    /// Audio-queue state: the node holds a paused position that `resume()` can continue.
+    /// Distinguishes paused from stopped so Pause can toggle back to playing.
+    private nonisolated(unsafe) var isPausedInternal = false
     private nonisolated(unsafe) var playbackGeneration = 0
     private nonisolated(unsafe) var loadGeneration = 0
     /// Absolute file time at the start of the currently scheduled player segment.
@@ -275,6 +278,7 @@ class AudioPlayer: NSObject, ObservableObject {
             }
 
             self.isPlayingInternal = false
+            self.isPausedInternal = false
             self.shouldAutoAdvance = false
             self.audioFile = nil
             self.playbackGeneration += 1
@@ -463,6 +467,7 @@ class AudioPlayer: NSObject, ObservableObject {
             player.pan = balance
             player.play()
             self.isPlayingInternal = true
+            self.isPausedInternal = false
 
             self.runOnMainActor(weak: self) { player in
                 player.isPlaying = true
@@ -473,12 +478,20 @@ class AudioPlayer: NSObject, ObservableObject {
         }
     }
 
+    /// Pauses playback; pressing Pause again while paused resumes (Winamp behavior).
+    /// Does nothing while stopped.
     func pause() {
         self.testing_lastTransportAction = .pause
         self.audioQueue.async { [weak self] in
-            guard let self, self.isPlayingInternal else { return }
+            guard let self else { return }
+            if self.isPausedInternal {
+                self.resumeOnAudioQueue()
+                return
+            }
+            guard self.isPlayingInternal else { return }
             self.playerNode?.pause()
             self.isPlayingInternal = false
+            self.isPausedInternal = true
 
             self.runOnMainActor(weak: self) { player in
                 player.isPlaying = false
@@ -491,25 +504,31 @@ class AudioPlayer: NSObject, ObservableObject {
     func resume() {
         self.testing_lastTransportAction = .resume
         self.audioQueue.async { [weak self] in
-            guard let self,
-                  let player = self.playerNode,
-                  let engine = self.audioEngine,
-                  !self.isPlayingInternal else { return }
+            self?.resumeOnAudioQueue()
+        }
+    }
 
-            guard self.startEngineIfNeeded(engine) else {
-                self.publishEngineRunningState(false, on: self)
-                return
-            }
-            self.publishEngineRunningState(true, on: self)
+    private nonisolated func resumeOnAudioQueue() {
+        guard let player = self.playerNode,
+              let engine = self.audioEngine,
+              !self.isPlayingInternal else { return }
 
-            player.play()
-            self.isPlayingInternal = true
+        guard self.startEngineIfNeeded(engine) else {
+            self.publishEngineRunningState(false, on: self)
+            return
+        }
+        self.publishEngineRunningState(true, on: self)
 
-            self.runOnMainActor(weak: self) { player in
-                player.isPlaying = true
-                player.startTimer()
-                player.updateNowPlayingInfo()
-            }
+        // A seek while paused/stopped disarms auto-advance; playing again re-arms it.
+        self.shouldAutoAdvance = true
+        player.play()
+        self.isPlayingInternal = true
+        self.isPausedInternal = false
+
+        self.runOnMainActor(weak: self) { player in
+            player.isPlaying = true
+            player.startTimer()
+            player.updateNowPlayingInfo()
         }
     }
 
@@ -521,6 +540,7 @@ class AudioPlayer: NSObject, ObservableObject {
             self.playbackSegmentStartTime = 0
             self.playerNode?.stop()
             self.isPlayingInternal = false
+            self.isPausedInternal = false
 
             self.runOnMainActor(weak: self) { player in
                 player.isPlaying = false
@@ -597,6 +617,7 @@ class AudioPlayer: NSObject, ObservableObject {
                 self.shouldAutoAdvance = true
                 player.play()
                 self.isPlayingInternal = true
+                self.isPausedInternal = false
             }
 
             self.runOnMainActor(weak: self) { player in
@@ -868,6 +889,7 @@ class AudioPlayer: NSObject, ObservableObject {
         self.audioQueue.async { [weak self] in
             guard let self else { return }
             self.isPlayingInternal = false
+            self.isPausedInternal = false
             let shouldAdvance = self.shouldAutoAdvance
 
             self.runOnMainActor(weak: self) { player in

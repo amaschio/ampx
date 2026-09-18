@@ -162,7 +162,7 @@ final class AmpXApplicationController: NSObject, NSMenuItemValidation {
         playbackCoordinationBound = true
 
         audioPlayer.onTrackFinished = { [weak playlistManager] in
-            playlistManager?.next()
+            playlistManager?.advanceAfterTrackFinished()
         }
         audioPlayer.onNextTrackRequested = { [weak playlistManager] in
             playlistManager?.next()
