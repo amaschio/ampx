@@ -21,15 +21,33 @@ enum AmpXCompactTimeLayout {
     }
 
     static let digitStyles: [AmpXSegmentDigits.Metrics] = [
-        .init(digitSize: CGSize(width: 7.5, height: 13), gap: 2.8,
-              colonWidth: 4, minusWidth: 4, stroke: 1.2, joint: 0.3,
-              colonDot: CGSize(width: 1.5, height: 1.5)),
-        .init(digitSize: CGSize(width: 6, height: 10.4), gap: 0.6,
-              colonWidth: 2.3, minusWidth: 3.1, stroke: 0.92, joint: 0.23,
-              colonDot: CGSize(width: 1.15, height: 1.15)),
-        .init(digitSize: CGSize(width: 4.3, height: 7.45), gap: 0.45,
-              colonWidth: 1.65, minusWidth: 2.2, stroke: 0.66, joint: 0.165,
-              colonDot: CGSize(width: 0.83, height: 0.83)),
+        .init(
+            digitSize: CGSize(width: 7.5, height: 13),
+            gap: 2.8,
+            colonWidth: 4,
+            minusWidth: 4,
+            stroke: 1.2,
+            joint: 0.3,
+            colonDot: CGSize(width: 1.5, height: 1.5)
+        ),
+        .init(
+            digitSize: CGSize(width: 6, height: 10.4),
+            gap: 0.6,
+            colonWidth: 2.3,
+            minusWidth: 3.1,
+            stroke: 0.92,
+            joint: 0.23,
+            colonDot: CGSize(width: 1.15, height: 1.15)
+        ),
+        .init(
+            digitSize: CGSize(width: 4.3, height: 7.45),
+            gap: 0.45,
+            colonWidth: 1.65,
+            minusWidth: 2.2,
+            stroke: 0.66,
+            joint: 0.165,
+            colonDot: CGSize(width: 0.83, height: 0.83)
+        ),
     ]
 
     static func metrics(for text: String, in rect: CGRect) -> AmpXSegmentDigits.Metrics {

@@ -5,11 +5,26 @@ import XCTest
 @MainActor
 final class AmpXCompactDisplayTests: XCTestCase {
     func testCompactTimeHandlesMinutesHoursAndRemaining() {
-        for (seconds, expected) in [(0.0, "00:00"), (111, "01:51"), (3599, "59:59"),
-                                    (3600, "1:00:00"), (360_000, "100:00:00")] {
-            XCTAssertEqual(AmpXCompactTimeLayout.text(current: seconds, duration: 400_000, remaining: false, hasLoadedTrack: true), expected)
-            XCTAssertEqual(AmpXCompactTimeLayout.text(current: 0, duration: seconds + 1, remaining: true, hasLoadedTrack: true),
-                           "-" + AmpXCompactTimeLayout.text(current: seconds + 1, duration: 400_000, remaining: false, hasLoadedTrack: true))
+        for (seconds, expected) in [
+            (0.0, "00:00"),
+            (111, "01:51"),
+            (3599, "59:59"),
+            (3600, "1:00:00"),
+            (360_000, "100:00:00"),
+        ] {
+            XCTAssertEqual(
+                AmpXCompactTimeLayout.text(current: seconds, duration: 400_000, remaining: false, hasLoadedTrack: true),
+                expected
+            )
+            XCTAssertEqual(
+                AmpXCompactTimeLayout.text(current: 0, duration: seconds + 1, remaining: true, hasLoadedTrack: true),
+                "-" + AmpXCompactTimeLayout.text(
+                    current: seconds + 1,
+                    duration: 400_000,
+                    remaining: false,
+                    hasLoadedTrack: true
+                )
+            )
         }
         XCTAssertEqual(AmpXCompactTimeLayout.text(current: 500, duration: 100, remaining: true, hasLoadedTrack: true), "-00:00")
     }

@@ -7,21 +7,35 @@ final class AmpXCompactPlaylistTests: XCTestCase {
     func testLoadedIdentityReorderRemovalAndMetadataFallback() {
         let first = Track(title: "First", artist: "Artist", duration: 100)
         let loaded = Track(title: "God Damn", artist: "SLEAZE", duration: 226)
-        XCTAssertEqual(AmpXCompactPlaylistSummary.make(loadedTrack: loaded, tracks: [first, loaded], loadedDuration: 227),
-                       .init(title: "2. SLEAZE - God Damn", duration: "3:47"))
-        XCTAssertEqual(AmpXCompactPlaylistSummary.make(loadedTrack: loaded, tracks: [loaded, first], loadedDuration: 0).title,
-                       "1. SLEAZE - God Damn")
-        XCTAssertEqual(AmpXCompactPlaylistSummary.make(loadedTrack: loaded, tracks: [first], loadedDuration: .nan),
-                       .init(title: "SLEAZE - God Damn", duration: "3:46"))
-        XCTAssertEqual(AmpXCompactPlaylistSummary.make(loadedTrack: nil, tracks: [first], loadedDuration: 227),
-                       .init(title: "NO TRACK", duration: "--:--"))
+        XCTAssertEqual(
+            AmpXCompactPlaylistSummary.make(loadedTrack: loaded, tracks: [first, loaded], loadedDuration: 227),
+            .init(title: "2. SLEAZE - God Damn", duration: "3:47")
+        )
+        XCTAssertEqual(
+            AmpXCompactPlaylistSummary.make(loadedTrack: loaded, tracks: [loaded, first], loadedDuration: 0).title,
+            "1. SLEAZE - God Damn"
+        )
+        XCTAssertEqual(
+            AmpXCompactPlaylistSummary.make(loadedTrack: loaded, tracks: [first], loadedDuration: .nan),
+            .init(title: "SLEAZE - God Damn", duration: "3:46")
+        )
+        XCTAssertEqual(
+            AmpXCompactPlaylistSummary.make(loadedTrack: nil, tracks: [first], loadedDuration: 227),
+            .init(title: "NO TRACK", duration: "--:--")
+        )
         let empty = Track(title: " \n ", artist: "", duration: .infinity)
-        XCTAssertEqual(AmpXCompactPlaylistSummary.make(loadedTrack: empty, tracks: [], loadedDuration: -.infinity),
-                       .init(title: "Unknown Artist - Unknown Title", duration: "--:--"))
-        XCTAssertEqual(AmpXCompactPlaylistSummary.make(loadedTrack: loaded, tracks: [], loadedDuration: 360_001).duration,
-                       "100:00:01")
-        XCTAssertEqual(AmpXCompactPlaylistSummary.make(loadedTrack: empty, tracks: [], loadedDuration: .greatestFiniteMagnitude).duration,
-                       "--:--")
+        XCTAssertEqual(
+            AmpXCompactPlaylistSummary.make(loadedTrack: empty, tracks: [], loadedDuration: -.infinity),
+            .init(title: "Unknown Artist - Unknown Title", duration: "--:--")
+        )
+        XCTAssertEqual(
+            AmpXCompactPlaylistSummary.make(loadedTrack: loaded, tracks: [], loadedDuration: 360_001).duration,
+            "100:00:01"
+        )
+        XCTAssertEqual(
+            AmpXCompactPlaylistSummary.make(loadedTrack: empty, tracks: [], loadedDuration: .greatestFiniteMagnitude).duration,
+            "--:--"
+        )
     }
 
     func testLongUnicodeTitleCannotEnterDurationColumn() {
@@ -53,7 +67,7 @@ final class AmpXCompactPlaylistTests: XCTestCase {
         guard menu.items.count == 3 else { return }
         for item in menu.items {
             XCTAssertIdentical(item.target as AnyObject?, owner)
-            XCTAssertTrue(NSApp.sendAction(try XCTUnwrap(item.action), to: item.target, from: item))
+            XCTAssertTrue(try NSApp.sendAction(XCTUnwrap(item.action), to: item.target, from: item))
         }
         XCTAssertTrue(manager.tracks.isEmpty)
         XCTAssertTrue(adapter.selection.selectedIDs.isEmpty)
@@ -106,9 +120,13 @@ final class AmpXCompactPlaylistTests: XCTestCase {
         let suite = "AmpXCompactPlaylistTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         self.addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
-        return CompactPlaylistManagerSpy(audioPlayer: MockAudioPlayer(), restoreBookmarks: false, restorePlaylist: false,
-                                         stateStore: PlaylistStateStore(userDefaults: defaults),
-                                         alertPresenter: SilentPlaylistAlertPresenter())
+        return CompactPlaylistManagerSpy(
+            audioPlayer: MockAudioPlayer(),
+            restoreBookmarks: false,
+            restorePlaylist: false,
+            stateStore: PlaylistStateStore(userDefaults: defaults),
+            alertPresenter: SilentPlaylistAlertPresenter()
+        )
     }
 }
 
@@ -116,6 +134,11 @@ final class AmpXCompactPlaylistTests: XCTestCase {
 private final class CompactPlaylistManagerSpy: PlaylistManager {
     var saveCalls = 0
     var loadCalls = 0
-    override func saveM3UPlaylist() { self.saveCalls += 1 }
-    override func showLoadM3UPicker() { self.loadCalls += 1 }
+    override func saveM3UPlaylist() {
+        self.saveCalls += 1
+    }
+
+    override func showLoadM3UPicker() {
+        self.loadCalls += 1
+    }
 }

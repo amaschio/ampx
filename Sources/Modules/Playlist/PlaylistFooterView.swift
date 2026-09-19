@@ -250,7 +250,6 @@ private final class PlaylistFooterMenuActions: NSObject {
     @objc func fileInfo() {
         PlaylistChromeActions.presentFileInfo(manager: self.manager, selection: self.keyboardAdapter.selection)
     }
-
 }
 
 @MainActor

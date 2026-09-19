@@ -7,9 +7,18 @@ import XCTest
 final class AmpXCompactEqualizerTests: XCTestCase {
     func testCompactEQAndExpandedPlayerControlsStaySynchronized() async throws {
         let player = self.makePlayer()
-        let manager = PlaylistManager(audioPlayer: MockAudioPlayer(), restoreBookmarks: false,
-                                      restorePlaylist: false, alertPresenter: SilentPlaylistAlertPresenter())
-        let expanded = PlayerModuleContent(skin: ClassicModernSkin(), audioPlayer: player, playlistManager: manager, onToggleModule: { _ in })
+        let manager = PlaylistManager(
+            audioPlayer: MockAudioPlayer(),
+            restoreBookmarks: false,
+            restorePlaylist: false,
+            alertPresenter: SilentPlaylistAlertPresenter()
+        )
+        let expanded = PlayerModuleContent(
+            skin: ClassicModernSkin(),
+            audioPlayer: player,
+            playlistManager: manager,
+            onToggleModule: { _ in }
+        )
         let compact = EqualizerCompactContent(skin: ClassicModernSkin(), audioPlayer: player)
         let volume = try XCTUnwrap(expanded.subviews.compactMap { $0 as? AmpXSlider }.first { $0.accessibilityTitle == "Volume" })
         compact.volumeSlider.setValue(0.27, sendChange: true)
@@ -92,14 +101,26 @@ final class AmpXCompactEqualizerTests: XCTestCase {
                     case .balance: c.greenComponent > 0.7 && c.blueComponent < 0.15
                     }
                     if lit {
-                        if x < 130 { litLeft += 1 }
-                        if x > 190 { litRight += 1 }
+                        if x < 130 {
+                            litLeft += 1
+                        }
+                        if x > 190 {
+                            litRight += 1
+                        }
                     }
                 }
-                if value == 0 { XCTAssertEqual(litLeft + litRight, 0) }
-                if value > 0 { XCTAssertGreaterThan(litLeft, 20) }
-                if value < 1 { XCTAssertEqual(litRight, 0) }
-                if value == 1 { XCTAssertGreaterThan(litRight, 20) }
+                if value == 0 {
+                    XCTAssertEqual(litLeft + litRight, 0)
+                }
+                if value > 0 {
+                    XCTAssertGreaterThan(litLeft, 20)
+                }
+                if value < 1 {
+                    XCTAssertEqual(litRight, 0)
+                }
+                if value == 1 {
+                    XCTAssertGreaterThan(litRight, 20)
+                }
                 let thumb = try XCTUnwrap(bitmap.colorAt(x: Int((slider.thumbRect.minX + 3) * 2), y: 20)?.usingColorSpace(.sRGB))
                 XCTAssertGreaterThan(thumb.blueComponent, 0.25, "Thumb must have a visible steel face")
             }
@@ -110,7 +131,9 @@ final class AmpXCompactEqualizerTests: XCTestCase {
         let suite = "AmpXCompactEqualizerTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         self.addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
-        return AudioPlayer(installRemoteCommands: false,
-                           eqSettingsStore: EQSettingsStore(userDefaults: defaults, settingsKey: "settings", presetsKey: "presets"))
+        return AudioPlayer(
+            installRemoteCommands: false,
+            eqSettingsStore: EQSettingsStore(userDefaults: defaults, settingsKey: "settings", presetsKey: "presets")
+        )
     }
 }

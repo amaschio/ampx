@@ -19,8 +19,10 @@ struct AmpXCompactPlaylistSummary: Equatable {
         } else {
             duration = "--:--"
         }
-        return Self(title: "\(prefix)\(artist.isEmpty ? "Unknown Artist" : artist) - \(title.isEmpty ? "Unknown Title" : title)",
-                    duration: duration)
+        return Self(
+            title: "\(prefix)\(artist.isEmpty ? "Unknown Artist" : artist) - \(title.isEmpty ? "Unknown Title" : title)",
+            duration: duration
+        )
     }
 
     private static func validDuration(_ time: TimeInterval) -> Bool {
@@ -29,7 +31,9 @@ struct AmpXCompactPlaylistSummary: Equatable {
 
     static func textRects(in rect: CGRect, durationWidth: CGFloat) -> (title: CGRect, duration: CGRect) {
         let width = min(rect.width, max(0, durationWidth))
-        return (CGRect(x: rect.minX, y: rect.minY, width: max(0, rect.width - width - 8), height: rect.height),
-                CGRect(x: rect.maxX - width, y: rect.minY, width: width, height: rect.height))
+        return (
+            CGRect(x: rect.minX, y: rect.minY, width: max(0, rect.width - width - 8), height: rect.height),
+            CGRect(x: rect.maxX - width, y: rect.minY, width: width, height: rect.height)
+        )
     }
 }

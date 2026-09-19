@@ -108,6 +108,10 @@ final class AmpXScrollbar: AmpXControlView {
         self.isDraggingThumb = false
     }
 
+    override func cancelInteraction() {
+        self.isDraggingThumb = false
+    }
+
     override func scrollWheel(with event: NSEvent) {
         guard isEnabled else { return }
         self.scrollBy(-event.deltaY * 8)

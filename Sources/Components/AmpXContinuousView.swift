@@ -73,7 +73,9 @@ class AmpXContinuousView: AmpXDrawingView {
 
     override func resignFirstResponder() -> Bool {
         let resigned = super.resignFirstResponder()
-        if resigned { self.needsDisplay = true }
+        if resigned {
+            self.needsDisplay = true
+        }
         return resigned
     }
 

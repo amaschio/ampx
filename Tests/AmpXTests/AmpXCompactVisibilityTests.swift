@@ -6,20 +6,32 @@ import XCTest
 final class AmpXCompactVisibilityTests: XCTestCase {
     func testEveryHostGateAppliesToBothPresentations() {
         for collapsed in [false, true] {
-            let visible = AmpXVisibilityInputs(collapsed: collapsed, closed: false, windowVisible: true,
-                                               miniaturized: false, occluded: false, intersectsViewport: true)
-            XCTAssertEqual(visible.presentationVisibility(hasCompactPresentation: true),
-                           AmpXPresentationVisibility(expanded: !collapsed, compact: collapsed))
-            XCTAssertEqual(visible.presentationVisibility(hasCompactPresentation: false),
-                           AmpXPresentationVisibility(expanded: !collapsed, compact: false))
+            let visible = AmpXVisibilityInputs(
+                collapsed: collapsed,
+                closed: false,
+                windowVisible: true,
+                miniaturized: false,
+                occluded: false,
+                intersectsViewport: true
+            )
+            XCTAssertEqual(
+                visible.presentationVisibility(hasCompactPresentation: true),
+                AmpXPresentationVisibility(expanded: !collapsed, compact: collapsed)
+            )
+            XCTAssertEqual(
+                visible.presentationVisibility(hasCompactPresentation: false),
+                AmpXPresentationVisibility(expanded: !collapsed, compact: false)
+            )
             let gates: [WritableKeyPath<AmpXVisibilityInputs, Bool>] = [
                 \.closed, \.windowVisible, \.miniaturized, \.occluded, \.intersectsViewport,
             ]
             for gate in gates {
                 var input = visible
                 input[keyPath: gate].toggle()
-                XCTAssertEqual(input.presentationVisibility(hasCompactPresentation: true),
-                               AmpXPresentationVisibility(expanded: false, compact: false))
+                XCTAssertEqual(
+                    input.presentationVisibility(hasCompactPresentation: true),
+                    AmpXPresentationVisibility(expanded: false, compact: false)
+                )
             }
         }
     }

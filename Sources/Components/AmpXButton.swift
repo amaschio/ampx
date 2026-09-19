@@ -236,6 +236,8 @@ final class AmpXButton: AmpXControlView {
 
     override func mouseDown(with _: NSEvent) {
         guard isEnabled else { return }
+        self.pressResetWorkItem?.cancel()
+        self.pressResetWorkItem = nil
         self.isPressed = true
     }
 

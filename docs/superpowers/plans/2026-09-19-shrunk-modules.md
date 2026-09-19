@@ -10,7 +10,7 @@
 
 **Spec:** [Functional Collapsed Modules](../specs/2026-09-15-shrunk-modules-design.md), including the September 19 decisions. Read the spec and this plan together.
 
-**Execution status, 2026-09-19:** Tasks 1–3 are committed. Task 4's Player integration and verification are complete; its concrete visual approval is pending. [Live capture, comparison, and test evidence](shrunk-modules/validation.md). Tasks 5–7 follow the Player checkpoint.
+**Execution status, 2026-09-19:** All seven implementation tasks are complete. Player/shared treatment was approved before EQ/Playlist work. The full suite passes 724 tests, the independent review's five findings are resolved, and native/deterministic evidence is saved in [validation](shrunk-modules/validation.md). SwiftLint's five baseline errors and the disabled production ENTHEA feature are documented there. No merge or publication is part of this implementation.
 
 ## Global Constraints
 
@@ -505,7 +505,7 @@ let shouldFire = isPressed && isEnabled && bounds.contains(point)
 
 Test collapse during a drag with further mouse-drag/mouse-up events: no further seek/volume/resize/reorder mutation may occur. Test Space versus Return on compact Stop/Expand; test focus in another module is not stolen.
 
-- [ ] **6. Verify the running Player and present its concrete visual checkpoint.** Run compact host/visibility/keyboard tests, existing module drag, Player bindings, accessibility, and reference-rendering tests. Launch with `./scripts/shoot.sh`, collapse Player through its actual control/command, exercise transport, style/palette, timer, window minimize/hide/reopen, and capture with `./scripts/shoot.sh --capture-only --output-prefix /tmp/ampx_compact_player`. Use Task 3's deterministic output for the normalized comparison and label the live capture separately.
+- [x] **6. Verify the running Player and present its concrete visual checkpoint.** Run compact host/visibility/keyboard tests, existing module drag, Player bindings, accessibility, and reference-rendering tests. Launch with `./scripts/shoot.sh`, collapse Player through its actual control/command, exercise transport, style/palette, timer, window minimize/hide/reopen, and capture with `./scripts/shoot.sh --capture-only --output-prefix /tmp/ampx_compact_player`. Use Task 3's deterministic output for the normalized comparison and label the live capture separately.
 
 Record native-size reference/result, overlay, build revision, measured dimensions, and remaining differences in `docs/superpowers/plans/shrunk-modules/validation.md`. Correct differences before presenting. Obtain the spec's approval of this concrete Player capture before Tasks 5–6; passing tests or generating files is not approval.
 
@@ -525,9 +525,9 @@ Record native-size reference/result, overlay, build revision, measured dimension
 - `AmpXSlider.accessibilityStep: Double?`, `accessibilityRangeOverride: ClosedRange<Double>?`, `accessibilityValueFormatter: ((Double) -> Any)?`; defaults preserve expanded behavior.
 - `EqualizerCompactContent.init(skin: any AmpXSkin, audioPlayer: AudioPlayer)`; internally readable `volumeSlider`, `balanceSlider`.
 
-- [ ] **1. Measure EQ artwork after the Player checkpoint.** Keep Expand/Close at the reference's right edge, remove the erroneous minimize button, and extend balance into the recovered space. Record the source and corrected layout separately. Measure the warm gradient, green segment spacing, tracks, thumb faces/grooves, and travel endpoints.
+- [x] **1. Measure EQ artwork after the Player checkpoint.** Keep Expand/Close at the reference's right edge, remove the erroneous minimize button, and extend balance into the recovered space. Record the source and corrected layout separately. Measure the warm gradient, green segment spacing, tracks, thumb faces/grooves, and travel endpoints.
 
-- [ ] **2. Add binding and drawing tests.** Instantiate `AudioPlayer(installRemoteCommands: false)` with an isolated EQ settings store. Change compact controls at 0, 0.5, 1; verify normalized volume and balance mapping, actual model-driven updates back into the view, and no changes to preamp/bands/enabled/auto. Subscribe using expectations to discrete publishers instead of sleeping.
+- [x] **2. Add binding and drawing tests.** Instantiate `AudioPlayer(installRemoteCommands: false)` with an isolated EQ settings store. Change compact controls at 0, 0.5, 1; verify normalized volume and balance mapping, actual model-driven updates back into the view, and no changes to preamp/bands/enabled/auto. Subscribe using expectations to discrete publishers instead of sleeping.
 
 ```swift
 func testCompactBalanceCenterMapsToModelAndAccessibleCenter() {
@@ -549,7 +549,7 @@ func testCompactBalanceCenterMapsToModelAndAccessibleCenter() {
 
 Add actual pixel samples showing green balance fill, warm volume fill, black remainder, and steel thumb at min/center/max. Keep `AmpXSliderColorRampTests` unchanged to guard expanded behavior. Test thumb-center input mapping, control containment, disabled hit regions, scroll/arrow/accessible increments, and exactly two trailing chrome buttons in both hosts.
 
-- [ ] **3. Run the new tests, then implement the compact artwork and model binding.** Add one new slider drawing branch; do not modify `AmpXSkin.sliderTrack`'s existing full-length ramp. Clip compact fill at the thumb center and paint the thumb over it. At value zero draw no lit fill; center balance fills half the track. Anchor the warm gradient to the track, not the changing clip width. Draw green segments with their measured gap and retain the unlit remainder.
+- [x] **3. Run the new tests, then implement the compact artwork and model binding.** Add one new slider drawing branch; do not modify `AmpXSkin.sliderTrack`'s existing full-length ramp. Clip compact fill at the thumb center and paint the thumb over it. At value zero draw no lit fill; center balance fills half the track. Anchor the warm gradient to the track, not the changing clip width. Draw green segments with their measured gap and retain the unlit remainder.
 
 ```swift
 // EqualizerCompactContent control callbacks:
@@ -563,7 +563,7 @@ balanceSlider.onChange = { [weak audioPlayer] value in
 
 Keep slider `step == 0` so pointer input is continuous. Set compact accessible increments to 0.05 without quantizing clicks. Expose volume as 0–100%, balance as left/center/right percentages, with corresponding accessible range; retain default accessibility behavior for existing EQ bands and expanded sliders.
 
-- [ ] **4. Activate EQ in both hosts and check focus/height.** Build its compact view in the coordinator, switch collapsed EQ height to the measured compact height, and retain the existing detach/re-dock and close/reopen behavior. Update the existing `testCollapseFallsBackToHeaderAndExpandRestoresContentFocus` expectation to compact Expand for EQ, and `testRepeatedDetachUsesCurrentCollapsedHeight` to the compact metric.
+- [x] **4. Activate EQ in both hosts and check focus/height.** Build its compact view in the coordinator, switch collapsed EQ height to the measured compact height, and retain the existing detach/re-dock and close/reopen behavior. Update the existing `testCollapseFallsBackToHeaderAndExpandRestoresContentFocus` expectation to compact Expand for EQ, and `testRepeatedDetachUsesCurrentCollapsedHeight` to the compact metric.
 
 ```swift
 // Extend the collapsed module-height branch activated in Task 4:
@@ -574,7 +574,7 @@ default: return AmpXMetrics.headerHeight
 }
 ```
 
-- [ ] **5. Verify, compare, and commit.** Run compact EQ, slider ramp, accessibility, module-interaction, and compact/reference-rendering tests. Check that expanded Player sliders update when changed through compact EQ and the reverse. Capture docked/detached compact EQ and reference overlays, record differences/approval in the validation note, then commit with `feat(ui): add compact Equalizer volume and balance`.
+- [x] **5. Verify, compare, and commit.** Run compact EQ, slider ramp, accessibility, module-interaction, and compact/reference-rendering tests. Check that expanded Player sliders update when changed through compact EQ and the reverse. Capture docked/detached compact EQ and reference overlays, record differences/approval in the validation note, then commit with `feat(ui): add compact Equalizer volume and balance`.
 
 ### Task 6: Add compact Playlist summary and shared List Options
 
@@ -592,7 +592,7 @@ default: return AmpXMetrics.headerHeight
 - `PlaylistModuleContent.listOptionsMenu: PlaylistListOptionsMenu`; injected into both footer and compact content.
 - `PlaylistCompactContent.init(skin:manager:audioPlayer:listOptionsMenu:)`, internally readable `summary`, `listOptionsButton`.
 
-- [ ] **1. Test loaded-track identity independently of current index/selection.** Include no track, missing metadata, reordered tracks, loaded track removed from the list, loaded track differing from manager's current index, unknown/nonfinite duration, long Unicode metadata, and original casing. Prefer valid `loadedDuration` for the loaded track; fall back to that track's metadata duration; otherwise use `--:--`.
+- [x] **1. Test loaded-track identity independently of current index/selection.** Include no track, missing metadata, reordered tracks, loaded track removed from the list, loaded track differing from manager's current index, unknown/nonfinite duration, long Unicode metadata, and original casing. Prefer valid `loadedDuration` for the loaded track; fall back to that track's metadata duration; otherwise use `--:--`.
 
 ```swift
 func testLoadedTrackSummaryFollowsIdentityThroughReorderAndRemoval() {
@@ -616,7 +616,7 @@ func testLoadedTrackSummaryFollowsIdentityThroughReorderAndRemoval() {
 
 Test observed view updates using `audioPlayer.currentTrack`/`duration` and manager tracks, without playing audio. Changing selection alone must not change the compact summary. Pause/stop retain the summary while `currentTrack` remains loaded.
 
-- [ ] **2. Add menu parity tests before extracting its owner.** Require exactly New List, Save List…, Load List… in the same order as the existing footer. Invoke the actual targets/selectors and verify New List clears both tracks and existing selection, Save calls `saveM3UPlaylist`, and Load calls `showLoadM3UPicker`. Use isolated persistence stores and spies so tests cannot modify the user's saved playlist or open file panels.
+- [x] **2. Add menu parity tests before extracting its owner.** Require exactly New List, Save List…, Load List… in the same order as the existing footer. Invoke the actual targets/selectors and verify New List clears both tracks and existing selection, Save calls `saveM3UPlaylist`, and Load calls `showLoadM3UPicker`. Use isolated persistence stores and spies so tests cannot modify the user's saved playlist or open file panels.
 
 ```swift
 func testListOptionsMenuPreservesCommandOrderAndTarget() {
@@ -635,7 +635,7 @@ func testListOptionsMenuPreservesCommandOrderAndTarget() {
 }
 ```
 
-- [ ] **3. Run focused tests, then share menu behavior and summary observation.** Move only List Options construction/actions into the retained menu owner. `PlaylistModuleContent` creates it with the existing manager/adapter and gives it to the footer and coordinator-created compact view. For `"LIST\nOPTS"`, the footer calls this owner; other footer menus stay unchanged. Preserve the selection notification when clearing a list and keep the target alive while the menu tracks.
+- [x] **3. Run focused tests, then share menu behavior and summary observation.** Move only List Options construction/actions into the retained menu owner. `PlaylistModuleContent` creates it with the existing manager/adapter and gives it to the footer and coordinator-created compact view. For `"LIST\nOPTS"`, the footer calls this owner; other footer menus stay unchanged. Preserve the selection notification when clearing a list and keep the target alive while the menu tracks.
 
 ```swift
 // In the shared List Options owner:
@@ -655,7 +655,7 @@ func show(relativeTo button: AmpXButton) {
 
 Compact summary observes loaded track, decoded duration, and list contents once per view lifetime; it has no display link. Use IDs to derive the index. Model notifications can arrive through `@Published` will-set, so derive a consistent snapshot after changes reach the main queue and avoid a stale duration/index from another track.
 
-- [ ] **4. Measure and implement the stretching compact layout.** Remove the erroneous minimize slot, shift List Options and its separator right, and extend the summary well. For additional Playlist width, keep brand/grip/type/buttons fixed and extend only the well; keep duration right-aligned in a separately measured column.
+- [x] **4. Measure and implement the stretching compact layout.** Remove the erroneous minimize slot, shift List Options and its separator right, and extend the summary well. For additional Playlist width, keep brand/grip/type/buttons fixed and extend only the well; keep duration right-aligned in a separately measured column.
 
 ```swift
 // Relative to the measured 490 pt Playlist layout:
@@ -669,7 +669,7 @@ let listOptions = referenceListOptions.offsetBy(dx: extra, dy: 0)
 
 Measure the formatted duration with the actual font, reserve that column before laying out the title, and clip title drawing to its own rectangle. Validate a 1000-row index and long Unicode title at 490 and 800 pt, plus long known durations and `--:--`; no wrapping or marquee. Expose summary as static text and List Options as a real button accessible by Return/Enter.
 
-- [ ] **5. Activate Playlist while retaining width and expanded state.** Add the compact view in the coordinator and finalize the collapsed height switch:
+- [x] **5. Activate Playlist while retaining width and expanded state.** Add the compact view in the coordinator and finalize the collapsed height switch:
 
 ```swift
 switch moduleID {
@@ -682,7 +682,7 @@ case .enthea: return AmpXMetrics.headerHeight
 
 Keep the existing preferred Playlist width as the single source for expanded and compact layouts. Disable edge/handle resizing while compact in both hosts without clamping the saved width. Ensure the detached minimum height allows the measured compact Playlist height even when shorter than the old 28.5 pt header. Preserve expanded selection, scroll offset, preferred viewport, and content instance across collapse/expand.
 
-- [ ] **6. Verify, compare, and commit.** Run compact Playlist, Playlist chrome actions, Playlist width/resize, keyboard, layout-store, and reference-rendering tests. Capture 490 pt and wide compact Playlist, docked and detached, with `7. SLEAZE - GOD DAMN` / `3:46`. Record geometry/visual differences and commit with `feat(ui): add compact Playlist summary and List Options`.
+- [x] **6. Verify, compare, and commit.** Run compact Playlist, Playlist chrome actions, Playlist width/resize, keyboard, layout-store, and reference-rendering tests. Capture 490 pt and wide compact Playlist, docked and detached, with `7. SLEAZE - GOD DAMN` / `3:46`. Record geometry/visual differences and commit with `feat(ui): add compact Playlist summary and List Options`.
 
 ### Task 7: Verify the complete presentation lifecycle and visual matrix
 
@@ -690,7 +690,7 @@ Keep the existing preferred Playlist width as the single source for expanded and
 
 **Consumes:** All three active compact presentations; no new product interfaces.
 
-- [ ] **1. Add a complete composition test and restored-state cases.** Cover all eight collapse combinations, default and wide Playlist, reordered modules, closed/detached exclusions, and right-side ENTHEA. The expected height is the sum of the visible left modules, with no vertical gaps; with ENTHEA it is the larger column.
+- [x] **1. Add a complete composition test and restored-state cases.** Cover all eight collapse combinations, default and wide Playlist, reordered modules, closed/detached exclusions, and right-side ENTHEA. The expected height is the sum of the visible left modules, with no vertical gaps; with ENTHEA it is the larger column.
 
 ```swift
 func testAllCollapseCombinationsKeepWidePlaylistAndVisualizerClear() throws {
@@ -720,13 +720,13 @@ func testAllCollapseCombinationsKeepWidePlaylistAndVisualizerClear() throws {
 
 Add restart tests using old layout JSON and widened compact detached Playlist frames. Never trust saved expanded heights; preserve the preferred viewport and width. Check that closing a wide compact Playlist shrinks the remaining host and reopening restores it. Check that relayout does not reveal closed views or move detached views into the stack.
 
-- [ ] **2. Exercise visibility, cancellation, focus, and ownership through real containers.** Repeatedly collapse/expand, hide/show, minimize/restore, and detach/re-dock EQ/Playlist. Count display-link starts/stops with injected factories, not timing guesses. A hidden compact Player must submit no GPU frames; its expanded renderer must stay stopped while compact is visible. Verify pause/park, style changes while parked, seek/track discontinuities, and injected renderer failure.
+- [x] **2. Exercise visibility, cancellation, focus, and ownership through real containers.** Repeatedly collapse/expand, hide/show, minimize/restore, and detach/re-dock EQ/Playlist. Count display-link starts/stops with injected factories, not timing guesses. A hidden compact Player must submit no GPU frames; its expanded renderer must stay stopped while compact is visible. Verify pause/park, style changes while parked, seek/track discontinuities, and injected renderer failure.
 
 Test disabled compact controls consume neither neighboring commands nor background drag. Test collapse during seek, slider, row-reorder, module-reorder, and resize tracking, then deliver late drag/up events. Test a retained focus target returns only if still valid and the transitioning module owns focus. Weak-reference tests must show shared state/bindings and compact views release with their module.
 
 For collapsed Playlist, send Delete, arrows, Return, and reorder shortcuts from its compact controls: hidden rows do not change, focused controls get their intended action, and module commands still target Playlist. Space stays play/pause in each focus context. Test returning to expanded Playlist restores its keyboard adapter and prior selection.
 
-- [ ] **3. Run focused checks, fix their causes, then run the complete repository checks.**
+- [x] **3. Run focused checks, fix their causes, then run the complete repository checks.**
 
 ```bash
 ./scripts/run-tests.sh -only-testing:AmpXTests/AmpXCompactHostTests -only-testing:AmpXTests/AmpXCompactVisibilityTests -only-testing:AmpXTests/AmpXCompactKeyboardTests -only-testing:AmpXTests/AmpXModuleDragTests
@@ -736,13 +736,13 @@ For collapsed Playlist, send Delete, arrows, Return, and reorder shortcuts from 
 
 Run `./scripts/format-swift.sh` if formatting is required, inspect its diff, and keep unrelated formatting out of this feature. Rerun affected checks after corrections; do not repeatedly rerun the full suite after it passes without new changes or failures. Record actual commands, revisions, result bundles, and any limitations.
 
-- [ ] **4. Capture and inspect the complete visual matrix.** Export deterministic 1×/2×/3× compact Player/EQ/Playlist, all-compact stack, mixed and reordered stacks, detached EQ/Playlist, wide Playlist, and compact left column beside expanded ENTHEA. Include long/signed timer and long-title cases. Use the actual offscreen Metal renderer for all eight compact styles and all five palettes at compact dimensions.
+- [x] **4. Capture and inspect the complete visual matrix.** Export deterministic 1×/2×/3× compact Player/EQ/Playlist, all-compact stack, mixed and reordered stacks, detached EQ/Playlist, wide Playlist, and compact left column beside expanded ENTHEA. Include long/signed timer and long-title cases. Use the actual offscreen Metal renderer for all eight compact styles and all five palettes at compact dimensions.
 
 Use `./scripts/shoot.sh` and `--capture-only` for actual running-app evidence. Exercise pointer hit targets, focus, menus, volume/balance, timer mode, style/palette, resizing restrictions, window controls, and detach/re-dock. Label physical-display captures versus offscreen raster checks. Compare unchanged expanded panels at matching Playlist viewport/width and deterministic content.
 
 Update `validation.md` with a row per required state: revision, logical size, backing scale, reference/result paths, observed differences, and actual review status. Keep original references; do not overwrite baseline images to conceal regressions.
 
-- [ ] **5. Reconcile documentation and finish the implementation review.** Add a short superseding cross-reference near the main UI spec's layout/lifecycle sections for compact presentation behavior, retained wide Playlist, and zero vertical gaps. Update this plan's checkboxes from actual evidence, not intention. Request the appropriate fresh code review of the final diff and resolve concrete findings, then rerun affected tests.
+- [x] **5. Reconcile documentation and finish the implementation review.** Add a short superseding cross-reference near the main UI spec's layout/lifecycle sections for compact presentation behavior, retained wide Playlist, and zero vertical gaps. Update this plan's checkboxes from actual evidence, not intention. Request the appropriate fresh code review of the final diff and resolve concrete findings, then rerun affected tests.
 
 Commit verified final fixes/evidence with `test(ui): verify compact module lifecycle and visual regressions`. Report implementation status and remaining visual approvals accurately; do not merge, publish, or mark unresolved visual gates complete on the strength of unit tests alone.
 

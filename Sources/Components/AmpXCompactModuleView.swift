@@ -50,9 +50,13 @@ class AmpXCompactModuleView: AmpXModuleContent {
     }
 
     @available(*, unavailable)
-    required init?(coder _: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
-    func cancelInteraction() { self.gripTracking = false }
+    func cancelInteraction() {
+        self.gripTracking = false
+    }
 
     override func cancelInteractions() {
         super.cancelInteractions()
@@ -70,16 +74,26 @@ class AmpXCompactModuleView: AmpXModuleContent {
         return actions
     }
 
-    @objc private func accessibilityExpand() -> Bool { self.expandButton.accessibilityPerformPress() }
-    @objc private func accessibilityClose() -> Bool { self.closeButton.accessibilityPerformPress() }
-    @objc private func accessibilityMinimize() -> Bool { self.minimizeButton?.accessibilityPerformPress() ?? false }
+    @objc private func accessibilityExpand() -> Bool {
+        self.expandButton.accessibilityPerformPress()
+    }
+
+    @objc private func accessibilityClose() -> Bool {
+        self.closeButton.accessibilityPerformPress()
+    }
+
+    @objc private func accessibilityMinimize() -> Bool {
+        self.minimizeButton?.accessibilityPerformPress() ?? false
+    }
 
     override func layout() {
         super.layout()
         let chrome = self.chromeLayout
         self.expandButton.frame = chrome.expand
         self.closeButton.frame = chrome.close
-        if let minimize = chrome.minimize { self.minimizeButton?.frame = minimize }
+        if let minimize = chrome.minimize {
+            self.minimizeButton?.frame = minimize
+        }
         self.expandButton.iconRect = self.expandButton.bounds.insetBy(dx: 5, dy: 4.5)
         self.closeButton.iconRect = self.closeButton.bounds.insetBy(dx: 5, dy: 5)
         if let button = self.minimizeButton {

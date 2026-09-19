@@ -2,6 +2,8 @@
 
 **Date:** 2026-09-11
 
+**Compact presentation addendum (2026-09-19):** [Functional Collapsed Modules](2026-09-15-shrunk-modules-design.md) supersedes this document's header-only collapse descriptions for Player, EQ, and Playlist. Playlist retains its selected width while compact; only its expanded presentation resizes. Vertically stacked modules have zero gaps; the 6 pt gap applies only to the right-side ENTHEA column. ENTHEA's header-only collapse is unchanged.
+
 **Status:** Revision 9 — horizontally resizable Playlist, decided by user 2026-09-16. Revision 8 (Playlist resize affordance, value-colored volume/balance tracks, 2026-09-14) and Revision 7 (fixed module dimensions and right-side visualizer, 2026-09-13) remain in effect except where this revision changes them.
 
 **Revision 9 origin.** User request: the Playlist must also resize horizontally, with a minimum equal to the fixed Equalizer width and no maximum. This relaxes Revision 7's "every module is 490 pt wide and host width changes only with the ENTHEA column". Decisions (user, 2026-09-16): horizontal resize applies to the docked **and** detached Playlist, and a wider Playlist **stretches** its content (same type size, more visible title text) instead of scaling up.

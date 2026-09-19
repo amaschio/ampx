@@ -27,7 +27,11 @@ final class TimeDisplayView: AmpXContinuousView {
     override var acceptsFirstResponder: Bool {
         self.style == .compact && AmpXControlView.acceptsFocus(isEnabled: true, currentEventType: NSApp.currentEvent?.type)
     }
-    weak var audioPlayer: AudioPlayer?
+
+    weak var audioPlayer: AudioPlayer? {
+        didSet { self.bindLoadedDuration() }
+    }
+
     var showRemainingTime: Bool {
         get { self.presentationState.showRemainingTime }
         set { self.presentationState.setRemainingTime(newValue) }
@@ -43,6 +47,24 @@ final class TimeDisplayView: AmpXContinuousView {
     private var modeSubscription: AnyCancellable?
     private var blinkOff = false
     private var lastBlinkToggle: TimeInterval = 0
+    private var decodedDurationTrackID: UUID?
+    private var durationSubscriptions = Set<AnyCancellable>()
+
+    private func bindLoadedDuration() {
+        self.durationSubscriptions.removeAll()
+        self.decodedDurationTrackID = self.audioPlayer?.currentTrack?.id
+        guard let audioPlayer else { return }
+        audioPlayer.$currentTrack.dropFirst().sink { [weak self] track in
+            guard let self else { return }
+            if track?.id != self.audioPlayer?.currentTrack?.id {
+                self.decodedDurationTrackID = nil
+            }
+        }.store(in: &self.durationSubscriptions)
+        audioPlayer.$duration.dropFirst().sink { [weak self] _ in
+            guard let self else { return }
+            self.decodedDurationTrackID = self.audioPlayer?.currentTrack?.id
+        }.store(in: &self.durationSubscriptions)
+    }
 
     init(skin: any AmpXSkin, presentationState: AmpXPlayerPresentationState) {
         self.presentationState = presentationState
@@ -75,15 +97,19 @@ final class TimeDisplayView: AmpXContinuousView {
         self.performKeyboardPress()
     }
 
+    var compactText: String {
+        self.referenceText ?? AmpXCompactTimeLayout.text(
+            current: self.audioPlayer?.playbackClock.currentTime ?? 0,
+            duration: self.decodedDurationTrackID == self.audioPlayer?.currentTrack?.id ? self.audioPlayer?.duration ?? 0 : 0,
+            remaining: self.showRemainingTime,
+            hasLoadedTrack: self.audioPlayer?.currentTrack != nil
+        )
+    }
+
     override func draw(_: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         if self.style == .compact {
-            let text = self.referenceText ?? AmpXCompactTimeLayout.text(
-                current: self.audioPlayer?.playbackClock.currentTime ?? 0,
-                duration: self.audioPlayer?.duration ?? 0,
-                remaining: self.showRemainingTime,
-                hasLoadedTrack: self.audioPlayer?.currentTrack != nil
-            )
+            let text = self.compactText
             // Malformed/extreme reference strings cannot escape the timer's reserved cell.
             context.saveGState()
             context.clip(to: self.bounds)

@@ -76,13 +76,25 @@ final class AmpXCompactHostTests: XCTestCase {
         manager.addTracks(tracks)
         let window = try XCTUnwrap(module.window)
         func mouse(_ type: NSEvent.EventType, view: NSView, point: CGPoint) -> NSEvent {
-            NSEvent.mouseEvent(with: type, location: view.convert(point, to: nil), modifierFlags: [], timestamp: 0,
-                               windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            NSEvent.mouseEvent(
+                with: type,
+                location: view.convert(point, to: nil),
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: window.windowNumber,
+                context: nil,
+                eventNumber: 0,
+                clickCount: 1,
+                pressure: 1
+            )!
         }
         rows.mouseDown(with: mouse(.leftMouseDown, view: rows, point: CGPoint(x: 30, y: 3)))
         let handle = content.resizeHandle
-        handle.mouseDown(with: mouse(.leftMouseDown, view: handle,
-                                     point: CGPoint(x: handle.bounds.midX, y: handle.bounds.maxY - 1)))
+        handle.mouseDown(with: mouse(
+            .leftMouseDown,
+            view: handle,
+            point: CGPoint(x: handle.bounds.midX, y: handle.bounds.maxY - 1)
+        ))
         coordinator.setCollapsed(.playlist, true)
         let collapsedSize = module.frame.size
         rows.mouseDragged(with: mouse(.leftMouseDragged, view: rows, point: CGPoint(x: 30, y: PlaylistRowLayout.rowHeight + 3)))
@@ -106,8 +118,17 @@ final class AmpXCompactHostTests: XCTestCase {
         button.action = { actions += 1 }
         func mouse(_ type: NSEvent.EventType, in view: NSView, fraction: CGFloat) -> NSEvent {
             let point = view.convert(CGPoint(x: view.bounds.width * fraction, y: view.bounds.midY), to: nil)
-            return NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0,
-                                     windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            return NSEvent.mouseEvent(
+                with: type,
+                location: point,
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: window.windowNumber,
+                context: nil,
+                eventNumber: 0,
+                clickCount: 1,
+                pressure: 1
+            )!
         }
         slider.mouseDown(with: mouse(.leftMouseDown, in: slider, fraction: 0.2))
         button.mouseDown(with: mouse(.leftMouseDown, in: button, fraction: 0.5))
@@ -190,12 +211,18 @@ final class AmpXCompactHostTests: XCTestCase {
         let coordinator = AmpXHostCoordinator(
             state: AmpXModuleOrder(), skin: ClassicModernSkin(), layoutStore: makeIsolatedLayoutStore(),
             audioPlayer: AudioPlayer(installRemoteCommands: false),
-            playlistManager: PlaylistManager(audioPlayer: MockAudioPlayer(), restoreBookmarks: false,
-                                              restorePlaylist: false, alertPresenter: SilentPlaylistAlertPresenter()),
+            playlistManager: PlaylistManager(
+                audioPlayer: MockAudioPlayer(),
+                restoreBookmarks: false,
+                restorePlaylist: false,
+                alertPresenter: SilentPlaylistAlertPresenter()
+            ),
             entheaEnabled: false
         )
         self.addTeardownBlock { @MainActor in
-            for id in coordinator.state.detached { coordinator.closeModule(id) }
+            for id in coordinator.state.detached {
+                coordinator.closeModule(id)
+            }
             coordinator.closeStack()
         }
         coordinator.showStack()

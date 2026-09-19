@@ -22,10 +22,16 @@ enum AmpXCompactCaptureSupport {
         view.cacheDisplay(in: view.bounds, to: rep)
         let width = rep.pixelsWide
         let height = rep.pixelsHigh
-        let output = try XCTUnwrap(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
-                                            bytesPerRow: width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
-        output.draw(try XCTUnwrap(rep.cgImage), in: CGRect(x: 0, y: 0, width: width, height: height))
+        let output = try XCTUnwrap(CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ))
+        try output.draw(XCTUnwrap(rep.cgImage), in: CGRect(x: 0, y: 0, width: width, height: height))
         if let visualizer, let frame, let settings {
             let renderer = try XCTUnwrap(AmpXMiniVisualizerRenderer())
             let rect = visualizer.convert(visualizer.spectrumRect, to: view)
@@ -33,12 +39,21 @@ enum AmpXCompactCaptureSupport {
             let y0 = Int((rect.minY * scale).rounded())
             let width = Int((rect.width * scale).rounded())
             let height = Int((rect.height * scale).rounded())
-            let texture = try renderer.renderOffscreen(frame, style: settings.style, palette: settings.palette,
-                                                       width: width, height: height)
+            let texture = try renderer.renderOffscreen(
+                frame,
+                style: settings.style,
+                palette: settings.palette,
+                width: width,
+                height: height
+            )
             var bytes = [UInt8](repeating: 0, count: width * height * 4)
             bytes.withUnsafeMutableBytes { storage in
-                texture.getBytes(storage.baseAddress!, bytesPerRow: width * 4,
-                                 from: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0)
+                texture.getBytes(
+                    storage.baseAddress!,
+                    bytesPerRow: width * 4,
+                    from: MTLRegionMake2D(0, 0, width, height),
+                    mipmapLevel: 0
+                )
             }
             let provider = try XCTUnwrap(CGDataProvider(data: Data(bytes) as CFData))
             let image = try XCTUnwrap(CGImage(

@@ -8,12 +8,12 @@ enum AmpXTransportActions {
         playlistManager: PlaylistManager
     ) -> (() -> Void)? {
         switch icon {
-        case .previous: return { [weak playlistManager] in playlistManager?.previous() }
-        case .play: return { [weak audioPlayer] in audioPlayer?.playOrResume() }
-        case .pause: return { [weak audioPlayer] in audioPlayer?.pause() }
-        case .stop: return { [weak audioPlayer] in audioPlayer?.stop() }
-        case .next: return { [weak playlistManager] in playlistManager?.next() }
-        default: return nil
+        case .previous: { [weak playlistManager] in playlistManager?.previous() }
+        case .play: { [weak audioPlayer] in audioPlayer?.playOrResume() }
+        case .pause: { [weak audioPlayer] in audioPlayer?.pause() }
+        case .stop: { [weak audioPlayer] in audioPlayer?.stop() }
+        case .next: { [weak playlistManager] in playlistManager?.next() }
+        default: nil
         }
     }
 }

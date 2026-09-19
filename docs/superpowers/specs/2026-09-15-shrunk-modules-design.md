@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-15
 
-**Status:** Updated 2026-09-19; all behavior questions raised in this review are resolved. Compact Player's concrete visual checkpoint is approved. Compact EQ/Playlist implementation is proceeding. See [validation evidence](../plans/shrunk-modules/validation.md).
+**Status:** Implemented and verified 2026-09-19. Compact Player's concrete visual checkpoint and shared material treatment are approved. EQ/Playlist use that treatment with the confirmed behavior choices. Final native and deterministic captures are available for review; their generation is not a claim of additional user visual approval. See [validation evidence](../plans/shrunk-modules/validation.md).
 
 **Foundation:** [AmpX UI design, Revision 9](./2026-09-11-ampx-ui-design.md), the 2026-09-18 removal of vertical stack gaps (`01fd492`), and [Player mini visualizers](./2026-09-17-mini-visualizers-design.md).
 

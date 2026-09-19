@@ -138,9 +138,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     func setCollapsed(_ id: AmpXModuleID, _ value: Bool) {
-        if value {
-            self.dragController.cancelDragIfDragging(moduleID: id)
-        }
+        self.dragController.cancelDragIfDragging(moduleID: id)
         self.state.setCollapsed(id, value)
         self.moduleViews[id]?.setContentCollapsed(value)
         self.detachedWindowControllers[id]?.window?.contentView?.needsLayout = true
@@ -506,24 +504,27 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     private func createModuleViews() {
         for moduleID in AmpXModuleID.allCases where moduleID != .enthea || self.isEntheaEnabled {
             let content = self.makeModuleContent(for: moduleID)
-            let compact: AmpXCompactModuleView?
-            switch moduleID {
+            let compact: AmpXCompactModuleView? = switch moduleID {
             case .player:
-                compact = PlayerCompactContent(
+                PlayerCompactContent(
                     skin: self.skin, audioPlayer: self.audioPlayer, playlistManager: self.playlistManager,
                     presentationState: self.playerPresentationState, onToggleModule: { [weak self] in self?.toggleModuleVisibility($0) }
                 )
             case .equalizer:
-                compact = EqualizerCompactContent(skin: self.skin, audioPlayer: self.audioPlayer)
+                EqualizerCompactContent(skin: self.skin, audioPlayer: self.audioPlayer)
             case .playlist:
                 if let playlist = content as? PlaylistModuleContent {
-                    compact = PlaylistCompactContent(skin: self.skin, manager: self.playlistManager, audioPlayer: self.audioPlayer,
-                                                     listOptionsMenu: playlist.listOptionsMenu)
+                    PlaylistCompactContent(
+                        skin: self.skin,
+                        manager: self.playlistManager,
+                        audioPlayer: self.audioPlayer,
+                        listOptionsMenu: playlist.listOptionsMenu
+                    )
                 } else {
-                    compact = nil
+                    nil
                 }
             default:
-                compact = nil
+                nil
             }
             let view = AmpXModuleView(moduleID: moduleID, content: content, skin: skin, compactContent: compact)
             view.setContentCollapsed(self.state.collapsed.contains(moduleID))

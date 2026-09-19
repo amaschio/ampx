@@ -19,8 +19,10 @@ final class PlaylistCompactContent: AmpXCompactModuleView {
     }
 
     override var protectedRects: [CGRect] {
-        super.protectedRects + [AmpXCompactMetrics.playlistLayout(width: self.bounds.width).well,
-                                AmpXCompactMetrics.playlistLayout(width: self.bounds.width).listOptions]
+        super.protectedRects + [
+            AmpXCompactMetrics.playlistLayout(width: self.bounds.width).well,
+            AmpXCompactMetrics.playlistLayout(width: self.bounds.width).listOptions,
+        ]
     }
 
     init(skin: any AmpXSkin, manager: PlaylistManager, audioPlayer: AudioPlayer, listOptionsMenu: PlaylistListOptionsMenu) {
@@ -49,7 +51,9 @@ final class PlaylistCompactContent: AmpXCompactModuleView {
     }
 
     @available(*, unavailable)
-    required init?(coder _: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     override func layout() {
         super.layout()
@@ -91,9 +95,12 @@ final class PlaylistCompactContent: AmpXCompactModuleView {
     }
 
     private func refreshSummary() {
-        self.summary = .make(loadedTrack: self.audioPlayer.currentTrack, tracks: self.manager.tracks,
-                             loadedDuration: self.decodedDurationTrackID == self.audioPlayer.currentTrack?.id
-                                 ? self.audioPlayer.duration : 0)
+        self.summary = .make(
+            loadedTrack: self.audioPlayer.currentTrack,
+            tracks: self.manager.tracks,
+            loadedDuration: self.decodedDurationTrackID == self.audioPlayer.currentTrack?.id
+                ? self.audioPlayer.duration : 0
+        )
         self.updateReadout()
     }
 
@@ -118,15 +125,19 @@ private final class AmpXCompactPlaylistReadout: AmpXDrawingView {
     }
 
     @available(*, unavailable)
-    required init?(coder _: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     override func draw(_: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         self.skin.displayWell(self.bounds, in: context, backingScale: self.window?.backingScaleFactor ?? 1)
         let duration = AmpXLabel(text: self.summary.duration, color: self.skin.green, fontSize: 11, alignment: .right)
         let title = AmpXLabel(text: self.summary.title, color: self.skin.green, fontSize: 11)
-        let columns = AmpXCompactPlaylistSummary.textRects(in: self.bounds.insetBy(dx: 5, dy: 2),
-                                                           durationWidth: duration.measuredSize(skin: self.skin).width)
+        let columns = AmpXCompactPlaylistSummary.textRects(
+            in: self.bounds.insetBy(dx: 5, dy: 2),
+            durationWidth: duration.measuredSize(skin: self.skin).width
+        )
         let font = title.font(skin: self.skin)
         let baseline = self.bounds.midY + (font.ascender + font.descender) / 2
         context.saveGState()

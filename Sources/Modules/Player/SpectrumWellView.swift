@@ -14,6 +14,7 @@ final class SpectrumWellView: AmpXContinuousView {
             self.redrawPreparedFrame()
         }
     }
+
     struct Reference: Equatable {
         /// Normalized 0…1 level per column.
         var levels: [Float]

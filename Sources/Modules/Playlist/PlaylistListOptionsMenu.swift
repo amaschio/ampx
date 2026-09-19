@@ -33,6 +33,11 @@ final class PlaylistListOptionsMenu: NSObject {
         self.keyboardAdapter.onSelectionChanged?()
     }
 
-    @objc private func saveList() { self.manager.saveM3UPlaylist() }
-    @objc private func loadList() { self.manager.showLoadM3UPicker() }
+    @objc private func saveList() {
+        self.manager.saveM3UPlaylist()
+    }
+
+    @objc private func loadList() {
+        self.manager.showLoadM3UPicker()
+    }
 }

@@ -157,7 +157,7 @@ final class AmpXLayoutTests: XCTestCase {
             availableHeight: 300
         )
         XCTAssertEqual(result.playlistViewportHeight, 180)
-        XCTAssertEqual(result.frames[.playlist]?.height, AmpXMetrics.headerHeight)
+        XCTAssertEqual(result.frames[.playlist]?.height, AmpXCompactMetrics.playlistHeight)
     }
 
     func testCustomPlaylistViewportAdjustsPlaylistModuleHeight() {

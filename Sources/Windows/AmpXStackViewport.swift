@@ -53,6 +53,8 @@ final class AmpXStackViewport: NSView {
 
     override func scrollWheel(with event: NSEvent) {
         if let playlistView = stackView.moduleView(for: .playlist),
+           playlistView.superview === self.stackView,
+           !playlistView.isContentCollapsed, !playlistView.isHiddenOrHasHiddenAncestor,
            let playlist = playlistView.content as? PlaylistModuleContent,
            playlist.canScrollVertically
         {

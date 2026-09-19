@@ -14,10 +14,17 @@ enum AmpXCompactSliderDrawing {
             context.clip(to: inner.intersection(lit))
             switch fill {
             case .volume:
-                if let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
-                                             colors: [skin.orange.cgColor, skin.yellow.cgColor] as CFArray, locations: [0, 1]) {
-                    context.drawLinearGradient(gradient, start: CGPoint(x: inner.minX, y: inner.midY),
-                                               end: CGPoint(x: inner.maxX, y: inner.midY), options: [])
+                if let gradient = CGGradient(
+                    colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
+                    colors: [skin.orange.cgColor, skin.yellow.cgColor] as CFArray,
+                    locations: [0, 1]
+                ) {
+                    context.drawLinearGradient(
+                        gradient,
+                        start: CGPoint(x: inner.minX, y: inner.midY),
+                        end: CGPoint(x: inner.maxX, y: inner.midY),
+                        options: []
+                    )
                 }
                 context.setFillColor(NSColor.white.withAlphaComponent(0.3).cgColor)
                 context.fill(CGRect(x: inner.minX, y: inner.minY, width: inner.width, height: 0.5))

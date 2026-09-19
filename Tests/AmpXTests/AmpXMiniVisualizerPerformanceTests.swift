@@ -49,11 +49,20 @@ final class AmpXMiniVisualizerPerformanceTests: XCTestCase {
     }
 
     func testHiddenHostDoesNotSubmitFramesAndFailedMetalUsesFallback() throws {
+        try self.assertHiddenHostAndFallback(compact: false)
+    }
+
+    func testCompactHiddenHostDoesNotSubmitFramesAndFailedMetalUsesFallback() throws {
+        try self.assertHiddenHostAndFallback(compact: true)
+    }
+
+    private func assertHiddenHostAndFallback(compact: Bool) throws {
         guard MTLCreateSystemDefaultDevice() != nil else { throw XCTSkip("No Metal device") }
         let renderer = try XCTUnwrap(AmpXMiniVisualizerRenderer())
         let well = SpectrumWellView(skin: ClassicModernSkin())
+        well.geometry = compact ? .compact : .expanded
         well.rendererFactory = { renderer }
-        well.frame = CGRect(x: 0, y: 0, width: 180, height: 100)
+        well.frame = compact ? AmpXCompactMetrics.playerLayout().visualizer : CGRect(x: 0, y: 0, width: 180, height: 100)
         well.audioSource = { time in
             AmpXMiniAudioSnapshot(
                 sequence: UInt64(max(0, time * 1000)),
@@ -87,6 +96,7 @@ final class AmpXMiniVisualizerPerformanceTests: XCTestCase {
         XCTAssertEqual(renderer.statistics.submittedFrames, submissions)
 
         let fallback = SpectrumWellView(skin: ClassicModernSkin())
+        fallback.geometry = well.geometry
         fallback.rendererFactory = { nil }
         fallback.frame = well.frame
         window.contentView = fallback

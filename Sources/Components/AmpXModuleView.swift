@@ -32,10 +32,18 @@ final class AmpXModuleView: NSView {
     }
 
     func applyPresentationVisibility(_ value: AmpXPresentationVisibility) {
-        if !value.expanded { self.content.setEffectivelyVisible(false) }
-        if !value.compact { self.compactContent?.setEffectivelyVisible(false) }
-        if value.expanded { self.content.setEffectivelyVisible(true) }
-        if value.compact { self.compactContent?.setEffectivelyVisible(true) }
+        if !value.expanded {
+            self.content.setEffectivelyVisible(false)
+        }
+        if !value.compact {
+            self.compactContent?.setEffectivelyVisible(false)
+        }
+        if value.expanded {
+            self.content.setEffectivelyVisible(true)
+        }
+        if value.compact {
+            self.compactContent?.setEffectivelyVisible(true)
+        }
     }
 
     static func snappedFrame(_ frame: CGRect, backingScale: CGFloat) -> CGRect {
@@ -154,8 +162,7 @@ final class AmpXModuleView: NSView {
         self.compactContent?.cancelInteractions()
         if collapsed {
             self.content.setEffectivelyVisible(false)
-            if let responder, responder.isDescendant(of: self.content)
-            {
+            if let responder, responder.isDescendant(of: self.content) {
                 self.rememberedContentResponder = responder
             }
             self.content.isHidden = true
@@ -179,10 +186,14 @@ final class AmpXModuleView: NSView {
         self.needsDisplay = true
     }
 
-    var isContentCollapsed: Bool { self.content.isHidden }
+    var isContentCollapsed: Bool {
+        self.content.isHidden
+    }
 
     var preferredFocusView: NSView {
-        if self.isContentCollapsed, let compactContent { return compactContent.expandButton }
+        if self.isContentCollapsed, let compactContent {
+            return compactContent.expandButton
+        }
         return self.header
     }
 

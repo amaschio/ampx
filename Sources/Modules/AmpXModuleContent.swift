@@ -6,9 +6,13 @@ class AmpXModuleContent: AmpXDrawingView {
         func cancel(_ view: NSView) {
             (view as? AmpXControlView)?.cancelInteraction()
             (view as? PlaylistResizeHandleView)?.cancelInteraction()
-            for child in view.subviews { cancel(child) }
+            for child in view.subviews {
+                cancel(child)
+            }
         }
-        for child in self.subviews { cancel(child) }
+        for child in self.subviews {
+            cancel(child)
+        }
     }
 
     func focusableControls() -> [NSView] {
