@@ -335,7 +335,7 @@ final class AmpXReferenceRenderingTests: XCTestCase {
             try module.applyLayout(frame: XCTUnwrap(layout.frames[id]))
         }
         stackPlaylist.setRowViewportHeight(layout.playlistViewportHeight)
-        XCTAssertEqual(layout.contentHeight, 766, accuracy: 0.01)
+        XCTAssertEqual(layout.contentHeight, 754, accuracy: 0.01)
         try self.export(self.deterministicPNG(of: stack), named: "stack-static.png", backingScale: window.backingScaleFactor)
         withExtendedLifetime([singleWindow, window]) {}
     }

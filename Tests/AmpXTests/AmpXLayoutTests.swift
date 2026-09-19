@@ -46,7 +46,7 @@ final class AmpXLayoutTests: XCTestCase {
             (
                 "full default stack",
                 AmpXModuleOrder(),
-                223.5 + 6 + 225.5 + 6 + 305,
+                223.5 + 225.5 + 305,
                 3
             ),
             (
@@ -56,7 +56,7 @@ final class AmpXLayoutTests: XCTestCase {
                     state.setCollapsed(.equalizer, true)
                     return state
                 }(),
-                223.5 + 6 + AmpXMetrics.headerHeight + 6 + 305,
+                223.5 + AmpXMetrics.headerHeight + 305,
                 3
             ),
             (

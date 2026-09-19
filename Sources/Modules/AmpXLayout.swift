@@ -36,7 +36,7 @@ enum AmpXLayout {
             : AmpXMetrics.compositionWidth
     }
 
-    /// Left modules stack top-down; ENTHEA docks at the top right, clear of the widest left module.
+    /// Left modules stack edge-to-edge top-down; ENTHEA docks at the top right, clear of the widest left module.
     /// When taller than `availableHeight`, only the expanded Playlist viewport shrinks, by the excess,
     /// down to its three-row minimum.
     static func calculate(
@@ -146,15 +146,12 @@ enum AmpXLayout {
         guard !modules.isEmpty else { return 0 }
 
         var total: CGFloat = 0
-        for (index, moduleID) in modules.enumerated() {
+        for moduleID in modules {
             total += self.moduleHeight(
                 moduleID: moduleID,
                 state: state,
                 playlistViewportHeight: playlistViewportHeight
             )
-            if index < modules.count - 1 {
-                total += AmpXMetrics.moduleGap
-            }
         }
         return total * scale
     }
@@ -170,7 +167,7 @@ enum AmpXLayout {
         var frames: [AmpXModuleID: CGRect] = [:]
         var y: CGFloat = 0
 
-        for (index, moduleID) in modules.enumerated() {
+        for moduleID in modules {
             let height = self.moduleHeight(
                 moduleID: moduleID,
                 state: state,
@@ -180,9 +177,6 @@ enum AmpXLayout {
             frames[moduleID] = CGRect(x: originX, y: y, width: width, height: height)
 
             y += height
-            if index < modules.count - 1 {
-                y += AmpXMetrics.moduleGap * scale
-            }
         }
 
         return frames
