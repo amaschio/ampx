@@ -47,14 +47,18 @@ final class AmpXDetachedModuleWindowController: NSWindowController, NSWindowDele
         view.isHidden = false
         self.containerView.addSubview(view)
         if let frame = layout.frames[moduleID] {
-            view.applyLayout(frame: CGRect(x: 0, y: 0, width: frame.width, height: frame.height))
+            // AppKit rounds borderless native window sizes to whole points, even on Retina.
+            // Round the logical compact height before backing-pixel alignment to avoid
+            // double rounding (27.36 -> 27.5 -> 28) and keep content flush with its host.
+            let height = view.isContentCollapsed && view.compactContent != nil ? frame.height.rounded() : frame.height
+            view.applyLayout(frame: CGRect(x: 0, y: 0, width: frame.width, height: height))
         }
-        if let playlist = view.content as? PlaylistModuleContent {
+        if !view.isContentCollapsed, let playlist = view.content as? PlaylistModuleContent {
             playlist.setRowViewportHeight(layout.playlistViewportHeight)
         }
         self.containerView.frame = self.containerView.superview?.bounds ?? .zero
-        self.resizeWindow(toContentSize: view.frame.size)
         self.updateResizeConstraints(contentSize: view.frame.size)
+        self.resizeWindow(toContentSize: view.frame.size)
         self.coordinator?.refreshEffectiveVisibility()
     }
 

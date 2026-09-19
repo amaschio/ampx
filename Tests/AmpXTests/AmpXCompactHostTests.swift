@@ -4,6 +4,45 @@ import XCTest
 
 @MainActor
 final class AmpXCompactHostTests: XCTestCase {
+    func testWideCompactPlaylistPreservesBodySelectionScrollAndDetachedConstraints() async throws {
+        let coordinator = self.makeCoordinator()
+        coordinator.setPlaylistWidth(800)
+        let module = try XCTUnwrap(coordinator.moduleView(for: .playlist))
+        let body = try XCTUnwrap(module.content as? PlaylistModuleContent)
+        let rows = try XCTUnwrap(body.subviews.compactMap { $0 as? PlaylistRowsView }.first)
+        let adapter = try XCTUnwrap(rows.keyboardAdapter)
+        let tracks = (0 ..< 100).map { Track(title: "\($0)", artist: "Test") }
+        rows.manager?.addTracks(tracks)
+        await withCheckedContinuation { continuation in DispatchQueue.main.async { continuation.resume() } }
+        adapter.selection.selectOnly(tracks[50].id)
+        adapter.onRevealCursor?()
+        let bodyFrame = body.frame
+        let scroll = body.scrollOffset
+        XCTAssertGreaterThan(scroll, 0)
+        let footer = try XCTUnwrap(body.subviews.compactMap { $0 as? PlaylistFooterView }.first)
+        XCTAssertIdentical(footer.listOptionsMenu, body.listOptionsMenu)
+        coordinator.setCollapsed(.playlist, true)
+        let compact = try XCTUnwrap(module.compactContent as? PlaylistCompactContent)
+        XCTAssertEqual(module.frame.width, 800)
+        XCTAssertEqual(body.frame, bodyFrame)
+        XCTAssertEqual(body.scrollOffset, scroll)
+        XCTAssertTrue(body.resizeHandle.isHiddenOrHasHiddenAncestor)
+        XCTAssertEqual(coordinator.stackWindow?.contentMinSize.width, coordinator.stackWindow?.contentMaxSize.width)
+        coordinator.detach(.playlist, at: CGPoint(x: 700, y: 600), inheritedWidth: 490)
+        let window = try XCTUnwrap(module.window)
+        XCTAssertEqual(window.frame.width, 800)
+        XCTAssertEqual(window.contentMinSize, window.contentMaxSize)
+        XCTAssertEqual(window.frame.height, AmpXCompactMetrics.playlistHeight, accuracy: 0.5)
+        XCTAssertEqual(window.contentView?.bounds.height, module.frame.height)
+        XCTAssertEqual(compact.frame, module.bounds)
+        coordinator.redock(.playlist, at: 2)
+        XCTAssertIdentical(module.compactContent, compact)
+        coordinator.setCollapsed(.playlist, false)
+        XCTAssertEqual(body.frame, bodyFrame)
+        XCTAssertEqual(body.scrollOffset, scroll)
+        XCTAssertEqual(adapter.selection.selectedIDs, [tracks[50].id])
+    }
+
     func testCompactChromeMinimizesClosesAndReopensTheSameHost() async throws {
         let coordinator = self.makeCoordinator()
         coordinator.setCollapsed(.player, true)
@@ -15,7 +54,8 @@ final class AmpXCompactHostTests: XCTestCase {
         await self.fulfillment(of: [minimized], timeout: 3)
         XCTAssertTrue(window.isMiniaturized, "Minimize must complete")
         let restored = self.expectation(forNotification: NSWindow.didDeminiaturizeNotification, object: window)
-        window.deminiaturize(nil)
+        NSApp.activate()
+        coordinator.showStack()
         await self.fulfillment(of: [restored], timeout: 3)
         XCTAssertFalse(window.isMiniaturized)
         compact.closeButton.action?()

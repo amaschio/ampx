@@ -46,6 +46,13 @@ EQUALIZER = {
     "balance_second_segment": (788, 597, 21, 12),
     "corrected_balance_track": (757, 591, 465, 22),
 }
+PLAYLIST = {
+    "well": (262, 846, 859, 49),
+    "list_options": (1133, 845, 51, 49),
+    "corrected_well": (262, 846, 923, 49),
+    "corrected_list_options": (1197, 845, 51, 49),
+    "corrected_chrome_separator": (1250, 841, 7, 61),
+}
 
 
 def logical_rect(rect, crop):
@@ -71,6 +78,7 @@ def main():
         "crops": {},
         "player": {},
         "equalizer": {},
+        "playlist": {},
         "sample_colors": {},
     }
     for name, crop in CROPS.items():
@@ -92,6 +100,12 @@ def main():
         draw.rectangle((x, y, x + w - 1, y + h - 1), outline="#ff4466", width=1)
     data["equalizer"]["correction"] = "Omit minimize; extend balance track by 66 source px. Segment pitch 26 px, width 21 px. Thumb travel keeps its face inside the track."
     annotated.crop((20, 550, 1400, 645)).save(args.output / "equalizer-annotated.png")
+    for name, rect in PLAYLIST.items():
+        data["playlist"][name] = {"source_rect": rect, "logical_rect": logical_rect(rect, CROPS["playlist"])}
+        x, y, w, h = rect
+        draw.rectangle((x, y, x + w - 1, y + h - 1), outline="#ff4466", width=1)
+    data["playlist"]["correction"] = "Omit minimize; shift List Options and extend well by 64 source px. Center common chrome in the shorter 76 px strip. Extra Playlist width extends only the well."
+    annotated.crop((20, 825, 1400, 915)).save(args.output / "playlist-annotated.png")
     for name, point in {"panel": (400, 287), "well": (600, 320), "bevel_highlight": (910, 294), "bevel_face": (900, 322),
                         "brand": (148, 320), "spectrum_green": (298, 336), "timer_green": (641, 320)}.items():
         data["sample_colors"][name] = {"source_point": point, "rgb": image.getpixel(point)}

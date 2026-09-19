@@ -7,6 +7,7 @@ final class PlaylistFooterView: AmpXDrawingView {
     private let manager: PlaylistManager
     private let audioPlayer: AudioPlayer
     private let keyboardAdapter: PlaylistKeyboardAdapter
+    let listOptionsMenu: PlaylistListOptionsMenu
 
     private var footerButtonsViews: [AmpXButton] = []
     private var miniTransportButtons: [AmpXButton] = []
@@ -17,11 +18,13 @@ final class PlaylistFooterView: AmpXDrawingView {
         skin: any AmpXSkin,
         manager: PlaylistManager,
         audioPlayer: AudioPlayer,
-        keyboardAdapter: PlaylistKeyboardAdapter
+        keyboardAdapter: PlaylistKeyboardAdapter,
+        listOptionsMenu: PlaylistListOptionsMenu? = nil
     ) {
         self.manager = manager
         self.audioPlayer = audioPlayer
         self.keyboardAdapter = keyboardAdapter
+        self.listOptionsMenu = listOptionsMenu ?? PlaylistListOptionsMenu(manager: manager, keyboardAdapter: keyboardAdapter)
         self.elapsedTotalReadout = PlaylistFooterTimeReadout(skin: skin)
         self.remainingReadout = PlaylistFooterRemainingReadout(skin: skin)
         super.init(skin: skin)
@@ -60,7 +63,8 @@ final class PlaylistFooterView: AmpXDrawingView {
             button.labelFontSize = 12.5
             button.labelWeight = .regular
             button.accessibilityTitle = label.replacingOccurrences(of: "\n", with: " ")
-            button.action = { [weak self] in
+            button.action = { [weak self, weak button] in
+                guard let button else { return }
                 self?.showMenu(for: label, button: button)
             }
             self.footerButtonsViews.append(button)
@@ -133,9 +137,8 @@ final class PlaylistFooterView: AmpXDrawingView {
             menu.addItem(.separator())
             menu.addItem(self.menuItem(title: "File Info", action: #selector(PlaylistFooterMenuActions.fileInfo)))
         case "LIST\nOPTS":
-            menu.addItem(self.menuItem(title: "New List", action: #selector(PlaylistFooterMenuActions.newList)))
-            menu.addItem(self.menuItem(title: "Save List…", action: #selector(PlaylistFooterMenuActions.saveList)))
-            menu.addItem(self.menuItem(title: "Load List…", action: #selector(PlaylistFooterMenuActions.loadList)))
+            self.listOptionsMenu.show(relativeTo: button)
+            return
         default:
             return
         }
@@ -248,17 +251,6 @@ private final class PlaylistFooterMenuActions: NSObject {
         PlaylistChromeActions.presentFileInfo(manager: self.manager, selection: self.keyboardAdapter.selection)
     }
 
-    @objc func newList() {
-        self.clearPlaylist()
-    }
-
-    @objc func saveList() {
-        self.manager.saveM3UPlaylist()
-    }
-
-    @objc func loadList() {
-        self.manager.showLoadM3UPicker()
-    }
 }
 
 @MainActor

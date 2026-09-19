@@ -3,6 +3,26 @@ import AppKit
 import XCTest
 
 extension AmpXReferenceRenderingTests {
+    func testCompactPlaylistCapturesAtAllScalesAndWidths() throws {
+        let audio = AudioPlayer(installRemoteCommands: false)
+        let manager = PlaylistManager(audioPlayer: MockAudioPlayer(), restoreBookmarks: false, restorePlaylist: false,
+                                      alertPresenter: SilentPlaylistAlertPresenter())
+        let owner = PlaylistListOptionsMenu(manager: manager, keyboardAdapter: PlaylistKeyboardAdapter(manager: manager))
+        let view = PlaylistCompactContent(skin: ClassicModernSkin(), manager: manager, audioPlayer: audio, listOptionsMenu: owner)
+        view.referencePresentation = .init(title: "7. SLEAZE - GOD DAMN", duration: "3:46")
+        for width: CGFloat in [490, 800] {
+            view.frame = CGRect(x: 0, y: 0, width: width, height: AmpXCompactMetrics.playlistHeight)
+            for scale: CGFloat in [1, 2, 3] {
+                let png = try AmpXCompactCaptureSupport.capture(view, scale: scale)
+                XCTAssertEqual(png, try AmpXCompactCaptureSupport.capture(view, scale: scale))
+                let suffix = width == 490 ? "" : "-wide"
+                try self.export(png, named: "compact-playlist\(suffix)-\(Int(scale))x.png", backingScale: scale)
+            }
+        }
+        view.referencePresentation = .init(title: "1000. Björk - " + String(repeating: "東京🎵 café ", count: 20), duration: "100:00:01")
+        try self.export(AmpXCompactCaptureSupport.capture(view, scale: 2), named: "compact-playlist-long-2x.png", backingScale: 2)
+    }
+
     func testCompactEqualizerCapturesAtAllScales() throws {
         let audio = AudioPlayer(installRemoteCommands: false)
         let equalizer = EqualizerCompactContent(skin: ClassicModernSkin(), audioPlayer: audio)

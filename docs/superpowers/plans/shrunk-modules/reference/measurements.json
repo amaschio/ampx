@@ -484,6 +484,79 @@
     },
     "correction": "Omit minimize; extend balance track by 66 source px. Segment pitch 26 px, width 21 px. Thumb travel keeps its face inside the track."
   },
+  "playlist": {
+    "well": {
+      "source_rect": [
+        262,
+        846,
+        859,
+        49
+      ],
+      "logical_rect": [
+        84.24687729610581,
+        5.0404114621601765,
+        309.26524614254225,
+        17.641440117560617
+      ]
+    },
+    "list_options": {
+      "source_rect": [
+        1133,
+        845,
+        51,
+        49
+      ],
+      "logical_rect": [
+        397.8324761204996,
+        4.6803820720058775,
+        18.361498897869215,
+        17.641440117560617
+      ]
+    },
+    "corrected_well": {
+      "source_rect": [
+        262,
+        846,
+        923,
+        49
+      ],
+      "logical_rect": [
+        84.24687729610581,
+        5.0404114621601765,
+        332.30712711241733,
+        17.641440117560617
+      ]
+    },
+    "corrected_list_options": {
+      "source_rect": [
+        1197,
+        845,
+        51,
+        49
+      ],
+      "logical_rect": [
+        420.8743570903747,
+        4.6803820720058775,
+        18.361498897869215,
+        17.641440117560617
+      ]
+    },
+    "corrected_chrome_separator": {
+      "source_rect": [
+        1250,
+        841,
+        7,
+        61
+      ],
+      "logical_rect": [
+        439.95591476855253,
+        3.2402645113886845,
+        2.5202057310800883,
+        21.961792799412198
+      ]
+    },
+    "correction": "Omit minimize; shift List Options and extend well by 64 source px. Center common chrome in the shorter 76 px strip. Extra Playlist width extends only the well."
+  },
   "sample_colors": {
     "panel": {
       "source_point": [

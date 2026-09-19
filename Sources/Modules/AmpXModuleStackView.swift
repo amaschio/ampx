@@ -72,7 +72,7 @@ final class AmpXModuleStackView: NSView {
             else { continue }
             moduleView.applyLayout(frame: frame)
 
-            if moduleID == .playlist,
+            if moduleID == .playlist, !moduleView.isContentCollapsed,
                let playlist = moduleView.content as? PlaylistModuleContent
             {
                 playlist.setRowViewportHeight(playlistViewportHeight)

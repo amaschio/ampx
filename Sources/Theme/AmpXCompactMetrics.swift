@@ -36,6 +36,23 @@ enum AmpXCompactMetrics {
         let separator: CGRect
     }
 
+    struct PlaylistLayout {
+        let chrome: Chrome
+        let well: CGRect
+        let listOptions: CGRect
+    }
+
+    static func playlistLayout(width: CGFloat) -> PlaylistLayout {
+        let extra = max(0, width - 490)
+        let referenceWell = source(262, 846 - 556, 923, 49)
+        return PlaylistLayout(
+            chrome: chrome(moduleID: .playlist, width: width),
+            well: CGRect(x: referenceWell.minX, y: referenceWell.minY,
+                         width: referenceWell.width + extra, height: referenceWell.height),
+            listOptions: source(1197, 845 - 556, 51, 49).offsetBy(dx: extra, dy: 0)
+        )
+    }
+
     static func equalizerLayout() -> EqualizerLayout {
         let volume = source(285, 591 - 281, 422, 22)
         let balance = source(757, 591 - 281, 465, 22)
@@ -58,14 +75,16 @@ enum AmpXCompactMetrics {
     static func chrome(moduleID: AmpXModuleID, width: CGFloat = 490) -> Chrome {
         let offset = max(490, width) - 490
         let isPlayer = moduleID == .player
+        let dy: CGFloat = moduleID == .playlist ? -4 * factor : 0
+        let trailingSeparator: CGFloat = isPlayer ? 1175 : (moduleID == .playlist ? 1250 : 1238)
         return Chrome(
-            grip: source(45, 293, 60, 54),
-            brand: source(123, 306, 97, 35),
-            separators: [source(254, 302, 6, 38),
-                         source(isPlayer ? 1175 : 1238, 285, 7, 69).offsetBy(dx: offset, dy: 0)],
+            grip: source(45, 293, 60, 54).offsetBy(dx: 0, dy: dy),
+            brand: source(123, 306, 97, 35).offsetBy(dx: 0, dy: dy),
+            separators: [source(254, 302, 6, 38).offsetBy(dx: 0, dy: dy),
+                         source(trailingSeparator, 285, 7, moduleID == .playlist ? 61 : 69).offsetBy(dx: offset, dy: 0)],
             minimize: isPlayer ? source(1200, 294, 50, 51) : nil,
-            expand: source(1263, 294, 51, 51).offsetBy(dx: offset, dy: 0),
-            close: source(1325, 294, 50, 51).offsetBy(dx: offset, dy: 0)
+            expand: source(1263, 294, 51, 51).offsetBy(dx: offset, dy: dy),
+            close: source(1325, 294, 50, 51).offsetBy(dx: offset, dy: dy)
         )
     }
 

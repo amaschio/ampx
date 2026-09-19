@@ -123,6 +123,7 @@ enum AmpXLayout {
             switch moduleID {
             case .player: return AmpXCompactMetrics.playerHeight
             case .equalizer: return AmpXCompactMetrics.equalizerHeight
+            case .playlist: return AmpXCompactMetrics.playlistHeight
             default: return AmpXMetrics.headerHeight
             }
         }

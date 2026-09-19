@@ -515,6 +515,13 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
                 )
             case .equalizer:
                 compact = EqualizerCompactContent(skin: self.skin, audioPlayer: self.audioPlayer)
+            case .playlist:
+                if let playlist = content as? PlaylistModuleContent {
+                    compact = PlaylistCompactContent(skin: self.skin, manager: self.playlistManager, audioPlayer: self.audioPlayer,
+                                                     listOptionsMenu: playlist.listOptionsMenu)
+                } else {
+                    compact = nil
+                }
             default:
                 compact = nil
             }

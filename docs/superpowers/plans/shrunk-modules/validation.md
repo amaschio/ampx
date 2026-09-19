@@ -47,3 +47,11 @@ Focused EQ, slider, accessibility, layout, interaction, and reference checks pas
 - Host integration full suite: **700 tests passed**.
 - Final accessibility, compact controls, cancellation, host/visibility/keyboard, and reference checks: **34 tests passed**.
 - Additional actual-window minimize/close/reopen regression: **1 test passed**, using animation-completion notifications.
+
+## Compact Playlist
+
+[Comparison and overlay](playlist/playlist-comparison.png), [native 1×](playlist/compact-playlist-1x.png), [2×](playlist/compact-playlist-2x.png), [3×](playlist/compact-playlist-3x.png), [800 pt](playlist/compact-playlist-wide-2x.png), [long Unicode title and duration](playlist/compact-playlist-long-2x.png).
+
+Uses the approved shell, with fixed-size branding/chrome and a stretching summary well. List Options shifts right into the removed minimize slot; the title preserves original casing and clips before a separately measured duration column. The readout uses the existing bundled font at 11 pt; its glyphs differ from the reference's bitmap lettering. Source and corrected geometry are recorded separately. Duration follows loaded-track identity, including asynchronous loading when the old decoded duration remains temporarily in the audio model.
+
+The initial focused run passed 60 tests and exposed two host checks. Detached native windows round to whole points: rounding the logical compact height before Retina alignment now gives a flush 27 pt Playlist, avoiding 27.36 → 27.5 → 28 double rounding. Seven host checks passed after that correction. The minimize test now activates the app and uses the actual Window → AmpX restoration path instead of invoking deminiaturize on an inactive app; that test and the final typography capture both passed. Live evidence follows in the complete matrix.

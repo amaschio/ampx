@@ -112,7 +112,8 @@ class AmpXCompactModuleView: AmpXModuleContent {
     }
 
     private func drawBrand(in context: CGContext) {
-        let rect = AmpXCompactMetrics.source(53, 303, 43, 38)
+        let dy = self.chromeLayout.brand.minY - AmpXCompactMetrics.source(123, 306, 97, 35).minY
+        let rect = AmpXCompactMetrics.source(53, 303, 43, 38).offsetBy(dx: 0, dy: dy)
         let points: [CGPoint] = [
             CGPoint(x: 0, y: 0.52), CGPoint(x: 0.15, y: 0.52), CGPoint(x: 0.29, y: 0.06),
             CGPoint(x: 0.43, y: 0.06), CGPoint(x: 0.40, y: 0.66), CGPoint(x: 0.52, y: 0.66),

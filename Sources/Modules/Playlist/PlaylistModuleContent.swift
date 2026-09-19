@@ -20,6 +20,7 @@ final class PlaylistModuleContent: AmpXModuleContent {
     private let manager: PlaylistManager
     private let audioPlayer: AudioPlayer
     private let keyboardAdapter: PlaylistKeyboardAdapter
+    let listOptionsMenu: PlaylistListOptionsMenu
     private let rowsView: PlaylistRowsView
     private let footerView: PlaylistFooterView
     private let scrollbar: AmpXScrollbar
@@ -59,12 +60,14 @@ final class PlaylistModuleContent: AmpXModuleContent {
         self.manager = manager
         self.audioPlayer = audioPlayer
         self.keyboardAdapter = PlaylistKeyboardAdapter(manager: manager)
+        self.listOptionsMenu = PlaylistListOptionsMenu(manager: manager, keyboardAdapter: self.keyboardAdapter)
         self.rowsView = PlaylistRowsView(skin: skin)
         self.footerView = PlaylistFooterView(
             skin: skin,
             manager: manager,
             audioPlayer: audioPlayer,
-            keyboardAdapter: self.keyboardAdapter
+            keyboardAdapter: self.keyboardAdapter,
+            listOptionsMenu: self.listOptionsMenu
         )
         self.scrollbar = AmpXScrollbar(skin: skin)
         self.resizeHandle = PlaylistResizeHandleView(skin: skin)
