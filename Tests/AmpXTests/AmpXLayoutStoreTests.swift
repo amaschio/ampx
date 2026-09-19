@@ -137,6 +137,29 @@ final class AmpXLayoutStoreTests: XCTestCase {
         XCTAssertEqual(loaded.playlistViewportHeight, 180)
     }
 
+    func testLaunchLayoutStartsEveryModuleDocked() {
+        let (defaults, name) = self.isolatedDefaults()
+        defer { cleanup(name) }
+
+        var state = AmpXModuleOrder()
+        state.detach(.playlist)
+        state.detach(.equalizer)
+
+        let layout = AmpXSavedLayout(
+            state: state,
+            stackFrame: CGRect(x: 100, y: 200, width: 490, height: 600),
+            detachedFrames: [.playlist: CGRect(x: 50, y: 80, width: 490, height: 400)],
+            playlistViewportHeight: 180
+        )
+
+        let store = AmpXLayoutStore(defaults: defaults, screen: testScreen())
+        store.save(layout)
+        let loaded = store.loadForLaunch()
+
+        XCTAssertTrue(loaded.state.detached.isEmpty)
+        XCTAssertEqual(loaded.detachedFrames[.playlist], CGRect(x: 50, y: 80, width: 490, height: 400))
+    }
+
     func testSaveAndLoadRoundTrip() {
         let (defaults, name) = self.isolatedDefaults()
         defer { cleanup(name) }

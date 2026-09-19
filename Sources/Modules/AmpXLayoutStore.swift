@@ -40,6 +40,13 @@ final class AmpXLayoutStore {
         return Self.normalizedLayout(from: dto, screen: screen)
     }
 
+    /// Every launch starts with all modules docked; detached frames are kept so a re-detach reuses them.
+    func loadForLaunch() -> AmpXSavedLayout {
+        var layout = self.load()
+        layout.state.detached.removeAll()
+        return layout
+    }
+
     func save(_ layout: AmpXSavedLayout) {
         let dto = AmpXLayoutV1DTO(layout: layout)
         guard let data = try? JSONEncoder().encode(dto) else { return }
