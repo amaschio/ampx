@@ -38,6 +38,8 @@ final class PlayerModuleContent: AmpXModuleContent {
     /// Internal so the host and tests can park or wake the display-rate spectrum rendering.
     let spectrumWell: SpectrumWellView
     private let timeDisplay: TimeDisplayView
+    /// Internal so tests can read the marquee's title and layout.
+    let trackTitleView: TrackTitleMarqueeView
     private let volumeSlider: AmpXSlider
     private let balanceSlider: AmpXSlider
     private let positionBar: PositionBarView
@@ -68,6 +70,7 @@ final class PlayerModuleContent: AmpXModuleContent {
         self.presentationState = presentationState
         self.spectrumWell = SpectrumWellView(skin: skin)
         self.timeDisplay = TimeDisplayView(skin: skin, presentationState: presentationState)
+        self.trackTitleView = TrackTitleMarqueeView(skin: skin)
         self.volumeSlider = AmpXSlider(skin: skin)
         self.balanceSlider = AmpXSlider(skin: skin)
         self.positionBar = PositionBarView(skin: skin)
@@ -152,6 +155,7 @@ final class PlayerModuleContent: AmpXModuleContent {
 
         for control in [
             self.spectrumWell,
+            self.trackTitleView,
             self.timeDisplay,
             self.volumeSlider,
             self.balanceSlider,
@@ -321,6 +325,8 @@ final class PlayerModuleContent: AmpXModuleContent {
         self.volumeSlider.displayValueOverride = reference?.volume
         self.balanceSlider.displayValueOverride = reference?.balance
         self.positionBar.referenceFraction = reference?.position
+        self.trackTitleView.title = reference?.trackTitle ?? self.trackTitle
+        self.trackTitleView.isScrollingSuppressed = reference != nil
         self.eqToggle.displayActiveOverride = reference?.equalizerOpen
         self.plToggle.displayActiveOverride = reference?.playlistOpen
         self.transportButtons[safe: 1]?.displayActiveOverride = reference?.isPlaying
@@ -337,6 +343,7 @@ final class PlayerModuleContent: AmpXModuleContent {
     }
 
     private func refreshTrackTitle() {
+        defer { trackTitleView.title = referencePresentation?.trackTitle ?? trackTitle }
         let displayTrack = self.playlistManager.currentTrack ?? self.audioPlayer.currentTrack
         guard let displayTrack else {
             self.trackTitle = ""
@@ -374,12 +381,32 @@ final class PlayerModuleContent: AmpXModuleContent {
         return CGRect(x: minX, y: timer.minY, width: timer.maxX - minX, height: timer.height)
     }
 
+    /// Inside the track well's bevel; the marquee clips to it.
+    static var trackTitleFrame: CGRect {
+        AmpXMetrics.playerTrackWell.insetBy(dx: 2, dy: 2)
+    }
+
+    /// Left edge and baseline of the unscrolled title in content coordinates.
+    /// Baseline from the parenthesis descent (0.2256 em) below the measured ink bottom.
+    static var trackTitleOrigin: CGPoint {
+        let ink = AmpXMetrics.playerTrackTextInk
+        return CGPoint(x: ink.minX - 0.44, y: ink.maxY - TrackTitleMarqueeView.fontSize * 0.2256)
+    }
+
     static var playGlyphFrame: CGRect {
         AmpXMetrics.playerPlayGlyph
     }
 
     private func layoutControls() {
         self.spectrumWell.frame = AmpXMetrics.playerDisplayWell
+        // Whole-point frame so the layer never sits on a half pixel; the draw clips to the exact interior.
+        let titleFrame = Self.trackTitleFrame.integral
+        self.trackTitleView.frame = titleFrame
+        self.trackTitleView.textClip = Self.trackTitleFrame.offsetBy(dx: -titleFrame.minX, dy: -titleFrame.minY)
+        self.trackTitleView.textOrigin = CGPoint(
+            x: Self.trackTitleOrigin.x - titleFrame.minX,
+            y: Self.trackTitleOrigin.y - titleFrame.minY
+        )
         self.timeDisplay.frame = Self.timerViewFrame
         self.volumeSlider.frame = AmpXMetrics.playerVolume
         self.volumeSlider.trackSize = CGSize(width: AmpXMetrics.playerVolume.width, height: AmpXMetrics.playerSliderTrackHeight)
@@ -409,20 +436,8 @@ final class PlayerModuleContent: AmpXModuleContent {
             AmpXIcon.play.draw(in: Self.playGlyphFrame, context: context, skin: skin, color: skin.green)
         }
 
-        self.drawTrackTitle(in: context)
+        // The track title is drawn by `trackTitleView`.
         self.drawMetadata(in: context)
-    }
-
-    private func drawTrackTitle(in context: CGContext) {
-        let title = self.referencePresentation?.trackTitle ?? self.trackTitle
-        guard !title.isEmpty else { return }
-        let ink = AmpXMetrics.playerTrackTextInk
-        let label = AmpXLabel(text: title, color: skin.green, fontSize: 13.75, weight: .regular)
-        context.saveGState()
-        context.clip(to: AmpXMetrics.playerTrackWell.insetBy(dx: 2, dy: 2))
-        // Baseline from the parenthesis descent (0.2256 em) below the measured ink bottom.
-        label.draw(x: ink.minX - 0.44, baseline: ink.maxY - 13.75 * 0.2256, context: context, skin: skin)
-        context.restoreGState()
     }
 
     private func drawMetadata(in context: CGContext) {

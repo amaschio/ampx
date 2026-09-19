@@ -62,6 +62,10 @@ enum AmpXPlaylistKeyboard {
     static func moveSelectedTracks(by delta: Int) {
         self.handler?.moveSelectedTracks(by: delta)
     }
+
+    static func presentFileInfo() {
+        self.handler?.presentFileInfo()
+    }
 }
 
 extension AmpXPlaylistKeyboard {
@@ -78,5 +82,6 @@ extension AmpXPlaylistKeyboard {
         func selectAll()
         func invertSelection()
         func moveSelectedTracks(by delta: Int)
+        func presentFileInfo()
     }
 }

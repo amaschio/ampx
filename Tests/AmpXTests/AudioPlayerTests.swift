@@ -138,6 +138,28 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertEqual(self.player.testing_lastTransportAction, .resume)
     }
 
+    func testPlayOrRestartResumesWhenPausedAndStartsWhenStopped() {
+        let track = Track(title: "Short", artist: "Test", url: fixtureURL)
+        XCTAssertTrue(self.waitForLoad(track))
+
+        self.player.testing_setPlaybackUIStateForTests(isPlaying: false, currentTime: 0.15)
+        self.player.playOrRestart()
+        XCTAssertEqual(self.player.testing_lastTransportAction, .resume)
+
+        self.player.testing_setPlaybackUIStateForTests(isPlaying: false, currentTime: 0)
+        self.player.playOrRestart()
+        XCTAssertEqual(self.player.testing_lastTransportAction, .play)
+    }
+
+    func testPlayOrRestartSeeksToStartInsteadOfPausingWhilePlaying() {
+        let track = Track(title: "Short", artist: "Test", url: fixtureURL)
+        XCTAssertTrue(self.waitForLoad(track))
+        self.player.testing_setPlaybackUIStateForTests(isPlaying: true, currentTime: 0.15)
+
+        self.player.playOrRestart()
+        XCTAssertNotEqual(self.player.testing_lastTransportAction, .pause)
+    }
+
     func testPlayAfterPauseRestartsFromBeginning() {
         let track = Track(title: "Short", artist: "Test", url: fixtureURL)
         XCTAssertTrue(self.waitForLoad(track))

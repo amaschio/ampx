@@ -105,12 +105,16 @@ enum AmpXMenuBuilder {
         menu.addItem(
             titled: AmpXMenuCatalog.FileItem.loadPlaylist.rawValue,
             action: #selector(AmpXApplicationController.loadPlaylist(_:)),
-            target: application
+            target: application,
+            keyEquivalent: "o",
+            modifiers: .command
         )
         menu.addItem(
             titled: AmpXMenuCatalog.FileItem.savePlaylist.rawValue,
             action: #selector(AmpXApplicationController.savePlaylist(_:)),
-            target: application
+            target: application,
+            keyEquivalent: "s",
+            modifiers: .command
         )
     }
 
@@ -134,10 +138,16 @@ enum AmpXMenuBuilder {
         includeToggles: Bool
     ) {
         menu.addItem(
-            titled: AmpXMenuCatalog.PlaybackItem.playPause.rawValue,
-            action: #selector(AmpXApplicationController.togglePlayPause(_:)),
+            titled: AmpXMenuCatalog.PlaybackItem.play.rawValue,
+            action: #selector(AmpXApplicationController.play(_:)),
             target: application,
             keyEquivalent: "x"
+        )
+        menu.addItem(
+            titled: AmpXMenuCatalog.PlaybackItem.pause.rawValue,
+            action: #selector(AmpXApplicationController.pause(_:)),
+            target: application,
+            keyEquivalent: "c"
         )
         menu.addItem(
             titled: AmpXMenuCatalog.PlaybackItem.stop.rawValue,

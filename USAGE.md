@@ -38,13 +38,18 @@ Supported formats: MP3, FLAC and WAV.
 
 | Key | Action |
 |---|---|
-| `Space` / `X` / `C` | Play / pause |
+| `Space` | Play / pause |
+| `X` | Play (restarts a playing track) |
+| `C` | Pause / unpause |
 | `V` | Stop |
 | `Z` / `B` | Previous / next track |
 | `S` / `R` | Shuffle / repeat |
-| `←` / `→` | Seek −/+ 5 s |
+| `←` / `→` | Seek −/+ 5 s (also with the playlist focused) |
 | `↑` / `↓` | Volume |
 | `L` / `⇧L` | Add files / add folder |
+| `⌘O` / `⌘S` | Load / save playlist |
+| `⌥3` | File info (selected track in the playlist, otherwise the current track) |
+| `⌘T` | Elapsed / remaining time |
 
 With the playlist focused:
 
@@ -58,6 +63,8 @@ With the playlist focused:
 | `⌘A` / `⌘I` | Select all / invert |
 | `⌘⇧1` / `⌘⇧2` / `⌘⇧3` | Sort by title / file name / path |
 | `⌘R` / `⌘⇧R` | Reverse / randomize |
+
+Right-click a playlist row for Play, Get Info, Remove from Playlist and Remove from Disk.
 
 ## Troubleshooting
 

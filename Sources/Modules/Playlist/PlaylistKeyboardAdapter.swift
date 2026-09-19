@@ -87,6 +87,10 @@ final class PlaylistKeyboardAdapter: AmpXPlaylistKeyboard.Handling {
         self.notifySelectionChanged(revealCursor: true)
     }
 
+    func presentFileInfo() {
+        PlaylistChromeActions.presentFileInfo(manager: self.manager, selection: self.selection)
+    }
+
     private func orderedIDs() -> [UUID] {
         self.manager.tracks.map(\.id)
     }

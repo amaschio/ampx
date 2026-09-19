@@ -179,6 +179,80 @@ final class PlaylistRowsView: AmpXControlView {
         self.applyClickSelection(to: track.id)
     }
 
+    // MARK: - Row context menu
+
+    /// Replaces the Trash confirmation alert; tests use it to avoid a modal.
+    var confirmDiskRemoval: ((URL) -> Bool)?
+
+    /// Right-clicking an unselected row selects it first, like Finder and Winamp.
+    override func menu(for event: NSEvent) -> NSMenu? {
+        guard isEnabled, self.reference == nil else { return nil }
+        let point = convert(event.locationInWindow, from: nil)
+        guard let index = trackIndex(at: point) else { return nil }
+        return self.contextMenu(forTrackAt: index)
+    }
+
+    func contextMenu(forTrackAt index: Int) -> NSMenu? {
+        guard let manager, manager.tracks.indices.contains(index) else { return nil }
+        let id = manager.tracks[index].id
+        if let adapter = keyboardAdapter, !adapter.selection.selectedIDs.contains(id) {
+            adapter.selection.selectOnly(id)
+            adapter.onSelectionChanged?()
+            needsDisplay = true
+        }
+
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        func add(_ title: String, _ action: Selector) {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            item.target = self
+            item.representedObject = id
+            menu.addItem(item)
+        }
+        add("Play", #selector(self.playFromMenu(_:)))
+        add("Get Info", #selector(self.getInfoFromMenu(_:)))
+        menu.addItem(.separator())
+        add("Remove from Playlist", #selector(self.removeFromPlaylistFromMenu(_:)))
+        add("Remove from Disk…", #selector(self.removeFromDiskFromMenu(_:)))
+        return menu
+    }
+
+    private func menuTrackIndex(_ sender: NSMenuItem) -> Int? {
+        guard let id = sender.representedObject as? UUID else { return nil }
+        return self.manager?.tracks.firstIndex(where: { $0.id == id })
+    }
+
+    @objc private func playFromMenu(_ sender: NSMenuItem) {
+        guard let index = menuTrackIndex(sender) else { return }
+        self.manager?.playTrack(at: index)
+    }
+
+    @objc private func getInfoFromMenu(_ sender: NSMenuItem) {
+        guard let index = menuTrackIndex(sender) else { return }
+        self.manager?.presentTrackInfo(at: index)
+    }
+
+    /// Removes every selected row; the right-clicked row is always part of the selection.
+    @objc private func removeFromPlaylistFromMenu(_ sender: NSMenuItem) {
+        guard let index = menuTrackIndex(sender), let manager else { return }
+        if let adapter = keyboardAdapter {
+            adapter.removeSelectedTracks()
+        } else {
+            manager.removeTrack(at: index)
+        }
+        needsDisplay = true
+    }
+
+    @objc private func removeFromDiskFromMenu(_ sender: NSMenuItem) {
+        guard let index = menuTrackIndex(sender), let manager else { return }
+        guard manager.removeTrackFromDisk(at: index, confirm: self.confirmDiskRemoval) else { return }
+        if let adapter = keyboardAdapter {
+            adapter.selection.prune(toValidIDs: Set(manager.tracks.map(\.id)))
+            adapter.onSelectionChanged?()
+        }
+        needsDisplay = true
+    }
+
     override func scrollWheel(with event: NSEvent) {
         guard isEnabled else {
             nextResponder?.scrollWheel(with: event)

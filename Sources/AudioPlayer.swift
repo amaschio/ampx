@@ -575,6 +575,15 @@ class AudioPlayer: NSObject, ObservableObject {
         }
     }
 
+    /// Winamp Play (X): restarts a playing track, resumes a paused one, starts a stopped one.
+    func playOrRestart() {
+        if self.isPlaying {
+            self.seek(to: 0)
+        } else {
+            self.playOrResume()
+        }
+    }
+
     func seek(to time: TimeInterval) {
         self.audioQueue.async { [weak self] in
             guard let self,
@@ -913,6 +922,22 @@ class AudioPlayer: NSObject, ObservableObject {
         }
     }
 
+    private(set) var testing_lastTransportAction: TestingTransportAction?
+}
+
+// MARK: - Test hooks
+
+///
+/// Kept in an extension so the class body above stays focused on playback. Same file,
+/// not a separate one, because these hooks reach into the engine's `private` state.
+extension AudioPlayer {
+    enum TestingTransportAction: Equatable {
+        case play
+        case resume
+        case pause
+        case stop
+    }
+
     func testing_simulateTrackCompletion() {
         self.handleTrackCompletion()
     }
@@ -945,15 +970,6 @@ class AudioPlayer: NSObject, ObservableObject {
             completion(self?.isPlayingInternal ?? false)
         }
     }
-
-    enum TestingTransportAction: Equatable {
-        case play
-        case resume
-        case pause
-        case stop
-    }
-
-    private(set) var testing_lastTransportAction: TestingTransportAction?
 
     func testing_setPlaybackUIStateForTests(isPlaying: Bool, currentTime: TimeInterval) {
         self.currentTime = currentTime

@@ -28,13 +28,19 @@ enum AmpXModuleCommand: Equatable {
     case toggleCollapse
 }
 
+/// Player presentation shortcuts that need state the router does not hold.
+enum AmpXPlayerCommand: Equatable {
+    /// Winamp Ctrl+T: switch the timer between elapsed and remaining time.
+    case toggleTimeMode
+}
+
 @MainActor
 enum AmpXKeyRouter {
     private static let seekStep: TimeInterval = 5
     private static let volumeStep: Float = 0.05
 
     static func route(event: NSEvent, context: AmpXFocusContext) -> AmpXKeyRoute {
-        if self.moduleCommand(for: event) != nil {
+        if self.moduleCommand(for: event) != nil || self.playerCommand(for: event) != nil {
             return .unhandled
         }
 
@@ -79,6 +85,12 @@ enum AmpXKeyRouter {
         default:
             return nil
         }
+    }
+
+    static func playerCommand(for event: NSEvent) -> AmpXPlayerCommand? {
+        let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
+        guard flags == [.command], event.keyCode == 17 else { return nil }
+        return .toggleTimeMode
     }
 
     @discardableResult
@@ -185,7 +197,8 @@ enum AmpXKeyRouter {
         audioPlayer: AudioPlayer?,
         playlistManager: PlaylistManager?,
         entheaTheater: AmpXEntheaTheaterHandling?,
-        moduleCommandHandler: ((AmpXModuleCommand) -> Void)?
+        moduleCommandHandler: ((AmpXModuleCommand) -> Void)?,
+        playerCommandHandler: ((AmpXPlayerCommand) -> Void)? = nil
     ) -> NSEvent? {
         guard let window, window.isKeyWindow else { return event }
 
@@ -199,6 +212,11 @@ enum AmpXKeyRouter {
 
         if let command = moduleCommand(for: event) {
             moduleCommandHandler?(command)
+            return nil
+        }
+
+        if let command = playerCommand(for: event), let playerCommandHandler {
+            playerCommandHandler(command)
             return nil
         }
 
@@ -289,20 +307,27 @@ enum AmpXKeyRouter {
             return true
         }
 
-        if noMods, !playlistFocused {
-            switch key {
-            case 123, 124, 126, 125:
-                return true
-            default:
-                break
-            }
+        if flags == [.option], key == 20 {
+            return true
+        }
+
+        // Left/Right seek in every module, as in Winamp; the Playlist keeps Up/Down for its selection.
+        if noMods, key == 123 || key == 124 {
+            return true
+        }
+
+        if noMods, !playlistFocused, key == 126 || key == 125 {
+            return true
         }
 
         return false
     }
 
-    /// Unmodified global keys that a focused text field needs as typed characters.
+    /// Global keys that a focused text field needs as typed characters.
     private static func isTypingGlobalKey(_ key: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
+        if flags == [.option], key == 20 {
+            return true
+        }
         guard flags.isEmpty else { return false }
         switch key {
         case 49, 8, 15, 1, 7, 9, 6, 11, 37:
@@ -362,87 +387,106 @@ enum AmpXKeyRouter {
         }
 
         if !command, !option, !control {
-            switch key {
-            case 126:
-                AmpXPlaylistKeyboard.moveSelection(by: -1, extend: shift)
-                return true
-            case 125:
-                AmpXPlaylistKeyboard.moveSelection(by: 1, extend: shift)
-                return true
-            case 115:
-                AmpXPlaylistKeyboard.jumpToStart(extend: shift)
-                return true
-            case 119:
-                AmpXPlaylistKeyboard.jumpToEnd(extend: shift)
-                return true
-            case 116:
-                AmpXPlaylistKeyboard.pageSelection(direction: -1, extend: shift)
-                return true
-            case 121:
-                AmpXPlaylistKeyboard.pageSelection(direction: 1, extend: shift)
-                return true
-            case 36:
-                AmpXPlaylistKeyboard.playSelectedTrack()
-                return true
-            case 51, 117:
-                AmpXPlaylistKeyboard.removeSelectedTracks()
-                return true
-            default:
-                return false
-            }
+            return self.dispatchPlaylistSelection(key: key, shift: shift)
         }
 
         if option, !command, !control, !shift {
-            switch key {
-            case 126:
-                AmpXPlaylistKeyboard.moveSelectedTracks(by: -1)
-                return true
-            case 125:
-                AmpXPlaylistKeyboard.moveSelectedTracks(by: 1)
-                return true
-            default:
-                return false
-            }
+            return self.dispatchPlaylistReorder(key: key)
         }
 
         if command, !option, !control {
-            switch key {
-            case 0 where !shift:
-                AmpXPlaylistKeyboard.selectAll()
-                return true
-            case 34 where !shift:
-                AmpXPlaylistKeyboard.invertSelection()
-                return true
-            case 51, 117:
-                if shift {
-                    playlistManager?.clearPlaylist()
-                    AmpXPlaylistKeyboard.clearSelection()
-                } else {
-                    AmpXPlaylistKeyboard.cropToSelection()
-                }
-                return true
-            case 15:
-                if shift {
-                    playlistManager?.randomizeTracks()
-                } else {
-                    playlistManager?.reverseTracks()
-                }
-                return true
-            case 18 where shift:
-                playlistManager?.sortTracks(by: .title)
-                return true
-            case 19 where shift:
-                playlistManager?.sortTracks(by: .fileName)
-                return true
-            case 20 where shift:
-                playlistManager?.sortTracks(by: .path)
-                return true
-            default:
-                return false
-            }
+            return self.dispatchPlaylistCommand(key: key, shift: shift, playlistManager: playlistManager)
         }
 
         return false
+    }
+
+    /// Unmodified (or shift-only) keys: move, extend, page, play, and remove the selection.
+    private static func dispatchPlaylistSelection(key: UInt16, shift: Bool) -> Bool {
+        switch key {
+        case 126:
+            AmpXPlaylistKeyboard.moveSelection(by: -1, extend: shift)
+            return true
+        case 125:
+            AmpXPlaylistKeyboard.moveSelection(by: 1, extend: shift)
+            return true
+        case 115:
+            AmpXPlaylistKeyboard.jumpToStart(extend: shift)
+            return true
+        case 119:
+            AmpXPlaylistKeyboard.jumpToEnd(extend: shift)
+            return true
+        case 116:
+            AmpXPlaylistKeyboard.pageSelection(direction: -1, extend: shift)
+            return true
+        case 121:
+            AmpXPlaylistKeyboard.pageSelection(direction: 1, extend: shift)
+            return true
+        case 36:
+            AmpXPlaylistKeyboard.playSelectedTrack()
+            return true
+        case 51, 117:
+            AmpXPlaylistKeyboard.removeSelectedTracks()
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Option + arrows: move the selected tracks within the playlist.
+    private static func dispatchPlaylistReorder(key: UInt16) -> Bool {
+        switch key {
+        case 126:
+            AmpXPlaylistKeyboard.moveSelectedTracks(by: -1)
+            return true
+        case 125:
+            AmpXPlaylistKeyboard.moveSelectedTracks(by: 1)
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Command (optionally with shift): select, crop, clear, reorder, and sort.
+    private static func dispatchPlaylistCommand(
+        key: UInt16,
+        shift: Bool,
+        playlistManager: PlaylistManager?
+    ) -> Bool {
+        switch key {
+        case 0 where !shift:
+            AmpXPlaylistKeyboard.selectAll()
+            return true
+        case 34 where !shift:
+            AmpXPlaylistKeyboard.invertSelection()
+            return true
+        case 51, 117:
+            if shift {
+                playlistManager?.clearPlaylist()
+                AmpXPlaylistKeyboard.clearSelection()
+            } else {
+                AmpXPlaylistKeyboard.cropToSelection()
+            }
+            return true
+        case 15:
+            if shift {
+                playlistManager?.randomizeTracks()
+            } else {
+                playlistManager?.reverseTracks()
+            }
+            return true
+        case 18 where shift:
+            playlistManager?.sortTracks(by: .title)
+            return true
+        case 19 where shift:
+            playlistManager?.sortTracks(by: .fileName)
+            return true
+        case 20 where shift:
+            playlistManager?.sortTracks(by: .path)
+            return true
+        default:
+            return false
+        }
     }
 
     @discardableResult
@@ -483,8 +527,11 @@ enum AmpXKeyRouter {
 
         if noMods {
             switch key {
-            case 8, 7:
-                audioPlayer?.togglePlayPause()
+            case 7:
+                audioPlayer?.playOrRestart()
+                return true
+            case 8:
+                audioPlayer?.pause()
                 return true
             case 15:
                 playlistManager?.repeatEnabled.toggle()
@@ -514,7 +561,12 @@ enum AmpXKeyRouter {
             return true
         }
 
-        if noMods, !playlistFocused {
+        if flags == [.option], key == 20 {
+            self.presentFileInfo(playlistManager: playlistManager, playlistFocused: playlistFocused)
+            return true
+        }
+
+        if noMods {
             switch key {
             case 123:
                 self.seek(audioPlayer, by: -self.seekStep)
@@ -522,6 +574,13 @@ enum AmpXKeyRouter {
             case 124:
                 self.seek(audioPlayer, by: self.seekStep)
                 return true
+            default:
+                break
+            }
+        }
+
+        if noMods, !playlistFocused {
+            switch key {
             case 126:
                 self.adjustVolume(audioPlayer, by: self.volumeStep)
                 return true
@@ -534,6 +593,15 @@ enum AmpXKeyRouter {
         }
 
         return false
+    }
+
+    /// Winamp Alt+3: the Playlist shows its selected track (or the current one); elsewhere the current track.
+    private static func presentFileInfo(playlistManager: PlaylistManager?, playlistFocused: Bool) {
+        if playlistFocused, AmpXPlaylistKeyboard.isActive {
+            AmpXPlaylistKeyboard.presentFileInfo()
+        } else if let playlistManager {
+            playlistManager.presentTrackInfo(at: playlistManager.currentIndex)
+        }
     }
 
     private static func seek(_ player: AudioPlayer?, by delta: TimeInterval) {

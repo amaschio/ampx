@@ -419,6 +419,13 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         }
     }
 
+    func performPlayerCommand(_ command: AmpXPlayerCommand) {
+        switch command {
+        case .toggleTimeMode:
+            self.playerPresentationState.toggleTimeMode()
+        }
+    }
+
     func noteFocusedModule(_ id: AmpXModuleID) {
         self.focusedModuleID = id
     }

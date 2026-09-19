@@ -17,7 +17,7 @@
 |---|---|---|---|---|
 | P1 | Mini visualizer: click cycles Bars → Oscilloscope → Analyzer; choice persists (`visualizationMode`) | **Missing.** One segmented spectrum style only (`SpectrumWellView`) | Keep. Draw all three modes in the Classic Modern style; reuse the same `visualizationMode` key | **Done** 2026-09-16, revised 2026-09-17 — see the note below |
 | P2 | Double-click mini visualizer shows/hides the Visualizer | **Missing** | Keep. Toggles the ENTHEA module | **Done** 2026-09-16: double-click toggles the ENTHEA module and never also cycles the mode |
-| P3 | Track title scrolls (marquee) when longer than the display: text, `***`, text again, looping right-to-left at a constant speed; short titles stay still | **Missing.** Same text (`12. Artist - Title (3:45)`) but clipped at the track well edge, so the end of long titles and the duration are never visible | Keep | **Keep** (user 2026-09-16): restore the marquee |
+| P3 | Track title scrolls (marquee) when longer than the display: text, `***`, text again, looping right-to-left at a constant speed; short titles stay still | **Missing.** Same text (`12. Artist - Title (3:45)`) but clipped at the track well edge, so the end of long titles and the duration are never visible | Keep | **Keep** (user 2026-09-16): restore the marquee. **Done** 2026-09-19 (`TrackTitleMarqueeView`) |
 | P4 | Click time display toggles elapsed / remaining | Present | — | |
 | P5 | Transport: previous, play, pause, stop, next; eject opens Add Files | Present | — | |
 | P6 | Shuffle and repeat toggles; EQ and PL toggles show/hide modules | Present | — | |
@@ -40,7 +40,7 @@
 | ID | develop behavior | ampx-ui status | Proposal | Decision |
 |---|---|---|---|---|
 | L1 | Click, shift-range, ⌘-toggle selection; double-click plays; drag reorder; drop files | Present | — | |
-| L2 | Row right-click menu: Play, Get Info, Remove from Playlist, Remove from Disk… | **Missing.** `presentTrackInfo` and `removeTrackFromDisk` have no UI caller | Keep | |
+| L2 | Row right-click menu: Play, Get Info, Remove from Playlist, Remove from Disk… | **Missing.** `presentTrackInfo` and `removeTrackFromDisk` have no UI caller | Keep | **Done** 2026-09-19. Right-click selects the row if it is not selected; Remove from Playlist removes the selection, the others act on the clicked row |
 | L3 | Footer menus — ADD: Add File…, Add Directory…; REM: Remove, Crop, Clear Playlist; SEL: Select All, Select None, Invert Selection; MISC: Sort by Title/Filename/Path, Reverse, Randomize, File Info; LIST: New List, Save List…, Load List… | Present | — | |
 | L4 | List follows the playing track; playing row white, selection fill only | **Fixed** (`4f53706`) | — | Keep |
 | L5 | Resize the playlist height | Present, and extended by spec Revision 9 to horizontal resizing of the docked and detached Playlist (work in progress in this worktree) | — | |

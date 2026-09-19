@@ -76,6 +76,9 @@ final class AmpXAppDelegate: NSObject, NSApplicationDelegate {
                 entheaTheater: application.hosts,
                 moduleCommandHandler: { command in
                     application.hosts.performModuleCommand(command)
+                },
+                playerCommandHandler: { command in
+                    application.hosts.performPlayerCommand(command)
                 }
             )
         }

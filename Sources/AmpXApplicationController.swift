@@ -90,6 +90,14 @@ final class AmpXApplicationController: NSObject, NSMenuItemValidation {
         self.audioPlayer.togglePlayPause()
     }
 
+    @objc func play(_: Any?) {
+        self.audioPlayer.playOrRestart()
+    }
+
+    @objc func pause(_: Any?) {
+        self.audioPlayer.pause()
+    }
+
     @objc func stopPlayback(_: Any?) {
         self.audioPlayer.stop()
     }

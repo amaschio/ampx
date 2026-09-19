@@ -12,7 +12,8 @@ enum AmpXMenuCatalog {
     }
 
     enum PlaybackItem: String, CaseIterable {
-        case playPause = "Play/Pause"
+        case play = "Play"
+        case pause = "Pause"
         case stop = "Stop"
         case previous = "Previous Track"
         case next = "Next Track"

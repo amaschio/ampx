@@ -162,6 +162,36 @@ final class AmpXKeyRouterTests: XCTestCase {
         )
     }
 
+    func testLeftRightSeekWhilePlaylistFocusedButUpDownMoveSelection() {
+        let context = AmpXFocusContext(module: .playlist, control: nil)
+        for keyCode: UInt16 in [123, 124] {
+            XCTAssertEqual(AmpXKeyRouter.route(event: self.keyDown(keyCode: keyCode), context: context), .global)
+        }
+        for keyCode: UInt16 in [125, 126] {
+            XCTAssertEqual(AmpXKeyRouter.route(event: self.keyDown(keyCode: keyCode), context: context), .playlist)
+        }
+    }
+
+    func testOptionThreeShowsFileInfoFromEveryModule() {
+        let event = self.keyDown(keyCode: 20, modifierFlags: [.option])
+        for module: AmpXModuleID in [.player, .equalizer, .playlist] {
+            let context = AmpXFocusContext(module: module, control: nil)
+            XCTAssertEqual(AmpXKeyRouter.route(event: event, context: context), .global)
+        }
+        let typing = AmpXFocusContext(module: .player, control: nil, textResponderActive: true)
+        XCTAssertEqual(AmpXKeyRouter.route(event: event, context: typing), .unhandled)
+    }
+
+    func testCommandTTogglesTimeModeOutsideModuleRouting() {
+        let event = self.keyDown(keyCode: 17, modifierFlags: [.command])
+        XCTAssertEqual(AmpXKeyRouter.playerCommand(for: event), .toggleTimeMode)
+        XCTAssertEqual(
+            AmpXKeyRouter.route(event: event, context: AmpXFocusContext(module: .playlist, control: nil)),
+            .unhandled
+        )
+        XCTAssertNil(AmpXKeyRouter.playerCommand(for: self.keyDown(keyCode: 17)))
+    }
+
     func testDispatchInvokesRecipientOnce() {
         var controlCount = 0
         var globalCount = 0
