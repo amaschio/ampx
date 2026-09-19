@@ -39,6 +39,14 @@ final class PlaylistModuleContent: AmpXModuleContent {
         }
     }
 
+    let resizeHandle: PlaylistResizeHandleView
+
+    /// Receives handle drags; the host owns the preferred viewport height.
+    var onResizeViewport: ((PlaylistResizeHandleView.Phase) -> Void)? {
+        get { self.resizeHandle.onResize }
+        set { self.resizeHandle.onResize = newValue }
+    }
+
     var canScrollVertically: Bool {
         self.scrollbar.contentLength > self.scrollbar.viewportLength
     }
@@ -59,6 +67,7 @@ final class PlaylistModuleContent: AmpXModuleContent {
             keyboardAdapter: self.keyboardAdapter
         )
         self.scrollbar = AmpXScrollbar(skin: skin)
+        self.resizeHandle = PlaylistResizeHandleView(skin: skin)
         super.init(skin: skin)
         self.configureControls()
         self.bindModels()
@@ -131,6 +140,8 @@ final class PlaylistModuleContent: AmpXModuleContent {
         addSubview(self.rowsView)
         addSubview(self.footerView)
         addSubview(self.scrollbar)
+        // Last, so the bottom strip and grip win hit testing over the footer.
+        addSubview(self.resizeHandle)
         self.updateScrollbarMetrics()
         self.layoutControls()
     }
@@ -197,18 +208,22 @@ final class PlaylistModuleContent: AmpXModuleContent {
         var footer: CGRect
     }
 
-    /// Row area, scrollbar and footer for a viewport height; the footer always follows the rows.
-    static func layout(viewportHeight: CGFloat) -> Frames {
+    /// Row area, scrollbar and footer for a viewport height and content width; the footer always follows the
+    /// rows. Extra width stretches the row area and keeps the scrollbar on the right edge (spec Revision 9).
+    static func layout(viewportHeight: CGFloat, width: CGFloat = AmpXMetrics.defaultPlaylistWidth) -> Frames {
+        let contentWidth = max(AmpXMetrics.minimumPlaylistWidth, width)
+        let rowsTrailingInset = AmpXMetrics.compositionWidth - AmpXMetrics.playlistRows.maxX
+        let scrollbarTrailingInset = AmpXMetrics.compositionWidth - AmpXMetrics.playlistScrollbar.minX
         let rows = CGRect(
             x: AmpXMetrics.playlistRows.minX,
             y: AmpXMetrics.playlistRows.minY,
-            width: AmpXMetrics.playlistRows.width,
+            width: contentWidth - rowsTrailingInset - AmpXMetrics.playlistRows.minX,
             height: viewportHeight
         )
         let scrollbarTop = AmpXMetrics.playlistRows.minY - AmpXMetrics.playlistScrollbar.minY
         let scrollbarShortfall = AmpXMetrics.playlistRows.height - AmpXMetrics.playlistScrollbar.height
         let scrollbar = CGRect(
-            x: AmpXMetrics.playlistScrollbar.minX,
+            x: contentWidth - scrollbarTrailingInset,
             y: rows.minY - scrollbarTop,
             width: AmpXMetrics.playlistScrollbar.width,
             height: max(0, viewportHeight - scrollbarShortfall)
@@ -216,7 +231,7 @@ final class PlaylistModuleContent: AmpXModuleContent {
         let footer = CGRect(
             x: 0,
             y: rows.maxY + AmpXMetrics.playlistFooterGap,
-            width: AmpXMetrics.compositionWidth,
+            width: contentWidth,
             height: AmpXMetrics.playlistFooterHeight
         )
         return Frames(rows: rows, scrollbar: scrollbar, footer: footer)
@@ -233,10 +248,12 @@ final class PlaylistModuleContent: AmpXModuleContent {
     }
 
     private func layoutControls() {
-        let frames = Self.layout(viewportHeight: self.rowViewportHeight)
+        let width = max(AmpXMetrics.minimumPlaylistWidth, bounds.width)
+        let frames = Self.layout(viewportHeight: self.rowViewportHeight, width: width)
         self.rowsView.frame = frames.rows
         self.scrollbar.frame = frames.scrollbar
         self.footerView.frame = frames.footer
+        self.resizeHandle.frame = CGRect(x: 0, y: 0, width: width, height: frames.footer.maxY)
         needsDisplay = true
     }
 

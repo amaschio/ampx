@@ -3,7 +3,11 @@ import CoreGraphics
 struct AmpXLayoutResult: Equatable {
     var scale: CGFloat
     var frames: [AmpXModuleID: CGRect]
-    /// Stack height; the host window is always exactly this tall.
+    var contentWidth: CGFloat {
+        self.frames.values.map(\.maxX).max() ?? AmpXMetrics.compositionWidth
+    }
+
+    /// Host height is the taller of the left stack and right visualizer.
     var contentHeight: CGFloat
     /// Effective Playlist viewport after fitting the stack into the available height.
     var playlistViewportHeight: CGFloat
@@ -25,18 +29,27 @@ enum AmpXLayout {
         return max(AmpXMetrics.minimumPlaylistViewportHeight, adjusted)
     }
 
-    /// Lays the stack out top-down. The stack never scrolls: when it is taller than `availableHeight`,
-    /// only the expanded Playlist viewport shrinks, by the excess, down to its three-row minimum.
+    /// Module width: only the Playlist varies (spec Revision 9), never below the fixed Equalizer width.
+    static func moduleWidth(_ moduleID: AmpXModuleID, playlistWidth: CGFloat) -> CGFloat {
+        moduleID == .playlist
+            ? max(AmpXMetrics.minimumPlaylistWidth, playlistWidth)
+            : AmpXMetrics.compositionWidth
+    }
+
+    /// Left modules stack top-down; ENTHEA docks at the top right, clear of the widest left module.
+    /// When taller than `availableHeight`, only the expanded Playlist viewport shrinks, by the excess,
+    /// down to its three-row minimum.
     static func calculate(
         state: AmpXModuleOrder,
-        width: CGFloat,
+        width _: CGFloat,
         playlistViewportHeight: CGFloat,
-        availableHeight: CGFloat
+        availableHeight: CGFloat,
+        playlistWidth: CGFloat = AmpXMetrics.defaultPlaylistWidth
     ) -> AmpXLayoutResult {
-        let layoutScale = self.scale(width: width)
+        let layoutScale: CGFloat = 1
         let compositionWidth = AmpXMetrics.compositionWidth * layoutScale
-        let originX = max(0, (width - compositionWidth) / 2)
-        let visibleModules = self.stackModules(in: state)
+        let originX: CGFloat = 0
+        let visibleModules = self.stackModules(in: state).filter { $0 != .enthea }
 
         var effectivePlaylistViewport = playlistViewportHeight
         let preferredHeight = self.totalContentHeight(
@@ -55,20 +68,29 @@ enum AmpXLayout {
             )
         }
 
-        let contentHeight = self.totalContentHeight(
+        let leftHeight = self.totalContentHeight(
             state: state,
             modules: visibleModules,
             scale: layoutScale,
             playlistViewportHeight: effectivePlaylistViewport
         )
-        let frames = self.layoutFrames(
+        var frames = self.layoutFrames(
             modules: visibleModules,
             state: state,
             originX: originX,
-            compositionWidth: compositionWidth,
             scale: layoutScale,
-            playlistViewportHeight: effectivePlaylistViewport
+            playlistViewportHeight: effectivePlaylistViewport,
+            playlistWidth: playlistWidth
         )
+
+        var contentHeight = leftHeight
+        if self.stackModules(in: state).contains(.enthea) {
+            let height = self.moduleHeight(moduleID: .enthea, state: state, playlistViewportHeight: effectivePlaylistViewport)
+            // The right column clears the widest left module, so a wide Playlist never overlaps it.
+            let leftWidth = frames.values.map(\.maxX).max() ?? compositionWidth
+            frames[.enthea] = CGRect(x: leftWidth + AmpXMetrics.moduleGap, y: 0, width: compositionWidth, height: height)
+            contentHeight = max(contentHeight, height)
+        }
 
         return AmpXLayoutResult(
             scale: layoutScale,
@@ -141,9 +163,9 @@ enum AmpXLayout {
         modules: [AmpXModuleID],
         state: AmpXModuleOrder,
         originX: CGFloat,
-        compositionWidth: CGFloat,
         scale: CGFloat,
-        playlistViewportHeight: CGFloat
+        playlistViewportHeight: CGFloat,
+        playlistWidth: CGFloat
     ) -> [AmpXModuleID: CGRect] {
         var frames: [AmpXModuleID: CGRect] = [:]
         var y: CGFloat = 0
@@ -154,7 +176,8 @@ enum AmpXLayout {
                 state: state,
                 playlistViewportHeight: playlistViewportHeight
             ) * scale
-            frames[moduleID] = CGRect(x: originX, y: y, width: compositionWidth, height: height)
+            let width = self.moduleWidth(moduleID, playlistWidth: playlistWidth) * scale
+            frames[moduleID] = CGRect(x: originX, y: y, width: width, height: height)
 
             y += height
             if index < modules.count - 1 {

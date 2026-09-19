@@ -57,11 +57,11 @@ protocol AmpXSkin {
     /// Paired gold header rules filling `rect` (two 3.5 pt lines, 2.5 pt apart at scale 1).
     func headerRule(_ rect: CGRect, in context: CGContext, backingScale: CGFloat)
     func dotGrid(_ rect: CGRect, in context: CGContext)
-    /// Pill track whose colored fill ends at `filledThroughX`.
+    /// Pill track filled end to end with the `AmpXSliderColorRamp` color at the value `fraction` (0…1).
     func sliderTrack(
         _ rect: CGRect,
         fill: AmpXTrackFill,
-        filledThroughX: CGFloat,
+        fraction: Double,
         in context: CGContext,
         backingScale: CGFloat
     )

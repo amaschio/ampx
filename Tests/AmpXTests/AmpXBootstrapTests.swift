@@ -9,14 +9,22 @@ final class AmpXBootstrapTests: XCTestCase {
 
     @MainActor
     func testStackWindowSetsMinimumContentWidth() {
-        let coordinator = AmpXHostCoordinator(state: AmpXModuleOrder(), skin: ClassicModernSkin())
+        let coordinator = AmpXHostCoordinator(
+            state: AmpXModuleOrder(),
+            skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore()
+        )
         coordinator.showStack()
-        XCTAssertEqual(coordinator.stackWindow?.contentMinSize.width, 416.5)
+        XCTAssertEqual(coordinator.stackWindow?.contentMinSize.width, 490)
     }
 
     @MainActor
     func testStackWindowRejectsResizeBelowMinimumWidth() throws {
-        let coordinator = AmpXHostCoordinator(state: AmpXModuleOrder(), skin: ClassicModernSkin())
+        let coordinator = AmpXHostCoordinator(
+            state: AmpXModuleOrder(),
+            skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore()
+        )
         coordinator.showStack()
         guard let window = coordinator.stackWindow else {
             return XCTFail("Expected stack window")
@@ -27,6 +35,6 @@ final class AmpXBootstrapTests: XCTestCase {
             for: window,
             to: NSSize(width: 300, height: window.frame.height)
         )
-        XCTAssertEqual(proposed.width, 416.5)
+        XCTAssertEqual(proposed.width, 490)
     }
 }

@@ -1,4 +1,5 @@
 import AppKit
+import os
 import QuartzCore
 
 /// Deliberately not `@MainActor`, and the work hops through a real `Task`: AppKit calls this `@objc`
@@ -7,12 +8,24 @@ import QuartzCore
 /// `MainActor.assumeIsolated`. Entering a task gives the check a valid context (see commit 5562af8).
 final class AmpXDisplayLinkForwarder: NSObject {
     nonisolated(unsafe) weak var view: AmpXContinuousView?
+    private let pendingFrame = OSAllocatedUnfairLock(initialState: false)
 
     @objc func displayLinkFired(_ link: CADisplayLink) {
+        // A busy main actor needs one pending frame, not a queue of stale frames.
+        let shouldSchedule = self.pendingFrame.withLock { pending in
+            if pending {
+                return false
+            }
+            pending = true
+            return true
+        }
+        guard shouldSchedule else { return }
         // Only the timestamp crosses the boundary; `CADisplayLink` is not Sendable.
         let timestamp = link.timestamp
         let view = self.view
-        Task { @MainActor in
+        let pendingFrame = self.pendingFrame
+        Task { @MainActor [weak view] in
+            defer { pendingFrame.withLock { $0 = false } }
             view?.displayLinkTick(at: timestamp)
         }
     }
@@ -71,6 +84,7 @@ class AmpXContinuousView: AmpXDrawingView {
     }
 
     fileprivate func displayLinkTick(at time: TimeInterval) {
+        guard self.isEffectivelyVisible, !self.isContinuousRenderingPaused else { return }
         self.tick(at: time)
     }
 

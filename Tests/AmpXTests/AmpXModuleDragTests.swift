@@ -95,10 +95,10 @@ final class AmpXModuleDragTests: XCTestCase {
     }
 
     @MainActor
-    func testDetachRedockTransfersSameModuleViewInstance() {
-        let coordinator = makeCoordinator()
+    func testDetachRedockTransfersSameModuleViewInstance() throws {
+        let coordinator = self.makeCoordinator()
         coordinator.showStack()
-        let viewBefore = coordinator.moduleView(for: .equalizer)!
+        let viewBefore = try XCTUnwrap(coordinator.moduleView(for: .equalizer))
 
         coordinator.detach(.equalizer, at: CGPoint(x: 200, y: 400), inheritedWidth: 490)
         XCTAssertTrue(coordinator.state.detached.contains(.equalizer))
@@ -110,8 +110,8 @@ final class AmpXModuleDragTests: XCTestCase {
     }
 
     @MainActor
-    func testDetachInheritsStackScale() {
-        let coordinator = makeCoordinator()
+    func testDetachKeepsReferenceWidth() {
+        let coordinator = self.makeCoordinator()
         coordinator.showStack()
         coordinator.stackWindow?.setFrame(
             CGRect(x: 100, y: 100, width: 661.5, height: 600),
@@ -120,12 +120,12 @@ final class AmpXModuleDragTests: XCTestCase {
 
         coordinator.detach(.equalizer, at: CGPoint(x: 200, y: 400), inheritedWidth: 661.5)
 
-        XCTAssertEqual(coordinator.detachedWindowFrame(for: .equalizer)?.width ?? 0, 661.5, accuracy: 0.5)
+        XCTAssertEqual(coordinator.detachedWindowFrame(for: .equalizer)?.width ?? 0, 490, accuracy: 0.5)
     }
 
     @MainActor
-    func testRedockAdoptsStackScale() {
-        let coordinator = makeCoordinator()
+    func testRedockKeepsReferenceWidth() {
+        let coordinator = self.makeCoordinator()
         coordinator.showStack()
         coordinator.stackWindow?.setFrame(
             CGRect(x: 100, y: 100, width: 661.5, height: 600),
@@ -137,12 +137,12 @@ final class AmpXModuleDragTests: XCTestCase {
         coordinator.stackWindowController?.updateLayout()
 
         let moduleWidth = coordinator.moduleView(for: .equalizer)?.frame.width ?? 0
-        XCTAssertEqual(moduleWidth, 661.5, accuracy: 0.5)
+        XCTAssertEqual(moduleWidth, 490, accuracy: 0.5)
     }
 
     @MainActor
     func testMenuRedockShowsHiddenStackFirst() {
-        let coordinator = makeCoordinator()
+        let coordinator = self.makeCoordinator()
         coordinator.showStack()
         coordinator.detach(.equalizer, at: CGPoint(x: 200, y: 400), inheritedWidth: 490)
         coordinator.closeStack()
@@ -156,11 +156,11 @@ final class AmpXModuleDragTests: XCTestCase {
 
     @MainActor
     func testCollapseDuringDragCancelsWithoutChangingOrder() {
-        let coordinator = makeCoordinator()
+        let coordinator = self.makeCoordinator()
         coordinator.showStack()
         let orderBefore = coordinator.state.order
 
-        coordinator.dragController.beginGripDrag(moduleID: .equalizer, event: makeMouseEvent())
+        coordinator.dragController.beginGripDrag(moduleID: .equalizer, event: self.makeMouseEvent())
         coordinator.setCollapsed(.equalizer, true)
 
         XCTAssertEqual(coordinator.state.order, orderBefore)
@@ -172,6 +172,7 @@ final class AmpXModuleDragTests: XCTestCase {
         AmpXHostCoordinator(
             state: AmpXModuleOrder(),
             skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore(),
             screen: NSScreen.main!
         )
     }

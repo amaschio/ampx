@@ -7,10 +7,10 @@ enum AmpXPixelGrid {
     }
 
     static func strokeRect(_ rect: CGRect, lineWidth: CGFloat, backingScale: CGFloat) -> CGRect {
-        let alignedMinX = align(rect.minX, backingScale: backingScale)
-        let alignedMinY = align(rect.minY, backingScale: backingScale)
-        let alignedMaxX = align(rect.maxX, backingScale: backingScale)
-        let alignedMaxY = align(rect.maxY, backingScale: backingScale)
+        let alignedMinX = self.align(rect.minX, backingScale: backingScale)
+        let alignedMinY = self.align(rect.minY, backingScale: backingScale)
+        let alignedMaxX = self.align(rect.maxX, backingScale: backingScale)
+        let alignedMaxY = self.align(rect.maxY, backingScale: backingScale)
         return CGRect(
             x: alignedMinX + lineWidth / 2,
             y: alignedMinY + lineWidth / 2,

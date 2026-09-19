@@ -26,7 +26,7 @@ final class AmpXLayoutTests: XCTestCase {
         XCTAssertEqual(layout.frames[.player]?.height, 223.5)
     }
 
-    func testWideLayoutCentersCompositionAtMaxScale() throws {
+    func testWideLayoutKeepsReferenceCompositionAtLeft() throws {
         var state = AmpXModuleOrder()
         state.close(.equalizer)
         state.close(.playlist)
@@ -36,9 +36,9 @@ final class AmpXLayoutTests: XCTestCase {
             playlistViewportHeight: 180,
             availableHeight: 1000
         )
-        XCTAssertEqual(wide.scale, 1.35)
-        XCTAssertEqual(try XCTUnwrap(wide.frames[.player]?.minX), (800 - 490 * 1.35) / 2, accuracy: 0.0001)
-        XCTAssertEqual(try XCTUnwrap(wide.frames[.player]?.width), 490 * 1.35, accuracy: 0.0001)
+        XCTAssertEqual(wide.scale, 1)
+        XCTAssertEqual(try XCTUnwrap(wide.frames[.player]?.minX), 0, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(wide.frames[.player]?.width), 490, accuracy: 0.0001)
     }
 
     func testTableDrivenLayouts() {
@@ -126,9 +126,9 @@ final class AmpXLayoutTests: XCTestCase {
             availableHeight: available
         )
 
-        XCTAssertEqual(fitted.scale, 1.35)
+        XCTAssertEqual(fitted.scale, 1)
         XCTAssertEqual(fitted.contentHeight, available, accuracy: 0.001, "Stack exactly fills the available height")
-        XCTAssertEqual(fitted.playlistViewportHeight, 180 - 50 / 1.35, accuracy: 0.001)
+        XCTAssertEqual(fitted.playlistViewportHeight, 130, accuracy: 0.001)
         for id: AmpXModuleID in [.player, .equalizer, .enthea] {
             XCTAssertEqual(
                 try XCTUnwrap(fitted.frames[id]).height,
@@ -142,7 +142,7 @@ final class AmpXLayoutTests: XCTestCase {
             state: state,
             width: 661.5,
             playlistViewportHeight: 180,
-            availableHeight: 600
+            availableHeight: 500
         )
         XCTAssertEqual(tooShort.playlistViewportHeight, AmpXMetrics.minimumPlaylistViewportHeight)
     }

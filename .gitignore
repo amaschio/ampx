@@ -71,3 +71,7 @@ iOSInjectionProject/
 
 # Local git worktrees
 .worktrees/
+
+# DMG packaging output (scripts/create-dmg.sh)
+release/
+dmg-build/

@@ -34,7 +34,7 @@ final class AmpXEQBindingTests: XCTestCase {
     }
 
     func testBandSliderCallsSetEQBandWithDecibels() {
-        let slider = bandSlider(named: "60")
+        let slider = self.bandSlider(named: "60")
         XCTAssertNotNil(slider)
         slider?.onChange?(6)
         XCTAssertEqual(self.audioPlayer.lastEQBandIndex, 0)
@@ -42,7 +42,7 @@ final class AmpXEQBindingTests: XCTestCase {
     }
 
     func testPreampSliderCallsSetEQPreampWithNormalizedValue() {
-        let slider = preampSlider()
+        let slider = self.preampSlider()
         XCTAssertNotNil(slider)
         slider?.onChange?(-6)
         XCTAssertEqual(self.audioPlayer.lastEQPreamp ?? 0, -0.5, accuracy: 0.0001)
@@ -50,12 +50,12 @@ final class AmpXEQBindingTests: XCTestCase {
 
     func testOnToggleCallsSetEQEnabled() {
         self.audioPlayer.eqEnabled = true
-        tapButton(accessibilityTitle: "Equalizer on")
+        self.tapButton(accessibilityTitle: "Equalizer on")
         XCTAssertEqual(self.audioPlayer.setEQEnabledCalls, [false])
     }
 
     func testAutoToggleCallsSetEQAutoEnabled() {
-        tapButton(accessibilityTitle: "Equalizer auto")
+        self.tapButton(accessibilityTitle: "Equalizer auto")
         XCTAssertEqual(self.audioPlayer.setEQAutoEnabledCalls, [true])
     }
 
@@ -64,7 +64,7 @@ final class AmpXEQBindingTests: XCTestCase {
         self.audioPlayer.setEQBand(0, gain: 12)
         waitForMainQueue()
 
-        let slider = preampSlider()
+        let slider = self.preampSlider()
         let expectedDB = EQValueMapping.decibels(normalized: self.audioPlayer.eqPreampValue)
         XCTAssertLessThan(expectedDB, 0)
         XCTAssertEqual(slider?.value ?? 0, -2, accuracy: 0.01)
@@ -75,25 +75,25 @@ final class AmpXEQBindingTests: XCTestCase {
         self.audioPlayer.setEQBand(2, gain: 3)
         waitForMainQueue()
 
-        let slider = bandSlider(named: "310")
+        let slider = self.bandSlider(named: "310")
         XCTAssertEqual(slider?.value ?? 0, 3, accuracy: 0.01)
     }
 
     private func preampSlider() -> AmpXSlider? {
-        slider(accessibilityTitle: "Preamp")
+        self.slider(accessibilityTitle: "Preamp")
     }
 
     private func bandSlider(named label: String) -> AmpXSlider? {
-        slider(accessibilityTitle: "\(label) band")
+        self.slider(accessibilityTitle: "\(label) band")
     }
 
     private func slider(accessibilityTitle: String) -> AmpXSlider? {
-        subviews(ofType: AmpXSlider.self, in: self.content)
+        self.subviews(ofType: AmpXSlider.self, in: self.content)
             .first { $0.accessibilityTitle == accessibilityTitle }
     }
 
     private func tapButton(accessibilityTitle: String) {
-        let button = subviews(ofType: AmpXButton.self, in: self.content)
+        let button = self.subviews(ofType: AmpXButton.self, in: self.content)
             .first { $0.accessibilityTitle == accessibilityTitle }
         XCTAssertNotNil(button)
         button?.action?()
@@ -105,7 +105,7 @@ final class AmpXEQBindingTests: XCTestCase {
             if let match = subview as? T {
                 found.append(match)
             }
-            found.append(contentsOf: subviews(ofType: type, in: subview))
+            found.append(contentsOf: self.subviews(ofType: type, in: subview))
         }
         return found
     }

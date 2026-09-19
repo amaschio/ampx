@@ -388,6 +388,9 @@ class AudioPlayer: NSObject, ObservableObject {
     /// Stops scheduled audio and reuses the attached player node for the next file.
     private nonisolated func preparePlayerNodeForNewTrack() {
         guard let engine = audioEngine else { return }
+        // Invalidate analysis only after stopping/resetting the old source. Opening
+        // the new epoch on the main actor beforehand could stamp old PCM as new.
+        defer { self.spectrumAnalyzer?.resetMiniAnalysis() }
 
         if let player = playerNode {
             player.stop()
@@ -539,6 +542,7 @@ class AudioPlayer: NSObject, ObservableObject {
             self.playbackGeneration += 1
             self.playbackSegmentStartTime = 0
             self.playerNode?.stop()
+            self.spectrumAnalyzer?.resetMiniAnalysis()
             self.isPlayingInternal = false
             self.isPausedInternal = false
 
@@ -561,7 +565,9 @@ class AudioPlayer: NSObject, ObservableObject {
 
     /// Starts playback from the beginning, or resumes from the current position when paused.
     func playOrResume() {
-        if self.isPlaying { return }
+        if self.isPlaying {
+            return
+        }
         if self.currentTime > 0, self.currentTrack != nil {
             self.resume()
         } else {
@@ -581,6 +587,7 @@ class AudioPlayer: NSObject, ObservableObject {
             player.stop()
             player.reset()
             self.isPlayingInternal = false
+            self.spectrumAnalyzer?.resetMiniAnalysis()
 
             let sampleRate = file.fileFormat.sampleRate
             let durationSeconds = sampleRate > 0 ? Double(file.length) / sampleRate : 0
@@ -810,7 +817,11 @@ class AudioPlayer: NSObject, ObservableObject {
     @discardableResult
     func importEQF(from url: URL) -> [EQPreset] {
         let needsScope = url.startAccessingSecurityScopedResource()
-        defer { if needsScope { url.stopAccessingSecurityScopedResource() } }
+        defer {
+            if needsScope {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
 
         guard let data = try? Data(contentsOf: url),
               let imported = try? EQFParser.parse(data), !imported.isEmpty

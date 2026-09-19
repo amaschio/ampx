@@ -4,7 +4,12 @@ import XCTest
 @MainActor
 final class AmpXTheaterTests: XCTestCase {
     func testTheaterPreservesHostIdentityAndPresentation() throws {
-        let hosts = AmpXHostCoordinator(state: AmpXModuleOrder(), skin: ClassicModernSkin())
+        let hosts = AmpXHostCoordinator(
+            state: AmpXModuleOrder(),
+            skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore(),
+            entheaEnabled: true
+        )
         hosts.reopenModule(.enthea)
         let view = try XCTUnwrap(hosts.moduleView(for: .enthea))
         let identity = ObjectIdentifier(view.content)
@@ -27,7 +32,12 @@ final class AmpXTheaterTests: XCTestCase {
     }
 
     func testTheaterPreservesDetachedHostIdentityAndWindowFrame() throws {
-        let hosts = AmpXHostCoordinator(state: AmpXModuleOrder(), skin: ClassicModernSkin())
+        let hosts = AmpXHostCoordinator(
+            state: AmpXModuleOrder(),
+            skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore(),
+            entheaEnabled: true
+        )
         hosts.reopenModule(.enthea)
         hosts.showStack()
         hosts.detach(.enthea, at: CGPoint(x: 400, y: 500), inheritedWidth: 490)
@@ -52,9 +62,9 @@ final class AmpXTheaterTests: XCTestCase {
         XCTAssertEqual(ObjectIdentifier(view.content), identity)
 
         let restoredWindowFrame = try XCTUnwrap(hosts.detachedWindowFrame(for: .enthea))
-        let clampedPrevious = AmpXLayoutStore.clampedToVisibleFrame(
+        let clampedPrevious = try AmpXLayoutStore.clampedToVisibleFrame(
             previousWindowFrame,
-            screen: NSScreen.main!
+            screen: XCTUnwrap(NSScreen.main)
         )
         XCTAssertEqual(restoredWindowFrame.origin.x, clampedPrevious.origin.x, accuracy: 1)
         XCTAssertEqual(restoredWindowFrame.origin.y, clampedPrevious.origin.y, accuracy: 1)

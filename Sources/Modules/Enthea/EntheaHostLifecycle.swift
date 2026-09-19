@@ -18,14 +18,14 @@ final class EntheaHostLifecycle {
     }
 
     func setVisible(_ visible: Bool) {
-        guard visible != isVisible else { return }
-        isVisible = visible
-        host?.setAudioBridgeActive(visible)
+        guard visible != self.isVisible else { return }
+        self.isVisible = visible
+        self.host?.setAudioBridgeActive(visible)
     }
 
     func close() {
-        host?.teardown()
-        host = nil
-        isVisible = false
+        self.host?.teardown()
+        self.host = nil
+        self.isVisible = false
     }
 }

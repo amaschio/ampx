@@ -5,7 +5,8 @@ import XCTest
 final class AmpXApplicationControllerTests: XCTestCase {
     private func makeController(
         audioPlayer: AudioPlayer? = nil,
-        playlistManager: PlaylistManager? = nil
+        playlistManager: PlaylistManager? = nil,
+        entheaEnabled: Bool = false
     ) -> (AmpXApplicationController, AudioPlayer, PlaylistManager, AmpXHostCoordinator) {
         let player = audioPlayer ?? AudioPlayer(installRemoteCommands: false)
         let manager = playlistManager ?? PlaylistManager(
@@ -17,8 +18,10 @@ final class AmpXApplicationControllerTests: XCTestCase {
         let hosts = AmpXHostCoordinator(
             state: AmpXModuleOrder(),
             skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore(),
             audioPlayer: player,
-            playlistManager: manager
+            playlistManager: manager,
+            entheaEnabled: entheaEnabled
         )
         let application = AmpXApplicationController(
             audioPlayer: player,
@@ -29,7 +32,7 @@ final class AmpXApplicationControllerTests: XCTestCase {
     }
 
     func testStartBindsPlaybackCoordinationOnce() {
-        let (application, player, manager, _) = makeController()
+        let (application, player, manager, _) = self.makeController()
         application.start()
         XCTAssertTrue(application.isPlaybackCoordinationBound)
         XCTAssertNotNil(player.onTrackFinished)
@@ -60,6 +63,7 @@ final class AmpXApplicationControllerTests: XCTestCase {
         let hosts = AmpXHostCoordinator(
             state: AmpXModuleOrder(),
             skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore(),
             audioPlayer: player,
             playlistManager: manager
         )
@@ -85,6 +89,7 @@ final class AmpXApplicationControllerTests: XCTestCase {
         let hosts = AmpXHostCoordinator(
             state: AmpXModuleOrder(),
             skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore(),
             audioPlayer: player,
             playlistManager: manager
         )
@@ -103,7 +108,7 @@ final class AmpXApplicationControllerTests: XCTestCase {
     }
 
     func testTerminateHandlesTheaterShutdown() {
-        let (application, _, _, hosts) = makeController()
+        let (application, _, _, hosts) = self.makeController(entheaEnabled: true)
         application.start()
         hosts.reopenModule(.enthea)
         hosts.toggleTheater()

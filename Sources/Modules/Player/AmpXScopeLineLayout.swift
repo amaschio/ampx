@@ -9,8 +9,12 @@ enum AmpXScopeLineLayout {
     }
 
     /// Maps levels in -1…1 (+1 = top) to points in `rect`, which uses flipped AppKit coordinates.
+    /// With no samples — a parked well, or one just cycled into scope mode — the zero line still
+    /// draws, the way a real oscilloscope shows its trace at silence rather than an empty screen.
     static func points(levels: [Float], in rect: CGRect) -> [CGPoint] {
-        guard !levels.isEmpty else { return [] }
+        guard !levels.isEmpty else {
+            return [CGPoint(x: rect.minX, y: rect.midY), CGPoint(x: rect.maxX, y: rect.midY)]
+        }
         let halfHeight = rect.height / 2
         let step = levels.count > 1 ? rect.width / CGFloat(levels.count - 1) : 0
 

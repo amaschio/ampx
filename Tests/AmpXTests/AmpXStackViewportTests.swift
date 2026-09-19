@@ -10,12 +10,12 @@ final class AmpXStackViewportTests: XCTestCase {
             state: state,
             width: 661.5,
             playlistViewportHeight: 180,
-            availableHeight: 600
+            availableHeight: 500
         )
         XCTAssertEqual(result.playlistViewportHeight, AmpXMetrics.minimumPlaylistViewportHeight)
-        XCTAssertEqual(result.frames[.player]?.height ?? 0, AmpXMetrics.playerHeight * 1.35, accuracy: 0.001)
-        XCTAssertEqual(result.frames[.equalizer]?.height ?? 0, AmpXMetrics.equalizerHeight * 1.35, accuracy: 0.001)
-        XCTAssertEqual(result.frames[.enthea]?.height ?? 0, AmpXMetrics.entheaHeight * 1.35, accuracy: 0.001)
+        XCTAssertEqual(result.frames[.player]?.height ?? 0, AmpXMetrics.playerHeight, accuracy: 0.001)
+        XCTAssertEqual(result.frames[.equalizer]?.height ?? 0, AmpXMetrics.equalizerHeight, accuracy: 0.001)
+        XCTAssertEqual(result.frames[.enthea]?.height ?? 0, AmpXMetrics.entheaHeight, accuracy: 0.001)
     }
 
     func testRestoredScreenSpaceReturnsPreferredPlaylistViewport() {
@@ -26,7 +26,7 @@ final class AmpXStackViewportTests: XCTestCase {
             state: state,
             width: 661.5,
             playlistViewportHeight: 180,
-            availableHeight: 600
+            availableHeight: 500
         )
         XCTAssertEqual(cramped.playlistViewportHeight, AmpXMetrics.minimumPlaylistViewportHeight)
 

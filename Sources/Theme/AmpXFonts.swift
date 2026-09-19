@@ -4,9 +4,9 @@ import os
 
 enum AmpXFonts {
     private static let logger = Logger(subsystem: "com.ampx.macos", category: "AmpXFonts")
-    nonisolated(unsafe) private static var didRegister = false
-    nonisolated(unsafe) private static var loggedUnavailableFaces: Set<String> = []
-    nonisolated(unsafe) private static var postScriptNames: [NSFont.Weight: String] = [:]
+    private nonisolated(unsafe) static var didRegister = false
+    private nonisolated(unsafe) static var loggedUnavailableFaces: Set<String> = []
+    private nonisolated(unsafe) static var postScriptNames: [NSFont.Weight: String] = [:]
 
     private static let bundledResources = [
         "RobotoMono-Regular",
@@ -15,30 +15,30 @@ enum AmpXFonts {
     ]
 
     static func register(bundle: Bundle = .main) {
-        guard !didRegister else { return }
-        didRegister = true
+        guard !self.didRegister else { return }
+        self.didRegister = true
 
-        for resource in bundledResources {
+        for resource in self.bundledResources {
             guard let url = bundle.url(forResource: resource, withExtension: "ttf", subdirectory: "Fonts")
                 ?? bundle.url(forResource: resource, withExtension: "ttf")
             else {
-                logger.error("Missing bundled font resource \(resource, privacy: .public).ttf")
+                self.logger.error("Missing bundled font resource \(resource, privacy: .public).ttf")
                 continue
             }
-            registerFont(at: url)
+            self.registerFont(at: url)
         }
 
-        postScriptNames = [
-            .regular: facePostScriptName(for: "RobotoMono-Regular.ttf", bundle: bundle) ?? "RobotoMono-Regular",
-            .medium: facePostScriptName(for: "RobotoMono-Medium.ttf", bundle: bundle) ?? "RobotoMono-Medium",
-            .semibold: facePostScriptName(for: "RobotoMono-SemiBold.ttf", bundle: bundle) ?? "RobotoMono-SemiBold",
+        self.postScriptNames = [
+            .regular: self.facePostScriptName(for: "RobotoMono-Regular.ttf", bundle: bundle) ?? "RobotoMono-Regular",
+            .medium: self.facePostScriptName(for: "RobotoMono-Medium.ttf", bundle: bundle) ?? "RobotoMono-Medium",
+            .semibold: self.facePostScriptName(for: "RobotoMono-SemiBold.ttf", bundle: bundle) ?? "RobotoMono-SemiBold",
         ]
     }
 
     static func font(size: CGFloat, weight: NSFont.Weight = .regular) -> NSFont {
-        register()
-        let postScriptName = postScriptNames[resolvedWeight(weight)] ?? "RobotoMono-Regular"
-        return resolve(name: postScriptName, size: size, weight: weight, lookup: NSFont.init(name:size:))
+        self.register()
+        let postScriptName = self.postScriptNames[self.resolvedWeight(weight)] ?? "RobotoMono-Regular"
+        return self.resolve(name: postScriptName, size: size, weight: weight, lookup: NSFont.init(name:size:))
     }
 
     static func resolve(
@@ -50,7 +50,7 @@ enum AmpXFonts {
         if let font = lookup(name, size) {
             return font
         }
-        logUnavailableFace(name)
+        self.logUnavailableFace(name)
         return NSFont.monospacedSystemFont(ofSize: size, weight: weight)
     }
 
@@ -64,12 +64,16 @@ enum AmpXFonts {
 
         if !registered, !alreadyRegistered {
             let message = error.map { CFErrorCopyDescription($0) as String? } ?? nil
-            logger.error("Failed to register font at \(url.path, privacy: .public): \(message ?? "unknown error", privacy: .public)")
+            self.logger.error("Failed to register font at \(url.path, privacy: .public): \(message ?? "unknown error", privacy: .public)")
         }
     }
 
     private static func facePostScriptName(for filename: String, bundle: Bundle) -> String? {
-        guard let url = bundle.url(forResource: filename.replacingOccurrences(of: ".ttf", with: ""), withExtension: "ttf", subdirectory: "Fonts")
+        guard let url = bundle.url(
+            forResource: filename.replacingOccurrences(of: ".ttf", with: ""),
+            withExtension: "ttf",
+            subdirectory: "Fonts"
+        )
             ?? bundle.url(forResource: filename.replacingOccurrences(of: ".ttf", with: ""), withExtension: "ttf")
         else {
             return nil
@@ -96,7 +100,7 @@ enum AmpXFonts {
     }
 
     private static func logUnavailableFace(_ name: String) {
-        guard loggedUnavailableFaces.insert(name).inserted else { return }
-        logger.error("Bundled font face unavailable: \(name, privacy: .public); using monospaced system fallback")
+        guard self.loggedUnavailableFaces.insert(name).inserted else { return }
+        self.logger.error("Bundled font face unavailable: \(name, privacy: .public); using monospaced system fallback")
     }
 }

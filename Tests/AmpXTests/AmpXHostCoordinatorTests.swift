@@ -12,11 +12,55 @@ final class AmpXHostCoordinatorTests: XCTestCase {
         UserDefaults(suiteName: name)?.removePersistentDomain(forName: name)
     }
 
-    func testModuleViewsAreCreatedForEveryModule() {
+    func testDefaultHostCreatesMainPlayerModulesWithoutEnthea() {
         let coordinator = self.makeCoordinator()
-        for moduleID in AmpXModuleID.allCases {
+        for moduleID: AmpXModuleID in [.player, .equalizer, .playlist] {
             XCTAssertNotNil(coordinator.moduleView(for: moduleID))
         }
+        XCTAssertNil(coordinator.moduleView(for: .enthea))
+    }
+
+    func testDisabledEntheaCannotRestoreOrReopenItsHost() {
+        var state = AmpXModuleOrder()
+        state.reopen(.enthea)
+        state.detach(.enthea)
+        let coordinator = AmpXHostCoordinator(
+            state: state,
+            skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore()
+        )
+        XCTAssertNil(coordinator.moduleView(for: .enthea))
+        XCTAssertNil(coordinator.detachedWindowFrame(for: .enthea))
+        XCTAssertTrue(coordinator.state.closed.contains(.enthea))
+
+        coordinator.reopenModule(.enthea)
+        coordinator.toggleTheater()
+        XCTAssertTrue(coordinator.state.closed.contains(.enthea))
+        XCTAssertFalse(coordinator.isInTheater)
+        XCTAssertNil(coordinator.moduleView(for: .enthea))
+    }
+
+    func testDisabledEntheaPreservesItsSavedLayoutWhenMainPlayerChanges() {
+        let store = makeIsolatedLayoutStore()
+        var saved = store.load()
+        saved.state.reopen(.enthea)
+        saved.state.detach(.enthea)
+        saved.state.setCollapsed(.enthea, true)
+        let frame = CGRect(x: 100, y: 100, width: 490, height: 290)
+        saved.detachedFrames[.enthea] = frame
+        store.save(saved)
+
+        let coordinator = AmpXHostCoordinator(state: saved.state, skin: ClassicModernSkin(), layoutStore: store)
+        XCTAssertTrue(coordinator.state.closed.contains(.enthea))
+        coordinator.closeModule(.equalizer)
+
+        let persisted = store.load()
+        XCTAssertFalse(persisted.state.closed.contains(.enthea), "Temporary unavailability must not overwrite the saved open state")
+        XCTAssertTrue(persisted.state.detached.contains(.enthea))
+        XCTAssertTrue(persisted.state.collapsed.contains(.enthea))
+        XCTAssertEqual(persisted.state.order, saved.state.order)
+        XCTAssertEqual(persisted.detachedFrames[.enthea], frame)
+        XCTAssertTrue(persisted.state.closed.contains(.equalizer))
     }
 
     func testCloseModuleUpdatesStateAndPersists() {
@@ -145,33 +189,52 @@ final class AmpXHostCoordinatorTests: XCTestCase {
         XCTAssertTrue(coordinator.isStackVisible)
     }
 
-    func testOpenEntheaStateMountsHostOnInit() {
+    func testOpenEntheaStateMountsHostWhenFeatureIsReenabled() {
         var state = AmpXModuleOrder()
         state.reopen(.enthea)
         let coordinator = AmpXHostCoordinator(
             state: state,
             skin: ClassicModernSkin(),
-            screen: testScreen()
+            layoutStore: makeIsolatedLayoutStore(),
+            screen: testScreen(),
+            entheaEnabled: true
         )
         let content = coordinator.moduleView(for: .enthea)?.content as? EntheaModuleContent
         XCTAssertNotNil(content?.hostViewForTesting)
     }
 
-    func testClosedEntheaStateDoesNotMountHostOnInit() {
-        let coordinator = self.makeCoordinator()
-        let content = coordinator.moduleView(for: .enthea)?.content as? EntheaModuleContent
-        XCTAssertNil(content?.hostViewForTesting)
+    func testClosedEntheaStateDoesNotMountHostWhenFeatureIsReenabled() throws {
+        let coordinator = AmpXHostCoordinator(
+            state: AmpXModuleOrder(),
+            skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore(),
+            entheaEnabled: true
+        )
+        let content = try XCTUnwrap(coordinator.moduleView(for: .enthea)?.content as? EntheaModuleContent)
+        XCTAssertNil(content.hostViewForTesting)
     }
 
     private func makeCoordinator() -> AmpXHostCoordinator {
         AmpXHostCoordinator(
             state: AmpXModuleOrder(),
             skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore(),
             screen: self.testScreen()
         )
     }
 
     private func testScreen() -> NSScreen {
         NSScreen.main!
+    }
+}
+
+/// Coordinator behavior tests must never overwrite the running app's saved layout.
+extension XCTestCase {
+    @MainActor
+    func makeIsolatedLayoutStore() -> AmpXLayoutStore {
+        let suite = "AmpXLayoutTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        return AmpXLayoutStore(defaults: defaults)
     }
 }

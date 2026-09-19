@@ -19,9 +19,7 @@ final class AmpXPlayerSpectrumWakeTests: XCTestCase {
             onToggleModule: { _ in }
         )
         // Deterministic silence: the shared bus is a singleton other tests and audio threads touch.
-        content.spectrumWell.spectrumSource = { _ in
-            (targets: Array(repeating: 0, count: AudioFeatures.spectrumBandCount), isPlaying: false)
-        }
+        content.spectrumWell.audioSource = { _ in AmpXMiniAudioSnapshot() }
         content.spectrumWell.setEffectivelyVisible(true)
 
         var time: TimeInterval = 0

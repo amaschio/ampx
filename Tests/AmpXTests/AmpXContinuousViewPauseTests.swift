@@ -36,11 +36,55 @@ final class AmpXContinuousViewPauseTests: XCTestCase {
 
         XCTAssertEqual(view.startCount, 0)
     }
+
+    func testQueuedDisplayCallbacksCoalesceBeforeMainActorRuns() async {
+        let view = CountingContinuousView(skin: ClassicModernSkin())
+        view.setEffectivelyVisible(true)
+        let forwarder = AmpXDisplayLinkForwarder()
+        forwarder.view = view
+        let link = view.displayLink(target: forwarder, selector: #selector(AmpXDisplayLinkForwarder.displayLinkFired(_:)))
+        for _ in 0 ..< 100 {
+            forwarder.displayLinkFired(link)
+        }
+        await self.drainMainQueue()
+        XCTAssertEqual(view.tickCount, 1)
+        view.setEffectivelyVisible(false)
+    }
+
+    func testQueuedCallbackCannotTickAfterViewIsHiddenOrParked() async {
+        for hide in [true, false] {
+            let view = CountingContinuousView(skin: ClassicModernSkin())
+            view.setEffectivelyVisible(true)
+            let forwarder = AmpXDisplayLinkForwarder()
+            forwarder.view = view
+            let link = view.displayLink(target: forwarder, selector: #selector(AmpXDisplayLinkForwarder.displayLinkFired(_:)))
+            forwarder.displayLinkFired(link)
+            if hide {
+                view.setEffectivelyVisible(false)
+            } else {
+                view.setContinuousRenderingPaused(true)
+            }
+            await self.drainMainQueue()
+            XCTAssertEqual(view.tickCount, 0)
+            view.setEffectivelyVisible(false)
+        }
+    }
+
+    private func drainMainQueue() async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.main.async { continuation.resume() }
+        }
+    }
 }
 
 private final class CountingContinuousView: AmpXContinuousView {
     private(set) var startCount = 0
     private(set) var stopCount = 0
+    private(set) var tickCount = 0
+
+    override func tick(at _: TimeInterval) {
+        self.tickCount += 1
+    }
 
     override init(skin: any AmpXSkin) {
         super.init(skin: skin)

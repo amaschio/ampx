@@ -43,13 +43,13 @@ final class AmpXAppDelegate: NSObject, NSApplicationDelegate {
         self.applicationController = application
 
         NSApp.mainMenu = AmpXMenuBuilder.makeMainMenu(application: application)
-        installKeyboardShortcuts()
+        self.installKeyboardShortcuts()
         application.start()
     }
 
     func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows: Bool) -> Bool {
         if !hasVisibleWindows {
-            applicationController?.hosts.showStack()
+            self.applicationController?.hosts.showStack()
         }
         return true
     }
@@ -59,14 +59,14 @@ final class AmpXAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_: Notification) {
-        applicationController?.terminate()
+        self.applicationController?.terminate()
         if let monitor = keyboardEventMonitor {
             NSEvent.removeMonitor(monitor)
         }
     }
 
     private func installKeyboardShortcuts() {
-        keyboardEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        self.keyboardEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, let application = self.applicationController else { return event }
             return AmpXKeyRouter.handle(
                 event,

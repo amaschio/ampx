@@ -86,15 +86,27 @@ final class PlaylistFooterView: AmpXDrawingView {
         self.layoutControls()
     }
 
+    /// Extra width beyond the reference; the right group keeps its trailing anchor (spec Revision 9).
+    private var rightAnchorOffset: CGFloat {
+        max(0, bounds.width - AmpXMetrics.compositionWidth)
+    }
+
+    /// Left-anchored controls keep their reference x; the right group shifts with the trailing edge.
+    private func anchored(_ rect: CGRect) -> CGRect {
+        rect.minX >= AmpXMetrics.playlistFooterRightGroupMinX
+            ? rect.offsetBy(dx: self.rightAnchorOffset, dy: 0)
+            : rect
+    }
+
     private func layoutControls() {
         for (index, item) in AmpXMetrics.playlistFooterButtons.enumerated() where index < self.footerButtonsViews.count {
-            footerButtonsViews[index].frame = item.rect
+            footerButtonsViews[index].frame = self.anchored(item.rect)
         }
         for (index, item) in AmpXMetrics.playlistFooterTransport.enumerated() where index < self.miniTransportButtons.count {
-            miniTransportButtons[index].frame = item.frame
+            miniTransportButtons[index].frame = self.anchored(item.frame)
         }
-        self.elapsedTotalReadout.frame = AmpXMetrics.playlistFooterCounterWell
-        self.remainingReadout.frame = AmpXMetrics.playlistFooterRemainingWell
+        self.elapsedTotalReadout.frame = self.anchored(AmpXMetrics.playlistFooterCounterWell)
+        self.remainingReadout.frame = self.anchored(AmpXMetrics.playlistFooterRemainingWell)
     }
 
     private func showMenu(for label: String, button: AmpXButton) {

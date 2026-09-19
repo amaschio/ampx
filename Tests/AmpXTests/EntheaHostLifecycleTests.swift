@@ -7,11 +7,11 @@ final class FakeEntheaHost: AmpXEntheaHosting {
     var teardownCount = 0
 
     func setAudioBridgeActive(_ active: Bool) {
-        activeCalls.append(active)
+        self.activeCalls.append(active)
     }
 
     func teardown() {
-        teardownCount += 1
+        self.teardownCount += 1
     }
 }
 

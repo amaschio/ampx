@@ -96,7 +96,10 @@ final class AmpXModuleView: NSView {
         )
         self.frame = snappedFrame
 
-        let scale = Self.scale(forWidth: snappedFrame.width)
+        // The Playlist stretches instead of scaling (spec Revision 9); every other module scales with its width.
+        let stretches = Self.stretchesHorizontally(self.moduleID)
+        let scale = stretches ? 1 : Self.scale(forWidth: snappedFrame.width)
+        self.header.stretchesHorizontally = stretches
         let headerHeight = AmpXMetrics.headerHeight * scale
         self.header.frame = CGRect(x: 0, y: 0, width: snappedFrame.width, height: headerHeight)
         self.content.frame = CGRect(
@@ -115,6 +118,11 @@ final class AmpXModuleView: NSView {
 
     static func scale(forWidth width: CGFloat) -> CGFloat {
         width > 0 ? width / AmpXMetrics.compositionWidth : 1
+    }
+
+    /// Only the Playlist keeps 1:1 content points at any width.
+    static func stretchesHorizontally(_ moduleID: AmpXModuleID) -> Bool {
+        moduleID == .playlist
     }
 
     func setContentCollapsed(_ collapsed: Bool) {

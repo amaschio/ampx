@@ -14,7 +14,7 @@ enum AmpXControlMath {
         let raw = range.lowerBound + fraction * span
         let clamped = min(max(raw, range.lowerBound), range.upperBound)
         guard step > 0 else { return clamped }
-        return snap(clamped, step: step, range: range)
+        return self.snap(clamped, step: step, range: range)
     }
 
     static func fraction(value: Double, range: ClosedRange<Double>) -> Double {

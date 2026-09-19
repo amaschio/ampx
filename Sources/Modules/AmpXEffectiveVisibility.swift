@@ -9,7 +9,7 @@ struct AmpXVisibilityInputs {
     var intersectsViewport: Bool
 
     var isVisible: Bool {
-        !collapsed && !closed && windowVisible && !miniaturized && !occluded && intersectsViewport
+        !self.collapsed && !self.closed && self.windowVisible && !self.miniaturized && !self.occluded && self.intersectsViewport
     }
 }
 
@@ -21,7 +21,7 @@ enum AmpXEffectiveVisibility {
         moduleFrame: CGRect,
         visibleContentRect: CGRect
     ) -> AmpXVisibilityInputs {
-        let windowInputs = windowState(from: window)
+        let windowInputs = self.windowState(from: window)
         return AmpXVisibilityInputs(
             collapsed: collapsed,
             closed: closed,
@@ -37,7 +37,7 @@ enum AmpXEffectiveVisibility {
         closed: Bool,
         window: NSWindow?
     ) -> AmpXVisibilityInputs {
-        let windowInputs = windowState(from: window)
+        let windowInputs = self.windowState(from: window)
         return AmpXVisibilityInputs(
             collapsed: collapsed,
             closed: closed,
@@ -53,7 +53,7 @@ enum AmpXEffectiveVisibility {
         closed: Bool,
         window: NSWindow?
     ) -> AmpXVisibilityInputs {
-        detachedInputs(collapsed: collapsed, closed: closed, window: window)
+        self.detachedInputs(collapsed: collapsed, closed: closed, window: window)
     }
 
     private static func windowState(from window: NSWindow?) -> (isVisible: Bool, isMiniaturized: Bool, isOccluded: Bool) {

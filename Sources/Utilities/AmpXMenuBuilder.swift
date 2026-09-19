@@ -4,21 +4,21 @@ enum AmpXMenuBuilder {
     @MainActor
     static func makeMainMenu(application: AmpXApplicationController) -> NSMenu {
         let mainMenu = NSMenu()
-        mainMenu.addItem(makeAppMenu(application: application))
-        mainMenu.addItem(makeFileMenu(application: application))
-        mainMenu.addItem(makeEditMenu())
-        mainMenu.addItem(makePlaybackMenu(application: application))
-        mainMenu.addItem(makeViewMenu(application: application))
-        mainMenu.addItem(makeWindowMenu(application: application))
+        mainMenu.addItem(self.makeAppMenu(application: application))
+        mainMenu.addItem(self.makeFileMenu(application: application))
+        mainMenu.addItem(self.makeEditMenu())
+        mainMenu.addItem(self.makePlaybackMenu(application: application))
+        mainMenu.addItem(self.makeViewMenu(application: application))
+        mainMenu.addItem(self.makeWindowMenu(application: application))
         return mainMenu
     }
 
     @MainActor
     static func makePlayerMenu(application: AmpXApplicationController) -> NSMenu {
         let menu = NSMenu()
-        appendFileItems(to: menu, application: application)
+        self.appendFileItems(to: menu, application: application)
         menu.addItem(.separator())
-        appendPlaybackItems(to: menu, application: application, includeToggles: false)
+        self.appendPlaybackItems(to: menu, application: application, includeToggles: false)
         menu.addItem(.separator())
         menu.addItem(
             titled: "Quit AmpX",
@@ -31,7 +31,7 @@ enum AmpXMenuBuilder {
     }
 
     @MainActor
-    private static func makeAppMenu(application: AmpXApplicationController) -> NSMenuItem {
+    private static func makeAppMenu(application _: AmpXApplicationController) -> NSMenuItem {
         let appMenu = NSMenu()
         appMenu.addItem(
             titled: "About AmpX",
@@ -75,8 +75,8 @@ enum AmpXMenuBuilder {
     @MainActor
     private static func makeFileMenu(application: AmpXApplicationController) -> NSMenuItem {
         let menu = NSMenu(title: "File")
-        appendFileItems(to: menu, application: application)
-        return titled("File", submenu: menu)
+        self.appendFileItems(to: menu, application: application)
+        return self.titled("File", submenu: menu)
     }
 
     @MainActor
@@ -86,7 +86,7 @@ enum AmpXMenuBuilder {
             action: #selector(AmpXApplicationController.addFiles(_:)),
             target: application,
             keyEquivalent: AmpXMenuCatalog.FileShortcut.addFilesKey,
-            modifiers: fileModifiers(
+            modifiers: self.fileModifiers(
                 command: AmpXMenuCatalog.FileShortcut.addFilesUsesCommand,
                 shift: AmpXMenuCatalog.FileShortcut.addFilesUsesShift
             )
@@ -96,7 +96,7 @@ enum AmpXMenuBuilder {
             action: #selector(AmpXApplicationController.addFolder(_:)),
             target: application,
             keyEquivalent: AmpXMenuCatalog.FileShortcut.addFilesKey,
-            modifiers: fileModifiers(
+            modifiers: self.fileModifiers(
                 command: AmpXMenuCatalog.FileShortcut.addFolderUsesCommand,
                 shift: AmpXMenuCatalog.FileShortcut.addFolderUsesShift
             )
@@ -117,14 +117,14 @@ enum AmpXMenuBuilder {
     @MainActor
     private static func makeEditMenu() -> NSMenuItem {
         let menu = NSMenu(title: "Edit")
-        return titled("Edit", submenu: menu)
+        return self.titled("Edit", submenu: menu)
     }
 
     @MainActor
     private static func makePlaybackMenu(application: AmpXApplicationController) -> NSMenuItem {
         let menu = NSMenu(title: "Playback")
-        appendPlaybackItems(to: menu, application: application, includeToggles: true)
-        return titled("Playback", submenu: menu)
+        self.appendPlaybackItems(to: menu, application: application, includeToggles: true)
+        return self.titled("Playback", submenu: menu)
     }
 
     @MainActor
@@ -184,12 +184,14 @@ enum AmpXMenuBuilder {
             action: #selector(AmpXApplicationController.togglePlaylist(_:)),
             target: application
         )
-        menu.addItem(
-            toggle: AmpXMenuCatalog.ViewPanel.visualizer.rawValue,
-            action: #selector(AmpXApplicationController.toggleVisualizer(_:)),
-            target: application
-        )
-        return titled("View", submenu: menu)
+        if application.hosts.isEntheaEnabled {
+            menu.addItem(
+                toggle: AmpXMenuCatalog.ViewPanel.visualizer.rawValue,
+                action: #selector(AmpXApplicationController.toggleVisualizer(_:)),
+                target: application
+            )
+        }
+        return self.titled("View", submenu: menu)
     }
 
     @MainActor
@@ -244,13 +246,17 @@ enum AmpXMenuBuilder {
             target: NSApp
         )
         NSApp.windowsMenu = menu
-        return titled("Window", submenu: menu)
+        return self.titled("Window", submenu: menu)
     }
 
     private static func fileModifiers(command: Bool, shift: Bool) -> NSEvent.ModifierFlags {
         var modifiers: NSEvent.ModifierFlags = []
-        if command { modifiers.insert(.command) }
-        if shift { modifiers.insert(.shift) }
+        if command {
+            modifiers.insert(.command)
+        }
+        if shift {
+            modifiers.insert(.shift)
+        }
         return modifiers
     }
 
@@ -273,7 +279,7 @@ private extension NSMenu {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: keyEquivalent)
         item.target = target
         item.keyEquivalentModifierMask = modifiers
-        addItem(item)
+        self.addItem(item)
     }
 
     @MainActor
@@ -284,6 +290,6 @@ private extension NSMenu {
     ) {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = target
-        addItem(item)
+        self.addItem(item)
     }
 }

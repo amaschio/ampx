@@ -9,27 +9,27 @@ final class AmpXPlayerMiniVisualizerWiringTests: XCTestCase {
         defaults.set(VisualizationMode.analyzer.storageValue, forKey: AmpXMiniVisualizerModeStore.key)
         let content = self.makeContent(defaults: defaults)
 
-        XCTAssertEqual(content.spectrumWell.mode, .analyzer)
+        XCTAssertEqual(content.spectrumWell.settings.style, .classicSpectrum)
 
         content.spectrumWell.mouseDown(with: self.click(count: 1))
-        self.waitForMainQueue(after: NSEvent.doubleClickInterval + 0.05)
 
-        XCTAssertEqual(content.spectrumWell.mode, .bars)
-        XCTAssertEqual(
-            defaults.integer(forKey: AmpXMiniVisualizerModeStore.key),
-            VisualizationMode.bars.storageValue
-        )
+        XCTAssertEqual(content.spectrumWell.settings.style, .smoothSpectrum)
+        XCTAssertEqual(defaults.string(forKey: "miniVisualizer.style"), "smoothSpectrum")
+        XCTAssertEqual(defaults.integer(forKey: AmpXMiniVisualizerModeStore.key), 2)
     }
 
-    func testDoubleClickingTheWellTogglesTheVisualizerModule() {
+    func testDoubleClickingTheWellTogglesTheVisualizerModuleAndKeepsTheStoredMode() {
         var toggled: [AmpXModuleID] = []
-        let content = self.makeContent(defaults: self.makeDefaults()) { toggled.append($0) }
+        let defaults = self.makeDefaults()
+        let content = self.makeContent(defaults: defaults) { toggled.append($0) }
 
         content.spectrumWell.mouseDown(with: self.click(count: 1))
         content.spectrumWell.mouseDown(with: self.click(count: 2))
-        self.waitForMainQueue(after: NSEvent.doubleClickInterval + 0.05)
 
         XCTAssertEqual(toggled, [.enthea])
+        XCTAssertEqual(content.spectrumWell.settings.style, .classicSpectrum)
+        XCTAssertEqual(defaults.string(forKey: "miniVisualizer.style"), "classicSpectrum")
+        XCTAssertNil(defaults.object(forKey: AmpXMiniVisualizerModeStore.key))
     }
 
     private func makeDefaults() -> UserDefaults {
@@ -53,7 +53,7 @@ final class AmpXPlayerMiniVisualizerWiringTests: XCTestCase {
                 alertPresenter: SilentPlaylistAlertPresenter()
             ),
             onToggleModule: onToggleModule,
-            modeStore: AmpXMiniVisualizerModeStore(defaults: defaults)
+            settingsStore: AmpXMiniVisualizerSettingsStore(defaults: defaults)
         )
     }
 

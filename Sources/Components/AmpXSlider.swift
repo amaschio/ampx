@@ -175,7 +175,14 @@ final class AmpXSlider: AmpXControlView {
                 context.fill(CGRect(x: thumb.minX + 2, y: thumb.midY + 1, width: thumb.width - 4, height: 1))
             }
         case let .pill(fill):
-            skin.sliderTrack(track, fill: fill, filledThroughX: thumb.midX, in: context, backingScale: backingScale)
+            let fraction = AmpXControlMath.fraction(value: self.displayValueOverride ?? self.value, range: self.range)
+            skin.sliderTrack(
+                track,
+                fill: fill,
+                fraction: fraction,
+                in: context,
+                backingScale: backingScale
+            )
             skin.metallicThumb(thumb, material: .steel, in: context, backingScale: backingScale)
         case .seek:
             skin.seekWell(bounds, track: track, in: context, backingScale: backingScale)

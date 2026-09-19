@@ -29,13 +29,13 @@ enum AmpXModuleDragController {
         in state: AmpXModuleOrder
     ) -> Int {
         let visible = state.order.filter {
-            !state.closed.contains($0) && !state.detached.contains($0) && $0 != draggedID
+            $0 != .enthea && !state.closed.contains($0) && !state.detached.contains($0) && $0 != draggedID
         }
         let clamped = max(0, min(dropIndex, visible.count))
 
         if clamped == 0 {
             return state.order.firstIndex(where: {
-                !state.closed.contains($0) && !state.detached.contains($0) && $0 != draggedID
+                $0 != .enthea && !state.closed.contains($0) && !state.detached.contains($0) && $0 != draggedID
             }) ?? 0
         }
 
@@ -60,6 +60,7 @@ final class AmpXModuleDragSession {
     private var draggedModuleID: AmpXModuleID?
     private var didTearOff = false
     private var pendingDropIndex: Int?
+    private var gripOffset = CGPoint.zero
 
     func bind(coordinator: AmpXHostCoordinator, viewport: AmpXStackViewport? = nil) {
         self.coordinator = coordinator
@@ -74,16 +75,21 @@ final class AmpXModuleDragSession {
 
     func beginGripDrag(moduleID: AmpXModuleID, event: NSEvent) {
         guard let window = event.window else { return }
+        if let view = coordinator?.moduleView(for: moduleID), let host = view.window {
+            let point = window.convertPoint(toScreen: event.locationInWindow)
+            let topLeft = host.convertPoint(toScreen: view.convert(.zero, to: nil))
+            self.gripOffset = CGPoint(x: point.x - topLeft.x, y: topLeft.y - point.y)
+        }
         self.isDragging = true
         self.draggedModuleID = moduleID
         self.didTearOff = self.coordinator?.state.detached.contains(moduleID) ?? false
         self.pendingDropIndex = nil
-        self.updateDrag(event: event, in: window)
+        self.updateDrag(screenPoint: window.convertPoint(toScreen: event.locationInWindow))
     }
 
     func updateDrag(event: NSEvent) {
         guard self.isDragging, let window = event.window else { return }
-        self.updateDrag(event: event, in: window)
+        self.updateDrag(screenPoint: window.convertPoint(toScreen: event.locationInWindow))
     }
 
     func endDrag(event: NSEvent) {
@@ -95,8 +101,10 @@ final class AmpXModuleDragSession {
               let window = event.window
         else { return }
 
+        let screenPoint = window.convertPoint(toScreen: event.locationInWindow)
+        self.updateDrag(screenPoint: screenPoint)
         let dropIndex = self.pendingDropIndex
-        let overStack = self.isPointOverStack(event.locationInWindow, window: window)
+        let overStack = self.isPointOverStack(screenPoint: screenPoint)
 
         if self.didTearOff {
             if overStack, let dropIndex {
@@ -104,27 +112,9 @@ final class AmpXModuleDragSession {
             } else {
                 coordinator.updateDetachedFrame(
                     moduleID,
-                    frame: self.detachedFrame(anchoredTo: event.locationInWindow, in: window, moduleID: moduleID)
+                    frame: self.detachedFrame(anchoredTo: screenPoint, moduleID: moduleID)
                 )
             }
-            self.settleLayout(on: coordinator)
-            return
-        }
-
-        if self.shouldTearOff(event: event) {
-            guard moduleID != .player else { return }
-
-            let inheritedWidth = coordinator.stackWindow?.frame.width ?? AmpXMetrics.compositionWidth
-            coordinator.detach(
-                moduleID,
-                at: self.screenPoint(for: event.locationInWindow, in: window),
-                inheritedWidth: inheritedWidth
-            )
-            self.didTearOff = true
-            coordinator.updateDetachedFrame(
-                moduleID,
-                frame: self.detachedFrame(anchoredTo: event.locationInWindow, in: window, moduleID: moduleID)
-            )
             self.settleLayout(on: coordinator)
             return
         }
@@ -148,7 +138,7 @@ final class AmpXModuleDragSession {
         self.cancelDrag()
     }
 
-    private func updateDrag(event: NSEvent, in window: NSWindow) {
+    private func updateDrag(screenPoint: CGPoint) {
         guard let moduleID = draggedModuleID,
               let coordinator,
               let viewport
@@ -157,25 +147,23 @@ final class AmpXModuleDragSession {
         if self.didTearOff {
             coordinator.updateDetachedFrame(
                 moduleID,
-                frame: self.detachedFrame(anchoredTo: event.locationInWindow, in: window, moduleID: moduleID)
+                frame: self.detachedFrame(anchoredTo: screenPoint, moduleID: moduleID)
             )
         }
 
-        if self.shouldTearOff(event: event), moduleID != .player, !self.didTearOff {
-            let inheritedWidth = coordinator.stackWindow?.frame.width ?? AmpXMetrics.compositionWidth
+        if self.shouldTearOff(screenPoint: screenPoint), moduleID != .player, !self.didTearOff {
+            let inheritedWidth = AmpXMetrics.compositionWidth
             coordinator.detach(
                 moduleID,
-                at: screenPoint(for: event.locationInWindow, in: window),
+                at: screenPoint,
                 inheritedWidth: inheritedWidth
             )
             self.didTearOff = true
             coordinator.updateDetachedFrame(
                 moduleID,
-                frame: self.detachedFrame(anchoredTo: event.locationInWindow, in: window, moduleID: moduleID)
+                frame: self.detachedFrame(anchoredTo: screenPoint, moduleID: moduleID)
             )
         }
-
-        let screenPoint = screenPoint(for: event.locationInWindow, in: window)
 
         guard self.isPointOverStack(screenPoint: screenPoint) else {
             self.pendingDropIndex = nil
@@ -185,6 +173,12 @@ final class AmpXModuleDragSession {
 
         let contentPoint = viewport.stackContentPoint(fromScreenPoint: screenPoint)
         let geometry = coordinator.makeDropGeometry(excluding: moduleID)
+        if moduleID == .enthea {
+            // The visualizer always returns to its fixed right-hand slot.
+            self.pendingDropIndex = coordinator.state.order.count
+            viewport.stackView.setInsertionMarker(at: nil, width: 0)
+            return
+        }
         self.pendingDropIndex = AmpXModuleDragController.dropIndex(geometry: geometry, point: contentPoint)
         self.updateInsertionMarker(for: geometry, dropIndex: self.pendingDropIndex)
     }
@@ -213,9 +207,9 @@ final class AmpXModuleDragSession {
         viewport.stackView.setInsertionMarker(at: markerY, width: geometry.bounds.width)
     }
 
-    private func shouldTearOff(event: NSEvent) -> Bool {
+    private func shouldTearOff(screenPoint: CGPoint) -> Bool {
         guard let viewport else { return false }
-        let viewportPoint = viewport.convert(event.locationInWindow, from: nil)
+        let viewportPoint = viewport.viewportPoint(fromScreenPoint: screenPoint)
         let expanded = viewport.bounds.insetBy(
             dx: -AmpXModuleDragController.tearOffThreshold,
             dy: -AmpXModuleDragController.tearOffThreshold
@@ -227,26 +221,12 @@ final class AmpXModuleDragSession {
         self.viewport?.contains(screenPoint: screenPoint) ?? false
     }
 
-    private func isPointOverStack(_ windowPoint: NSPoint, window: NSWindow) -> Bool {
-        self.isPointOverStack(screenPoint: window.convertPoint(toScreen: windowPoint))
-    }
-
-    private func screenPoint(for windowPoint: NSPoint, in window: NSWindow) -> CGPoint {
-        let windowPoint = window.convertPoint(toScreen: windowPoint)
-        return CGPoint(x: windowPoint.x, y: windowPoint.y)
-    }
-
-    private func detachedFrame(
-        anchoredTo windowPoint: NSPoint,
-        in window: NSWindow,
-        moduleID: AmpXModuleID
-    ) -> CGRect {
-        let screenPoint = self.screenPoint(for: windowPoint, in: window)
+    private func detachedFrame(anchoredTo screenPoint: CGPoint, moduleID: AmpXModuleID) -> CGRect {
         let width = self.coordinator?.detachedWindowFrame(for: moduleID)?.width ?? AmpXMetrics.compositionWidth
         let height = self.coordinator?.detachedWindowFrame(for: moduleID)?.height ?? 300
         return CGRect(
-            x: screenPoint.x - width / 2,
-            y: screenPoint.y - AmpXMetrics.headerHeight,
+            x: screenPoint.x - self.gripOffset.x,
+            y: screenPoint.y + self.gripOffset.y - height,
             width: width,
             height: height
         )

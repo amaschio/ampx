@@ -47,8 +47,15 @@ final class AmpXScopeLineLayoutTests: XCTestCase {
         XCTAssertEqual(points[1].x, self.rect.minX + self.rect.width / 4, accuracy: 0.001)
     }
 
-    func testEmptyInputProducesNoPoints() {
-        XCTAssertTrue(AmpXScopeLineLayout.points(levels: [], in: self.rect).isEmpty)
+    /// With no samples yet (a parked or freshly cycled-to scope) a real oscilloscope still shows its
+    /// zero line, so an empty input draws the flat centre line rather than an empty well.
+    func testEmptyInputDrawsTheFlatCentreLine() throws {
+        let points = AmpXScopeLineLayout.points(levels: [], in: self.rect)
+
+        XCTAssertEqual(points.count, 2)
+        try XCTSkipIf(points.count != 2)
+        XCTAssertEqual(points[0], CGPoint(x: self.rect.minX, y: self.rect.midY))
+        XCTAssertEqual(points[1], CGPoint(x: self.rect.maxX, y: self.rect.midY))
     }
 
     func testSingleSampleSitsAtTheLeftEdge() throws {

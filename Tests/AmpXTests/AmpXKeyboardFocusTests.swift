@@ -23,7 +23,7 @@ final class AmpXKeyboardFocusTests: XCTestCase {
     }
 
     func testTheaterWindowCanBecomeKey() throws {
-        let hosts = self.makeHosts()
+        let hosts = self.makeHosts(entheaEnabled: true)
         hosts.reopenModule(.enthea)
         let view = try XCTUnwrap(hosts.moduleView(for: .enthea))
         var presentation: NSApplication.PresentationOptions = []
@@ -100,14 +100,15 @@ final class AmpXKeyboardFocusTests: XCTestCase {
     }
 
     /// Uses a throwaway defaults suite so these tests never overwrite the running app's saved layout.
-    private func makeHosts() -> AmpXHostCoordinator {
+    private func makeHosts(entheaEnabled: Bool = false) -> AmpXHostCoordinator {
         let suite = "AmpXKeyboardFocusTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         self.addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
         return AmpXHostCoordinator(
             state: AmpXModuleOrder(),
             skin: ClassicModernSkin(),
-            layoutStore: AmpXLayoutStore(defaults: defaults)
+            layoutStore: AmpXLayoutStore(defaults: defaults),
+            entheaEnabled: entheaEnabled
         )
     }
 

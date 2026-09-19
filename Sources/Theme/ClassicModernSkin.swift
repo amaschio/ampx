@@ -179,15 +179,13 @@ struct ClassicModernSkin: AmpXSkin {
     func sliderTrack(
         _ rect: CGRect,
         fill: AmpXTrackFill,
-        filledThroughX: CGFloat,
+        fraction: Double,
         in context: CGContext,
         backingScale: CGFloat
     ) {
         let track = self.snapped(rect, backingScale: backingScale)
-        let color = switch fill {
-        case .volume: TrackColor(r: 247, g: 182, b: 3)
-        case .balance: TrackColor(r: 14, g: 236, b: 2)
-        }
+        let ramp = AmpXSliderColorRamp.color(for: fill, fraction: fraction)
+        let color = TrackColor(r: ramp.r, g: ramp.g, b: ramp.b)
 
         let ring = track.insetBy(dx: -0.5, dy: -0.5)
         context.addPath(CGPath(roundedRect: ring, cornerWidth: ring.height / 2, cornerHeight: ring.height / 2, transform: nil))
@@ -206,15 +204,7 @@ struct ClassicModernSkin: AmpXSkin {
         context.saveGState()
         context.addPath(CGPath(roundedRect: inner, cornerWidth: inner.height / 2, cornerHeight: inner.height / 2, transform: nil))
         context.clip()
-        context.setFillColor(rgb(30, 40, 56).cgColor)
-        context.fill(inner)
-        // The reference shows a short tinted run beyond the thumb before the unfilled remainder.
-        let tintMaxX = filledThroughX + 18.75
-        context.setFillColor(rgb(color.r * 0.7 + 8, color.g * 0.62 + 12, color.b * 0.7 + 17).cgColor)
-        context.fill(CGRect(x: inner.minX, y: inner.minY, width: max(0, tintMaxX - inner.minX), height: inner.height))
-
-        let filled = CGRect(x: inner.minX, y: inner.minY, width: max(0, filledThroughX - inner.minX), height: inner.height)
-        context.clip(to: filled)
+        // Winamp's full-width bar: the ramp color spans the whole track; only its color follows the value.
         self.drawVerticalGradient(in: inner, stops: [
             (0, rgb(color.r * 0.88, color.g * 0.85, color.b)),
             (0.2, rgb(color.r, color.g, color.b)),
@@ -483,9 +473,7 @@ extension ClassicModernSkin {
 
         let bar = slot.insetBy(dx: 2.5, dy: 3)
         let color = self.levelColor(decibels: decibels)
-        let bottom = decibels < 0
-            ? color.mixed(with: LevelRGB(r: 205, g: 246, b: 50), 0.3)
-            : LevelRGB(r: color.r, g: color.g * 0.96, b: color.b * 0.5)
+        let bottom = LevelRGB(r: color.r, g: color.g * 0.96, b: color.b * 0.5)
         context.saveGState()
         context.addPath(pill(bar))
         context.clip()
@@ -503,15 +491,17 @@ extension ClassicModernSkin {
         context.restoreGState()
     }
 
-    /// Bar hue by gain, fitted to the reference EQ tracks (green below 0 dB, yellow near 0, amber/orange above).
+    /// Bar hue by gain: shared slider green at −12 dB, yellow near 0, and shared red at +12 dB.
     private func levelColor(decibels: Double) -> LevelRGB {
+        let minimum = AmpXSliderColorRamp.green
+        let maximum = AmpXSliderColorRamp.red
         let stops: [(decibels: Double, color: LevelRGB)] = [
-            (-12, LevelRGB(r: 160, g: 240, b: 50)), (-6, LevelRGB(r: 200, g: 236, b: 50)),
+            (-12, LevelRGB(r: minimum.r, g: minimum.g, b: minimum.b)), (-6, LevelRGB(r: 200, g: 236, b: 50)),
             (-3.2, LevelRGB(r: 204, g: 230, b: 42)), (-2.3, LevelRGB(r: 250, g: 222, b: 46)),
             (-1, LevelRGB(r: 234, g: 220, b: 40)), (0, LevelRGB(r: 238, g: 218, b: 36)),
             (0.4, LevelRGB(r: 241, g: 214, b: 33)), (0.8, LevelRGB(r: 253, g: 192, b: 70)),
             (1.7, LevelRGB(r: 250, g: 206, b: 50)), (3, LevelRGB(r: 251, g: 168, b: 30)),
-            (12, LevelRGB(r: 245, g: 110, b: 10)),
+            (12, LevelRGB(r: maximum.r, g: maximum.g, b: maximum.b)),
         ]
         let value = min(max(decibels, -12), 12)
         for (lower, upper) in zip(stops, stops.dropFirst()) where value <= upper.decibels {

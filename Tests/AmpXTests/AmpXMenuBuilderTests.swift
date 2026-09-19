@@ -3,7 +3,7 @@ import XCTest
 
 @MainActor
 final class AmpXMenuBuilderTests: XCTestCase {
-    private func makeApplication(tracks: [Track] = []) -> AmpXApplicationController {
+    private func makeApplication(tracks: [Track] = [], entheaEnabled: Bool = false) -> AmpXApplicationController {
         let player = AudioPlayer(installRemoteCommands: false)
         let manager = PlaylistManager(
             audioPlayer: MockAudioPlayer(),
@@ -15,8 +15,10 @@ final class AmpXMenuBuilderTests: XCTestCase {
         let hosts = AmpXHostCoordinator(
             state: AmpXModuleOrder(),
             skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore(),
             audioPlayer: player,
-            playlistManager: manager
+            playlistManager: manager,
+            entheaEnabled: entheaEnabled
         )
         return AmpXApplicationController(
             audioPlayer: player,
@@ -26,7 +28,7 @@ final class AmpXMenuBuilderTests: XCTestCase {
     }
 
     func testMainMenuHasSingleFileMenuWithCatalogItems() throws {
-        let application = makeApplication()
+        let application = self.makeApplication()
         let menu = AmpXMenuBuilder.makeMainMenu(application: application)
         XCTAssertEqual(menu.items.filter { $0.title == "File" }.count, 1)
 
@@ -44,7 +46,7 @@ final class AmpXMenuBuilderTests: XCTestCase {
     }
 
     func testSavePlaylistEnabledWhenTracksPresent() throws {
-        let application = makeApplication(tracks: [
+        let application = self.makeApplication(tracks: [
             Track(title: "One", artist: "Artist", url: URL(fileURLWithPath: "/tmp/one.mp3")),
         ])
         let menu = AmpXMenuBuilder.makeMainMenu(application: application)
@@ -55,7 +57,7 @@ final class AmpXMenuBuilderTests: XCTestCase {
     }
 
     func testPlaybackMenuMatchesCatalog() throws {
-        let application = makeApplication()
+        let application = self.makeApplication()
         let menu = AmpXMenuBuilder.makeMainMenu(application: application)
         let playback = try XCTUnwrap(menu.item(withTitle: "Playback")?.submenu)
         playback.update()
@@ -66,7 +68,7 @@ final class AmpXMenuBuilderTests: XCTestCase {
     }
 
     func testViewMenuReflectsModuleVisibility() throws {
-        let application = makeApplication()
+        let application = self.makeApplication(entheaEnabled: true)
         let menu = AmpXMenuBuilder.makeMainMenu(application: application)
         let view = try XCTUnwrap(menu.item(withTitle: "View")?.submenu)
         view.update()
@@ -83,8 +85,25 @@ final class AmpXMenuBuilderTests: XCTestCase {
         XCTAssertEqual(eq.state, .off)
     }
 
+    func testDisabledEntheaHasNoMenuEntryAndRejectsItsAction() throws {
+        let application = self.makeApplication()
+        let menu = AmpXMenuBuilder.makeMainMenu(application: application)
+        let view = try XCTUnwrap(menu.item(withTitle: "View")?.submenu)
+        XCTAssertNil(view.item(withTitle: AmpXMenuCatalog.ViewPanel.visualizer.rawValue))
+
+        let staleItem = NSMenuItem(
+            title: "Visualizer",
+            action: #selector(AmpXApplicationController.toggleVisualizer(_:)),
+            keyEquivalent: ""
+        )
+        XCTAssertFalse(application.validateMenuItem(staleItem))
+        application.toggleVisualizer(nil)
+        XCTAssertTrue(application.hosts.state.closed.contains(.enthea))
+        XCTAssertNil(application.hosts.moduleView(for: .enthea))
+    }
+
     func testWindowMenuIncludesAmpXReopenAndModuleCommands() throws {
-        let application = makeApplication()
+        let application = self.makeApplication()
         let menu = AmpXMenuBuilder.makeMainMenu(application: application)
         let window = try XCTUnwrap(menu.item(withTitle: "Window")?.submenu)
         let titles = window.items.filter { !$0.isSeparatorItem }.map(\.title)
@@ -97,7 +116,7 @@ final class AmpXMenuBuilderTests: XCTestCase {
     }
 
     func testShuffleAndRepeatReflectPlaylistState() throws {
-        let application = makeApplication()
+        let application = self.makeApplication()
         application.playlistManager.shuffleEnabled = true
         application.playlistManager.repeatEnabled = true
         let menu = AmpXMenuBuilder.makeMainMenu(application: application)

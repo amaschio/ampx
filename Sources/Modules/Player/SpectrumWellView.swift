@@ -1,8 +1,10 @@
 import AppKit
 import CoreGraphics
+import MetalKit
 import QuartzCore
 
-/// Live spectrum columns sampled from `AudioFeatureBus` at display rate.
+/// Player host for all mini effects. AppKit owns interaction and the frame driver;
+/// Metal receives only prepared audio data, style, palette, and drawable dimensions.
 final class SpectrumWellView: AmpXContinuousView {
     struct Reference: Equatable {
         /// Normalized 0…1 level per column.
@@ -13,33 +15,49 @@ final class SpectrumWellView: AmpXContinuousView {
 
     /// Display-only levels for deterministic reference presentation; `nil` draws live analysis.
     var reference: Reference? {
-        didSet { needsDisplay = true }
+        didSet {
+            self.metalSurface?.isHidden = self.reference != nil
+            needsDisplay = true
+        }
     }
 
-    /// Live spectrum source. Injectable so tests drive deterministic data instead of the shared bus,
-    /// which any playing `AudioPlayer` can update from its audio thread.
-    var spectrumSource: (TimeInterval) -> (targets: [Float], isPlaying: Bool) = { time in
-        AudioFeatureBus.shared.spectrumSnapshot(at: time)
+    var audioSource: (TimeInterval) -> AmpXMiniAudioSnapshot = { time in
+        AudioFeatureBus.shared.miniSnapshot(at: time)
     }
 
-    /// Spectrum plus waveform, read in one go for oscilloscope mode.
-    var featureSource: (TimeInterval, Int) -> AudioFeatures = { time, waveformSampleCount in
-        AudioFeatureBus.shared.snapshot(at: time, waveformSampleCount: waveformSampleCount)
+    var settings = AmpXMiniVisualizerSettings() {
+        didSet {
+            if oldValue.style != self.settings.style {
+                self.miniState.reset()
+                self.preparedFrame.history = [Float](repeating: 0, count: 4096)
+                self.preparedFrame.elapsed = 0
+            }
+            self.updateAccessibility()
+            self.redrawPreparedFrame()
+        }
     }
 
-    /// Which mini visualizer mode draws. Clicking the well cycles it.
-    var mode: VisualizationMode = .bars {
-        didSet { needsDisplay = true }
-    }
+    var onSettingsChanged: ((AmpXMiniVisualizerSettings) -> Void)?
 
-    /// Receives the new mode after a click cycled it, for persistence.
-    var onModeChanged: ((VisualizationMode) -> Void)?
+    /// The small CPU fallback shares the existing three drawing families.
+    private var mode: VisualizationMode {
+        switch self.settings.style {
+        case .lineWaveform, .particleWaveform: .oscilloscope
+        case .dotSpectrum, .mirroredSpectrum: .bars
+        default: .analyzer
+        }
+    }
 
     /// Classic behavior: a double-click shows or hides the visualizer.
     var onDoubleClick: (() -> Void)?
 
-    /// Peak-hold marks are an analyzer-mode feature.
-    static func drawsPeakMarks(in mode: VisualizationMode) -> Bool {
+    /// The afterglow trail behind the columns is a bars-mode feature.
+    static func drawsTrail(in mode: VisualizationMode) -> Bool {
+        mode == .bars
+    }
+
+    /// The analyzer replaces the segmented columns with one thin bar per analysis band.
+    static func drawsAnalyzerBars(in mode: VisualizationMode) -> Bool {
         mode == .analyzer
     }
 
@@ -47,6 +65,9 @@ final class SpectrumWellView: AmpXContinuousView {
     static func drawsScopeLine(in mode: VisualizationMode) -> Bool {
         mode == .oscilloscope
     }
+
+    /// Opacity of the afterglow drawn behind the live columns.
+    static let trailAlpha: CGFloat = 0.3
 
     /// Downsamples a mono waveform to one level per polyline point. The shared sampler quantizes to
     /// Metal's clip space, where a positive sample is negative, so the sign is flipped for drawing.
@@ -56,37 +77,59 @@ final class SpectrumWellView: AmpXContinuousView {
             .map { -$0 }
     }
 
-    /// A click cycles the mode, but only once AppKit can no longer turn it into a double-click,
-    /// so opening the visualizer never also advances the mode.
+    /// A click cycles the mode on the click itself, so the well reacts at once. Waiting out
+    /// `doubleClickInterval` first — the only way to know no double-click follows — made every cycle
+    /// lag by half a second or more and read as an unresponsive well. The second click of a
+    /// double-click instead undoes the advance, so opening the visualizer still never changes mode.
     override func mouseDown(with event: NSEvent) {
-        self.pendingModeCycle?.cancel()
-        self.pendingModeCycle = nil
-
         guard event.clickCount < 2 else {
+            if let previous = self.styleBeforeClick {
+                self.styleBeforeClick = nil
+                self.selectStyle(previous)
+            }
             self.onDoubleClick?()
             return
         }
 
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            self.pendingModeCycle = nil
-            let next = self.mode.advanced()
-            self.mode = next
-            self.onModeChanged?(next)
-        }
-        self.pendingModeCycle = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + NSEvent.doubleClickInterval, execute: work)
+        self.styleBeforeClick = self.settings.style
+        self.selectStyle(self.settings.style.advanced())
+    }
+
+    /// Adopts a mode, reports it for persistence, and wakes a parked well so the new mode draws live
+    /// data instead of whatever the last frame before the park left behind.
+    func selectStyle(_ style: AmpXMiniVisualizerStyle) {
+        guard style != self.settings.style else { return }
+        self.settings.style = style
+        self.onSettingsChanged?(self.settings)
+        self.wakeRendering()
+    }
+
+    func selectPalette(_ palette: AmpXMiniVisualizerPalette) {
+        guard palette != self.settings.palette else { return }
+        self.settings.palette = palette
+        self.onSettingsChanged?(self.settings)
     }
 
     private let segmentCount = AmpXSpectrumColumnModel.segmentCount
     private let columnCount = AmpXSpectrumColumnModel.columnCount
-    private var pipeline = AmpXSpectrumColumnPipeline()
+    private var miniState = AmpXMiniVisualizerState()
+    private(set) var preparedFrame = AmpXMiniVisualizerFrame()
     private var idleGate = VisualizerIdleGate()
-    private var pendingModeCycle: DispatchWorkItem?
+    private var styleBeforeClick: AmpXMiniVisualizerStyle?
+    private var renderer: AmpXMiniVisualizerRenderer?
+    private var metalSurface: AmpXMiniMetalSurface?
+    private var attemptedMetal = false
+    private var effectivelyVisible = false
+    var rendererFactory: () -> AmpXMiniVisualizerRenderer? = { AmpXMiniVisualizerRenderer() }
     private var scopeLineLevels: [Float] = []
     private var columnLevels = [Float](repeating: 0, count: AmpXSpectrumColumnModel.columnCount)
     private var columnPeakLevels = [Float](repeating: 0, count: AmpXSpectrumColumnModel.columnCount)
-    private var lastTimestamp: TimeInterval?
+    private var columnTrailLevels = [Float](repeating: 0, count: AmpXSpectrumColumnModel.columnCount)
+    private var bandLevels = [Float](repeating: 0, count: AudioFeatures.spectrumBandCount)
+    private var bandPeakLevels = [Float](repeating: 0, count: AudioFeatures.spectrumBandCount)
+
+    /// Timestamp of the last frame, or `nil` when the next frame starts a fresh delta.
+    private(set) var lastTimestamp: TimeInterval?
 
     /// Bottom-to-top segment colors sampled from the reference columns.
     private static let segmentColors: [NSColor] = [
@@ -99,6 +142,9 @@ final class SpectrumWellView: AmpXContinuousView {
     ]
 
     override func tick(at time: TimeInterval) {
+        if let lastTimestamp, time >= lastTimestamp, time - lastTimestamp < 1.0 / 60.0 - 0.00001 {
+            return
+        }
         let deltaTime: Float = if let lastTimestamp {
             Float(max(time - lastTimestamp, 0))
         } else {
@@ -106,29 +152,16 @@ final class SpectrumWellView: AmpXContinuousView {
         }
         self.lastTimestamp = time
 
-        let frame: AmpXSpectrumColumnPipeline.Frame
-        if Self.drawsScopeLine(in: self.mode) {
-            // Scope mode also needs the waveform, so take one combined snapshot.
-            let features = self.featureSource(time, AudioFeatures.scopeWaveformSampleCount)
-            let mono = zip(features.waveformLeft, features.waveformRight).map { ($0 + $1) * 0.5 }
-            self.scopeLineLevels = Self.scopeLevels(fromWaveform: mono, width: self.spectrumRect.width)
-            frame = self.pipeline.update(
-                bands: features.spectrum,
-                isPlaying: features.isPlaying,
-                deltaTime: deltaTime
-            )
-        } else {
-            let snapshot = self.spectrumSource(time)
-            frame = self.pipeline.update(
-                bands: snapshot.targets,
-                isPlaying: snapshot.isPlaying,
-                deltaTime: deltaTime
-            )
-        }
-        self.columnLevels = frame.levels
+        let frame = self.miniState.update(self.audioSource(time), at: time)
+        self.preparedFrame = frame
+        self.scopeLineLevels = frame.waveform
+        self.columnLevels = AmpXSpectrumColumnPipeline.columnLevels(fromBands: frame.spectrum)
         self.columnPeakLevels = frame.peaks
+        self.columnTrailLevels = AmpXSpectrumColumnPipeline.columnLevels(fromBands: frame.trails)
+        self.bandLevels = frame.spectrum
+        self.bandPeakLevels = frame.peaks
 
-        setNeedsDisplay(bounds)
+        self.redrawPreparedFrame()
 
         // Park the link only after the final decayed frame has been requested, so the well freezes
         // on an empty display rather than mid-decay. `PlayerModuleContent` wakes it on playback.
@@ -137,11 +170,157 @@ final class SpectrumWellView: AmpXContinuousView {
         )
     }
 
+    func playbackStateDidChange(isPlaying: Bool) {
+        if !isPlaying {
+            self.miniState.playbackDidPause()
+        }
+        self.wakeRendering()
+    }
+
     /// Resumes a parked well on a genuine external event (playback started). Only this clears the
     /// idle window: the tick loop must never reset it, or the well could never reach the hold time.
     func wakeRendering() {
         self.idleGate.wake()
+        // Drop the parked-frame timestamp: the next frame would otherwise carry the whole parked
+        // interval as its delta and run the smoothing and falloff straight to their extremes.
+        self.lastTimestamp = nil
         self.setContinuousRenderingPaused(false)
+    }
+
+    override func setEffectivelyVisible(_ value: Bool) {
+        self.effectivelyVisible = value
+        super.setEffectivelyVisible(value)
+        if value {
+            self.lastTimestamp = nil
+            self.redrawPreparedFrame()
+        }
+    }
+
+    override func layout() {
+        super.layout()
+        self.layoutMetalSurface()
+    }
+
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        self.layoutMetalSurface()
+        self.redrawPreparedFrame()
+    }
+
+    private func layoutMetalSurface() {
+        guard let surface = self.metalSurface else { return }
+        surface.frame = self.spectrumRect
+        let scale = self.window?.backingScaleFactor ?? 1
+        let size = CGSize(width: self.spectrumRect.width * scale, height: self.spectrumRect.height * scale)
+        if surface.drawableSize != size {
+            surface.drawableSize = size
+        }
+    }
+
+    private func redrawPreparedFrame() {
+        self.needsDisplay = true
+        guard self.reference == nil, self.effectivelyVisible, self.window != nil else { return }
+        if !self.attemptedMetal {
+            self.attemptedMetal = true
+            self.renderer = self.rendererFactory()
+            if let renderer {
+                let surface = AmpXMiniMetalSurface(frame: self.spectrumRect, device: renderer.device)
+                surface.colorPixelFormat = .bgra8Unorm
+                surface.framebufferOnly = true
+                surface.isPaused = true
+                surface.enableSetNeedsDisplay = false
+                surface.autoResizeDrawable = false
+                surface.delegate = surface
+                surface.onDraw = { [weak self] view in
+                    guard let self, self.effectivelyVisible, self.reference == nil else { return }
+                    self.renderer?.render(
+                        self.preparedFrame,
+                        style: self.settings.style,
+                        palette: self.settings.palette,
+                        in: view
+                    )
+                }
+                self.metalSurface = surface
+                self.addSubview(surface)
+                self.layoutMetalSurface()
+            } else {
+                self.toolTip = "Metal is unavailable. Showing a basic visualizer."
+            }
+        }
+        if self.renderer != nil, let surface = self.metalSurface {
+            surface.isHidden = false
+            // MTKView refreshes its currentDrawable at the end of this draw cycle.
+            // Calling the renderer directly would present the same drawable repeatedly.
+            surface.draw()
+        }
+    }
+
+    override func menu(for _: NSEvent) -> NSMenu? {
+        self.makeContextMenu()
+    }
+
+    func makeContextMenu() -> NSMenu {
+        let menu = NSMenu()
+        for style in AmpXMiniVisualizerStyle.allCases {
+            let item = NSMenuItem(title: style.title, action: #selector(self.chooseStyle(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = style
+            item.state = style == self.settings.style ? .on : .off
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
+        let palettes = NSMenu()
+        for palette in AmpXMiniVisualizerPalette.allCases {
+            let item = NSMenuItem(title: palette.title, action: #selector(self.choosePalette(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = palette
+            item.state = palette == self.settings.palette ? .on : .off
+            palettes.addItem(item)
+        }
+        let item = NSMenuItem(title: "Palette", action: nil, keyEquivalent: "")
+        item.submenu = palettes
+        menu.addItem(item)
+        return menu
+    }
+
+    @objc private func chooseStyle(_ sender: NSMenuItem) {
+        if let style = sender.representedObject as? AmpXMiniVisualizerStyle {
+            self.selectStyle(style)
+        }
+    }
+
+    @objc private func choosePalette(_ sender: NSMenuItem) {
+        if let palette = sender.representedObject as? AmpXMiniVisualizerPalette {
+            self.selectPalette(palette)
+        }
+    }
+
+    private func updateAccessibility() {
+        self.setAccessibilityElement(true)
+        self.setAccessibilityRole(.button)
+        self.setAccessibilityLabel("Mini visualizer")
+        self.setAccessibilityValue("\(self.settings.style.title), \(self.settings.palette.title)")
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        self.selectStyle(self.settings.style.advanced())
+        return true
+    }
+
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        [
+            NSAccessibilityCustomAction(name: "Next visualizer", target: self, selector: #selector(self.accessibilityNextStyle)),
+            NSAccessibilityCustomAction(name: "Next palette", target: self, selector: #selector(self.accessibilityNextPalette)),
+        ]
+    }
+
+    @objc private func accessibilityNextStyle() -> Bool {
+        self.accessibilityPerformPress()
+    }
+
+    @objc private func accessibilityNextPalette() -> Bool {
+        self.selectPalette(self.settings.palette.advanced())
+        return true
     }
 
     /// Spectrum area in this view's coordinates (the view is placed on the display well).
@@ -162,15 +341,22 @@ final class SpectrumWellView: AmpXContinuousView {
 
     override func draw(_: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
-        let levels = self.reference?.levels ?? self.columnLevels
-        let peaks = self.reference?.peaks ?? self.columnPeakLevels
 
-        if Self.drawsScopeLine(in: self.mode), self.reference == nil {
+        // A reference presentation always draws the segmented columns: the deterministic captures
+        // must not depend on whichever mode the user last left persisted.
+        if let reference {
+            self.drawColumns(levels: reference.levels, alpha: 1, in: context)
+        } else if self.metalSurface?.isHidden == false {
+            // The Metal child draws only the spectrum rectangle; labels remain AppKit.
+        } else if Self.drawsScopeLine(in: self.mode) {
             self.drawScopeLine(in: context)
+        } else if Self.drawsAnalyzerBars(in: self.mode) {
+            self.drawAnalyzerBars(in: context)
         } else {
-            for column in 0 ..< min(self.columnCount, levels.count) {
-                self.drawColumn(column, level: levels[column], peak: column < peaks.count ? peaks[column] : 0, context: context)
+            if Self.drawsTrail(in: self.mode) {
+                self.drawColumns(levels: self.columnTrailLevels, alpha: Self.trailAlpha, in: context)
             }
+            self.drawColumns(levels: self.columnLevels, alpha: 1, in: context)
         }
 
         let labelColor = NSColor(srgbRed: 133 / 255, green: 148 / 255, blue: 179 / 255, alpha: 1)
@@ -192,18 +378,27 @@ final class SpectrumWellView: AmpXContinuousView {
         let points = AmpXScopeLineLayout.points(levels: self.scopeLineLevels, in: self.spectrumRect)
         guard points.count > 1 else { return }
 
-        context.setStrokeColor(skin.green.cgColor)
+        context.setStrokeColor(self.fallbackColor(self.settings.palette.traceColor).cgColor)
         context.setLineWidth(1)
         context.setLineJoin(.round)
         context.addLines(between: points)
         context.strokePath()
     }
 
-    private func drawColumn(_ column: Int, level: Float, peak: Float, context: CGContext) {
+    /// The segmented columns, drawn at full strength for the live bars and dimmed for the afterglow
+    /// behind them.
+    private func drawColumns(levels: [Float], alpha: CGFloat, in context: CGContext) {
+        for column in 0 ..< min(self.columnCount, levels.count) {
+            self.drawColumn(column, level: levels[column], alpha: alpha, context: context)
+        }
+    }
+
+    private func drawColumn(_ column: Int, level: Float, alpha: CGFloat, context: CGContext) {
         let lit = CGFloat(min(max(level, 0), 1)) * CGFloat(self.segmentCount)
         let fullSegments = Int(lit)
         for segment in 0 ..< min(fullSegments, self.segmentCount) {
-            context.setFillColor(Self.segmentColors[segment].cgColor)
+            let color = self.reference != nil ? Self.segmentColors[segment] : self.fallbackSpectrumColor(level: CGFloat(segment) / 5)
+            context.setFillColor(color.withAlphaComponent(alpha).cgColor)
             context.fill(self.segmentRect(column: column, segment: segment))
         }
 
@@ -211,17 +406,55 @@ final class SpectrumWellView: AmpXContinuousView {
         if fullSegments < self.segmentCount, partial > 0.08 {
             let slot = self.segmentRect(column: column, segment: fullSegments)
             let height = max(1, slot.height * partial)
-            context.setFillColor(Self.segmentColors[fullSegments].cgColor)
+            let color = self.reference != nil ? Self.segmentColors[fullSegments] : self
+                .fallbackSpectrumColor(level: CGFloat(fullSegments) / 5)
+            context.setFillColor(color.withAlphaComponent(alpha).cgColor)
             context.fill(CGRect(x: slot.minX, y: slot.maxY - height, width: slot.width, height: height))
         }
+    }
 
-        guard Self.drawsPeakMarks(in: self.mode) else { return }
-        let peakLevel = CGFloat(min(max(peak, 0), 1)) * CGFloat(self.segmentCount)
-        guard peakLevel > lit + 0.25 else { return }
-        let peakSegment = min(segmentCount - 1, max(0, Int(peakLevel.rounded(.up)) - 1))
-        let slot = self.segmentRect(column: column, segment: peakSegment)
-        context.setFillColor(Self.segmentColors[peakSegment].withAlphaComponent(0.8).cgColor)
-        context.fill(CGRect(x: slot.minX + 0.25, y: slot.minY, width: 2, height: 1.5))
-        context.fill(CGRect(x: slot.maxX - 2.25, y: slot.minY, width: 2, height: 1.5))
+    /// One thin continuous bar per analysis band with a floating peak cap: twice the resolution of
+    /// the bars mode, so the two modes read as different instruments.
+    private func drawAnalyzerBars(in context: CGContext) {
+        let area = self.spectrumRect
+        let bars = AmpXAnalyzerBarLayout.bars(levels: self.bandLevels, in: area)
+        for (index, bar) in bars.enumerated() {
+            context.setFillColor(self.fallbackSpectrumColor(level: CGFloat(self.bandLevels[index])).cgColor)
+            context.fill(bar)
+        }
+
+        context.setFillColor(Self.analyzerCapColor.cgColor)
+        for cap in AmpXAnalyzerBarLayout.caps(peaks: self.bandPeakLevels, in: area) {
+            context.fill(cap)
+        }
+    }
+
+    /// Cool white for the floating caps, so they stay legible over every palette colour.
+    private static let analyzerCapColor = NSColor(srgbRed: 217 / 255, green: 234 / 255, blue: 1, alpha: 0.95)
+
+    private func fallbackSpectrumColor(level: CGFloat) -> NSColor {
+        let t = Float(min(max(level, 0), 1))
+        let low = self.settings.palette.lowColor
+        let high = self.settings.palette.highColor
+        return self.fallbackColor(low + (high - low) * t)
+    }
+
+    private func fallbackColor(_ value: SIMD4<Float>) -> NSColor {
+        NSColor(srgbRed: CGFloat(value.x), green: CGFloat(value.y), blue: CGFloat(value.z), alpha: CGFloat(value.w))
+    }
+}
+
+/// Let the surrounding well handle clicks and its native context menu.
+private final class AmpXMiniMetalSurface: MTKView, MTKViewDelegate {
+    var onDraw: ((MTKView) -> Void)?
+
+    override func hitTest(_: NSPoint) -> NSView? {
+        nil
+    }
+
+    func mtkView(_: MTKView, drawableSizeWillChange _: CGSize) {}
+
+    func draw(in view: MTKView) {
+        self.onDraw?(view)
     }
 }

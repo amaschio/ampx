@@ -24,43 +24,43 @@ final class AmpXApplicationController: NSObject, NSMenuItemValidation {
     }
 
     func start() {
-        bindPlaybackCoordinationIfNeeded()
-        loadStartupSoundIfNeeded()
-        wirePlayerMenuButton()
-        hosts.showStack()
+        self.bindPlaybackCoordinationIfNeeded()
+        self.loadStartupSoundIfNeeded()
+        self.wirePlayerMenuButton()
+        self.hosts.showStack()
     }
 
     func terminate() {
-        hosts.theaterController.handleApplicationTermination()
+        self.hosts.theaterController.handleApplicationTermination()
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
-        case #selector(savePlaylist(_:)):
-            return !playlistManager.tracks.isEmpty
-        case #selector(toggleShuffle(_:)):
-            menuItem.state = playlistManager.shuffleEnabled ? .on : .off
+        case #selector(self.savePlaylist(_:)):
+            return !self.playlistManager.tracks.isEmpty
+        case #selector(self.toggleShuffle(_:)):
+            menuItem.state = self.playlistManager.shuffleEnabled ? .on : .off
             return true
-        case #selector(toggleRepeat(_:)):
-            menuItem.state = playlistManager.repeatEnabled ? .on : .off
+        case #selector(self.toggleRepeat(_:)):
+            menuItem.state = self.playlistManager.repeatEnabled ? .on : .off
             return true
-        case #selector(toggleEqualizer(_:)):
-            menuItem.state = hosts.state.closed.contains(.equalizer) ? .off : .on
+        case #selector(self.toggleEqualizer(_:)):
+            menuItem.state = self.hosts.state.closed.contains(.equalizer) ? .off : .on
             return true
-        case #selector(togglePlaylist(_:)):
-            menuItem.state = hosts.state.closed.contains(.playlist) ? .off : .on
+        case #selector(self.togglePlaylist(_:)):
+            menuItem.state = self.hosts.state.closed.contains(.playlist) ? .off : .on
             return true
-        case #selector(toggleVisualizer(_:)):
-            menuItem.state = hosts.state.closed.contains(.enthea) ? .off : .on
+        case #selector(self.toggleVisualizer(_:)):
+            menuItem.state = self.hosts.state.closed.contains(.enthea) ? .off : .on
+            return self.hosts.isEntheaEnabled
+        case #selector(self.moveModuleUp(_:)), #selector(self.moveModuleDown(_:)):
+            return self.hosts.focusedModuleID != .player
+        case #selector(self.toggleDetachModule(_:)):
+            return self.hosts.focusedModuleID != .player
+        case #selector(self.toggleCollapseModule(_:)):
             return true
-        case #selector(moveModuleUp(_:)), #selector(moveModuleDown(_:)):
-            return hosts.focusedModuleID != .player
-        case #selector(toggleDetachModule(_:)):
-            return hosts.focusedModuleID != .player
-        case #selector(toggleCollapseModule(_:)):
-            return true
-        case #selector(closeStack(_:)):
-            return hosts.isStackVisible
+        case #selector(self.closeStack(_:)):
+            return self.hosts.isStackVisible
         default:
             return true
         }
@@ -69,85 +69,85 @@ final class AmpXApplicationController: NSObject, NSMenuItemValidation {
     // MARK: - File
 
     @objc func addFiles(_: Any?) {
-        playlistManager.showFilePicker()
+        self.playlistManager.showFilePicker()
     }
 
     @objc func addFolder(_: Any?) {
-        playlistManager.showFolderPicker()
+        self.playlistManager.showFolderPicker()
     }
 
     @objc func loadPlaylist(_: Any?) {
-        playlistManager.showLoadM3UPicker()
+        self.playlistManager.showLoadM3UPicker()
     }
 
     @objc func savePlaylist(_: Any?) {
-        playlistManager.saveM3UPlaylist()
+        self.playlistManager.saveM3UPlaylist()
     }
 
     // MARK: - Playback
 
     @objc func togglePlayPause(_: Any?) {
-        audioPlayer.togglePlayPause()
+        self.audioPlayer.togglePlayPause()
     }
 
     @objc func stopPlayback(_: Any?) {
-        audioPlayer.stop()
+        self.audioPlayer.stop()
     }
 
     @objc func previousTrack(_: Any?) {
-        playlistManager.previous()
+        self.playlistManager.previous()
     }
 
     @objc func nextTrack(_: Any?) {
-        playlistManager.next()
+        self.playlistManager.next()
     }
 
     @objc func toggleShuffle(_: Any?) {
-        playlistManager.shuffleEnabled.toggle()
+        self.playlistManager.shuffleEnabled.toggle()
     }
 
     @objc func toggleRepeat(_: Any?) {
-        playlistManager.repeatEnabled.toggle()
+        self.playlistManager.repeatEnabled.toggle()
     }
 
     // MARK: - View
 
     @objc func toggleEqualizer(_: Any?) {
-        toggleModule(.equalizer)
+        self.toggleModule(.equalizer)
     }
 
     @objc func togglePlaylist(_: Any?) {
-        toggleModule(.playlist)
+        self.toggleModule(.playlist)
     }
 
     @objc func toggleVisualizer(_: Any?) {
-        toggleModule(.enthea)
+        self.toggleModule(.enthea)
     }
 
     // MARK: - Window
 
     @objc func showAmpX(_: Any?) {
-        hosts.showStack()
+        self.hosts.showStack()
     }
 
     @objc func moveModuleUp(_: Any?) {
-        hosts.performModuleCommand(.moveUp)
+        self.hosts.performModuleCommand(.moveUp)
     }
 
     @objc func moveModuleDown(_: Any?) {
-        hosts.performModuleCommand(.moveDown)
+        self.hosts.performModuleCommand(.moveDown)
     }
 
     @objc func toggleDetachModule(_: Any?) {
-        hosts.performModuleCommand(.toggleDetach)
+        self.hosts.performModuleCommand(.toggleDetach)
     }
 
     @objc func toggleCollapseModule(_: Any?) {
-        hosts.performModuleCommand(.toggleCollapse)
+        self.hosts.performModuleCommand(.toggleCollapse)
     }
 
     @objc func closeStack(_: Any?) {
-        hosts.closeStack()
+        self.hosts.closeStack()
     }
 
     @objc func popUpPlayerMenu(from sender: Any?) {
@@ -158,23 +158,23 @@ final class AmpXApplicationController: NSObject, NSMenuItemValidation {
     }
 
     private func bindPlaybackCoordinationIfNeeded() {
-        guard !playbackCoordinationBound else { return }
-        playbackCoordinationBound = true
+        guard !self.playbackCoordinationBound else { return }
+        self.playbackCoordinationBound = true
 
-        audioPlayer.onTrackFinished = { [weak playlistManager] in
+        self.audioPlayer.onTrackFinished = { [weak playlistManager] in
             playlistManager?.advanceAfterTrackFinished()
         }
-        audioPlayer.onNextTrackRequested = { [weak playlistManager] in
+        self.audioPlayer.onNextTrackRequested = { [weak playlistManager] in
             playlistManager?.next()
         }
-        audioPlayer.onPreviousTrackRequested = { [weak playlistManager] in
+        self.audioPlayer.onPreviousTrackRequested = { [weak playlistManager] in
             playlistManager?.previous()
         }
     }
 
     private func loadStartupSoundIfNeeded() {
-        guard playsStartupSound else { return }
-        guard playlistManager.shouldPlayStartupSoundOnLaunch else { return }
+        guard self.playsStartupSound else { return }
+        guard self.playlistManager.shouldPlayStartupSoundOnLaunch else { return }
         guard let startupURL = Bundle.main.url(forResource: "startup", withExtension: "mp3") else {
             return
         }
@@ -200,10 +200,10 @@ final class AmpXApplicationController: NSObject, NSMenuItemValidation {
     }
 
     private func toggleModule(_ id: AmpXModuleID) {
-        if hosts.state.closed.contains(id) {
-            hosts.reopenModule(id)
+        if self.hosts.state.closed.contains(id) {
+            self.hosts.reopenModule(id)
         } else {
-            hosts.closeModule(id)
+            self.hosts.closeModule(id)
         }
     }
 
@@ -216,7 +216,7 @@ final class AmpXApplicationController: NSObject, NSMenuItemValidation {
 #if DEBUG
 extension AmpXApplicationController {
     var isPlaybackCoordinationBound: Bool {
-        playbackCoordinationBound
+        self.playbackCoordinationBound
     }
 }
 #endif

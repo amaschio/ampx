@@ -26,44 +26,44 @@ final class AmpXPlayerBindingTests: XCTestCase {
     }
 
     func testPlayButtonCallsPlayOrResume() {
-        tapTransport(accessibilityTitle: "Play")
+        self.tapTransport(accessibilityTitle: "Play")
         XCTAssertEqual(self.audioPlayer.playOrResumeCallCount, 1)
     }
 
     func testPauseButtonCallsPause() {
-        tapTransport(accessibilityTitle: "Pause")
+        self.tapTransport(accessibilityTitle: "Pause")
         XCTAssertEqual(self.audioPlayer.pauseCallCount, 1)
     }
 
     func testStopButtonCallsStop() {
-        tapTransport(accessibilityTitle: "Stop")
+        self.tapTransport(accessibilityTitle: "Stop")
         XCTAssertEqual(self.audioPlayer.stopCallCount, 1)
     }
 
     func testPreviousButtonCallsPlaylistPrevious() {
-        tapTransport(accessibilityTitle: "Previous")
+        self.tapTransport(accessibilityTitle: "Previous")
         XCTAssertEqual(self.playlistManager.previousCallCount, 1)
     }
 
     func testNextButtonCallsPlaylistNext() {
-        tapTransport(accessibilityTitle: "Next")
+        self.tapTransport(accessibilityTitle: "Next")
         XCTAssertEqual(self.playlistManager.nextCallCount, 1)
     }
 
     func testEjectButtonShowsFilePicker() {
-        tapTransport(accessibilityTitle: "Eject")
+        self.tapTransport(accessibilityTitle: "Eject")
         XCTAssertEqual(self.playlistManager.showFilePickerCallCount, 1)
     }
 
     func testVolumeSliderCallsSetVolume() {
-        let sliders = controlSliders(in: self.content)
+        let sliders = self.controlSliders(in: self.content)
         XCTAssertGreaterThanOrEqual(sliders.count, 1)
         sliders[0].onChange?(0.42)
         XCTAssertEqual(self.audioPlayer.lastVolume ?? -1, 0.42, accuracy: 0.0001)
     }
 
     func testBalanceSliderCallsSetBalance() {
-        let sliders = controlSliders(in: self.content)
+        let sliders = self.controlSliders(in: self.content)
         XCTAssertGreaterThanOrEqual(sliders.count, 2)
         sliders[1].onChange?(0.75)
         XCTAssertEqual(self.audioPlayer.lastBalance ?? -1, 0.5, accuracy: 0.0001)
@@ -71,35 +71,35 @@ final class AmpXPlayerBindingTests: XCTestCase {
 
     func testPositionBarSeekCallsAudioPlayerSeek() {
         self.audioPlayer.duration = 200
-        let positionBar = firstSubview(ofType: PositionBarView.self, in: self.content)
+        let positionBar = self.firstSubview(ofType: PositionBarView.self, in: self.content)
         XCTAssertNotNil(positionBar)
         positionBar?.onChange?(100)
         XCTAssertEqual(self.audioPlayer.lastSeekTime ?? -1, 100, accuracy: 0.0001)
     }
 
     func testShuffleToggleUpdatesPlaylistManager() {
-        tapTransport(accessibilityTitle: "Shuffle")
+        self.tapTransport(accessibilityTitle: "Shuffle")
         XCTAssertTrue(self.playlistManager.shuffleEnabled)
-        tapTransport(accessibilityTitle: "Shuffle")
+        self.tapTransport(accessibilityTitle: "Shuffle")
         XCTAssertFalse(self.playlistManager.shuffleEnabled)
     }
 
     func testRepeatToggleUpdatesPlaylistManager() {
-        tapTransport(accessibilityTitle: "Repeat")
+        self.tapTransport(accessibilityTitle: "Repeat")
         XCTAssertTrue(self.playlistManager.repeatEnabled)
-        tapTransport(accessibilityTitle: "Repeat")
+        self.tapTransport(accessibilityTitle: "Repeat")
         XCTAssertFalse(self.playlistManager.repeatEnabled)
     }
 
     private func tapTransport(accessibilityTitle: String) {
-        let button = subviews(ofType: AmpXButton.self, in: self.content)
+        let button = self.subviews(ofType: AmpXButton.self, in: self.content)
             .first { $0.accessibilityTitle == accessibilityTitle }
         XCTAssertNotNil(button)
         button?.action?()
     }
 
     private func firstSubview<T: NSView>(ofType type: T.Type, in root: NSView) -> T? {
-        subviews(ofType: type, in: root).first
+        self.subviews(ofType: type, in: root).first
     }
 
     private func subviews<T: NSView>(ofType type: T.Type, in root: NSView) -> [T] {
@@ -108,13 +108,13 @@ final class AmpXPlayerBindingTests: XCTestCase {
             if let match = subview as? T {
                 found.append(match)
             }
-            found.append(contentsOf: subviews(ofType: type, in: subview))
+            found.append(contentsOf: self.subviews(ofType: type, in: subview))
         }
         return found
     }
 
     private func controlSliders(in root: NSView) -> [AmpXSlider] {
-        subviews(ofType: AmpXSlider.self, in: root)
+        self.subviews(ofType: AmpXSlider.self, in: root)
             .filter { !($0.superview is PositionBarView) }
     }
 }

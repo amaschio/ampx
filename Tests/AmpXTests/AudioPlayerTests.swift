@@ -1,7 +1,6 @@
-import AVFoundation
 @testable import AmpX
+import AVFoundation
 import XCTest
-
 
 @MainActor
 final class AudioPlayerTests: XCTestCase {
@@ -355,7 +354,7 @@ final class AudioPlayerTests: XCTestCase {
     private static func makeSilentWAVFixture(durationSeconds: Double) throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("winamp-seek-\(UUID().uuidString).wav")
-        let sampleRate = 44_100.0
+        let sampleRate = 44100.0
         let frameCount = AVAudioFrameCount(durationSeconds * sampleRate)
         let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1))
         let file = try AVAudioFile(forWriting: url, settings: format.settings)

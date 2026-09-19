@@ -280,7 +280,8 @@ final class PlaylistManagerTests: XCTestCase {
             restoreBookmarks: false,
             restorePlaylist: false,
             stateStore: stateStore,
-            alertPresenter: SilentPlaylistAlertPresenter())
+            alertPresenter: SilentPlaylistAlertPresenter()
+        )
 
         manager.tracks = self.makeTracks(3)
         manager.currentIndex = 2
@@ -323,7 +324,8 @@ final class PlaylistManagerTests: XCTestCase {
             restorePlaylist: true,
             bookmarkStore: restoredBookmarkStore,
             stateStore: stateStore,
-            alertPresenter: SilentPlaylistAlertPresenter())
+            alertPresenter: SilentPlaylistAlertPresenter()
+        )
 
         waitForMainQueue()
 
@@ -340,7 +342,8 @@ final class PlaylistManagerTests: XCTestCase {
             audioPlayer: mockPlayer,
             restoreBookmarks: false,
             restorePlaylist: false,
-            alertPresenter: SilentPlaylistAlertPresenter())
+            alertPresenter: SilentPlaylistAlertPresenter()
+        )
         XCTAssertTrue(manager.shouldPlayStartupSoundOnLaunch)
     }
 
@@ -371,7 +374,8 @@ final class PlaylistManagerTests: XCTestCase {
             restorePlaylist: true,
             bookmarkStore: SecurityScopedBookmarkStore(userDefaults: userDefaults),
             stateStore: stateStore,
-            alertPresenter: SilentPlaylistAlertPresenter())
+            alertPresenter: SilentPlaylistAlertPresenter()
+        )
 
         waitForMainQueue()
         XCTAssertFalse(manager.shouldPlayStartupSoundOnLaunch)
@@ -404,7 +408,8 @@ final class PlaylistManagerTests: XCTestCase {
             restorePlaylist: true,
             bookmarkStore: SecurityScopedBookmarkStore(userDefaults: userDefaults),
             stateStore: stateStore,
-            alertPresenter: SilentPlaylistAlertPresenter())
+            alertPresenter: SilentPlaylistAlertPresenter()
+        )
 
         waitForMainQueue(after: 0.5)
 
@@ -434,7 +439,8 @@ final class PlaylistManagerTests: XCTestCase {
             restorePlaylist: true,
             bookmarkStore: SecurityScopedBookmarkStore(userDefaults: userDefaults),
             stateStore: stateStore,
-            alertPresenter: SilentPlaylistAlertPresenter())
+            alertPresenter: SilentPlaylistAlertPresenter()
+        )
 
         waitForMainQueue(after: 0.5)
 
@@ -470,7 +476,8 @@ final class PlaylistManagerTests: XCTestCase {
             restorePlaylist: true,
             bookmarkStore: SecurityScopedBookmarkStore(userDefaults: userDefaults),
             stateStore: stateStore,
-            alertPresenter: SilentPlaylistAlertPresenter())
+            alertPresenter: SilentPlaylistAlertPresenter()
+        )
 
         waitForMainQueue(after: 0.5)
 

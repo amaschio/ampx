@@ -85,7 +85,11 @@ final class AmpXAccessibilityTests: XCTestCase {
     }
 
     func testCollapseFallsBackToHeaderAndExpandRestoresContentFocus() throws {
-        let coordinator = AmpXHostCoordinator(state: AmpXModuleOrder(), skin: ClassicModernSkin())
+        let coordinator = AmpXHostCoordinator(
+            state: AmpXModuleOrder(),
+            skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore()
+        )
         coordinator.showStack()
 
         let module = try XCTUnwrap(coordinator.moduleView(for: .equalizer))
@@ -103,7 +107,7 @@ final class AmpXAccessibilityTests: XCTestCase {
 
     func testCloseModuleTransfersFocusToNextModuleWrappingToPlayer() throws {
         let state = AmpXModuleOrder()
-        let coordinator = AmpXHostCoordinator(state: state, skin: ClassicModernSkin())
+        let coordinator = AmpXHostCoordinator(state: state, skin: ClassicModernSkin(), layoutStore: makeIsolatedLayoutStore())
         coordinator.showStack()
 
         let equalizer = try XCTUnwrap(coordinator.moduleView(for: .equalizer))

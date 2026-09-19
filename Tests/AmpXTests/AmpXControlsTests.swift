@@ -63,7 +63,7 @@ final class AmpXControlsTests: XCTestCase {
     }
 
     @MainActor
-    func testDisabledButtonDoesNotActivate() {
+    func testDisabledButtonDoesNotActivate() throws {
         let skin = ClassicModernSkin()
         let button = AmpXButton(skin: skin)
         button.frame = CGRect(x: 0, y: 0, width: 44, height: 40)
@@ -71,7 +71,7 @@ final class AmpXControlsTests: XCTestCase {
         var fired = false
         button.action = { fired = true }
 
-        button.mouseDown(with: NSEvent.mouseEvent(
+        try button.mouseDown(with: XCTUnwrap(NSEvent.mouseEvent(
             with: .leftMouseDown,
             location: NSPoint(x: 22, y: 20),
             modifierFlags: [],
@@ -81,8 +81,8 @@ final class AmpXControlsTests: XCTestCase {
             eventNumber: 0,
             clickCount: 1,
             pressure: 1
-        )!)
-        button.mouseUp(with: NSEvent.mouseEvent(
+        )))
+        try button.mouseUp(with: XCTUnwrap(NSEvent.mouseEvent(
             with: .leftMouseUp,
             location: NSPoint(x: 22, y: 20),
             modifierFlags: [],
@@ -92,21 +92,21 @@ final class AmpXControlsTests: XCTestCase {
             eventNumber: 0,
             clickCount: 1,
             pressure: 0
-        )!)
+        )))
 
         XCTAssertFalse(fired)
         XCTAssertFalse(button.isPressed)
     }
 
     @MainActor
-    func testReleaseOutsideBoundsDoesNotFire() {
+    func testReleaseOutsideBoundsDoesNotFire() throws {
         let skin = ClassicModernSkin()
         let button = AmpXButton(skin: skin)
         button.frame = CGRect(x: 0, y: 0, width: 44, height: 40)
         var fired = false
         button.action = { fired = true }
 
-        button.mouseDown(with: NSEvent.mouseEvent(
+        try button.mouseDown(with: XCTUnwrap(NSEvent.mouseEvent(
             with: .leftMouseDown,
             location: NSPoint(x: 22, y: 20),
             modifierFlags: [],
@@ -116,8 +116,8 @@ final class AmpXControlsTests: XCTestCase {
             eventNumber: 0,
             clickCount: 1,
             pressure: 1
-        )!)
-        button.mouseUp(with: NSEvent.mouseEvent(
+        )))
+        try button.mouseUp(with: XCTUnwrap(NSEvent.mouseEvent(
             with: .leftMouseUp,
             location: NSPoint(x: 80, y: 80),
             modifierFlags: [],
@@ -127,7 +127,7 @@ final class AmpXControlsTests: XCTestCase {
             eventNumber: 0,
             clickCount: 1,
             pressure: 0
-        )!)
+        )))
 
         XCTAssertFalse(fired)
         XCTAssertFalse(button.isPressed)
@@ -150,7 +150,7 @@ final class AmpXControlsTests: XCTestCase {
     }
 
     @MainActor
-    func testSliderDragInvokesOnChange() {
+    func testSliderDragInvokesOnChange() throws {
         let skin = ClassicModernSkin()
         let slider = AmpXSlider(skin: skin)
         slider.frame = CGRect(x: 0, y: 0, width: 100, height: 20)
@@ -158,7 +158,7 @@ final class AmpXControlsTests: XCTestCase {
         var lastValue: Double?
         slider.onChange = { lastValue = $0 }
 
-        slider.mouseDown(with: NSEvent.mouseEvent(
+        try slider.mouseDown(with: XCTUnwrap(NSEvent.mouseEvent(
             with: .leftMouseDown,
             location: NSPoint(x: 50, y: 10),
             modifierFlags: [],
@@ -168,7 +168,7 @@ final class AmpXControlsTests: XCTestCase {
             eventNumber: 0,
             clickCount: 1,
             pressure: 1
-        )!)
+        )))
 
         XCTAssertNotNil(lastValue)
         XCTAssertEqual(lastValue ?? -1, 50, accuracy: 1)

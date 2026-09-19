@@ -13,13 +13,15 @@ class AmpXDrawingView: NSView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
     /// `nonisolated`: AppKit reads this from its layer-display path with no Swift task, and on
     /// macOS 26 an isolated getter crashes in `swift_task_isCurrentExecutor` (see commit 5562af8).
-    override nonisolated var isFlipped: Bool { true }
+    override nonisolated var isFlipped: Bool {
+        true
+    }
 
     override func viewDidChangeBackingProperties() {
         super.viewDidChangeBackingProperties()
@@ -41,17 +43,17 @@ class AmpXDrawingView: NSView {
         trackingArea = area
     }
 
-    override func mouseEntered(with event: NSEvent) {
-        isHovered = true
+    override func mouseEntered(with _: NSEvent) {
+        self.isHovered = true
         needsDisplay = true
     }
 
-    override func mouseExited(with event: NSEvent) {
-        isHovered = false
+    override func mouseExited(with _: NSEvent) {
+        self.isHovered = false
         needsDisplay = true
     }
 
-    override func mouseMoved(with event: NSEvent) {
+    override func mouseMoved(with _: NSEvent) {
         needsDisplay = true
     }
 }

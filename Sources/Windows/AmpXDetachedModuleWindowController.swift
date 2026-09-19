@@ -26,35 +26,40 @@ final class AmpXDetachedModuleWindowController: NSWindowController, NSWindowDele
             backing: .buffered,
             defer: false
         )
-        window.contentView = containerView
+        window.contentView = self.containerView
         window.backgroundColor = skin.background
 
         super.init(window: window)
 
         window.delegate = self
         AmpXWindowChrome.apply(to: window, minimumHeaderHeight: AmpXMetrics.headerHeight)
-        resizeToInheritedWidth(inheritedWidth)
+        self.resizeToInheritedWidth(inheritedWidth)
         window.setFrame(frame, display: false)
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
     func attachModuleView(_ view: AmpXModuleView, layout: AmpXLayoutResult) {
         view.removeFromSuperview()
-        containerView.addSubview(view)
+        view.isHidden = false
+        self.containerView.addSubview(view)
         if let frame = layout.frames[moduleID] {
             view.applyLayout(frame: CGRect(x: 0, y: 0, width: frame.width, height: frame.height))
         }
-        containerView.frame = containerView.superview?.bounds ?? .zero
-        resizeWindow(toContentHeight: view.frame.height)
-        coordinator?.refreshEffectiveVisibility()
+        if let playlist = view.content as? PlaylistModuleContent {
+            playlist.setRowViewportHeight(layout.playlistViewportHeight)
+        }
+        self.containerView.frame = self.containerView.superview?.bounds ?? .zero
+        self.resizeWindow(toContentSize: view.frame.size)
+        self.updateResizeConstraints(contentSize: view.frame.size)
+        self.coordinator?.refreshEffectiveVisibility()
     }
 
     func detachModuleView() -> AmpXModuleView? {
-        containerView.subviews.compactMap { $0 as? AmpXModuleView }.first
+        self.containerView.subviews.compactMap { $0 as? AmpXModuleView }.first
     }
 
     func applyFrame(_ frame: CGRect) {
@@ -64,33 +69,61 @@ final class AmpXDetachedModuleWindowController: NSWindowController, NSWindowDele
 
     func windowDidMove(_: Notification) {
         guard let window, !window.inLiveResize else { return }
-        guard coordinator?.isInTheater != true || moduleID != .enthea else { return }
+        guard self.coordinator?.isInTheater != true || self.moduleID != .enthea else { return }
 
-        moveSaveWorkItem?.cancel()
+        self.moveSaveWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             guard let self, let window = self.window else { return }
             self.coordinator?.updateDetachedFrame(self.moduleID, frame: window.frame)
         }
-        moveSaveWorkItem = workItem
+        self.moveSaveWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
     }
 
+    func windowDidResize(_: Notification) {
+        guard let window, window.inLiveResize, moduleID == .playlist else { return }
+        self.coordinator?.handleDetachedResize(self.moduleID, frame: window.frame)
+    }
+
     func windowDidEndLiveResize(_: Notification) {
-        guard coordinator?.isInTheater != true || moduleID != .enthea else { return }
+        guard self.coordinator?.isInTheater != true || self.moduleID != .enthea else { return }
         guard let window else { return }
-        coordinator?.updateDetachedFrame(moduleID, frame: window.frame)
+        self.coordinator?.handleDetachedResize(self.moduleID, frame: window.frame)
     }
 
     func windowDidMiniaturize(_: Notification) {
-        coordinator?.refreshEffectiveVisibility()
+        self.coordinator?.refreshEffectiveVisibility()
     }
 
     func windowDidDeminiaturize(_: Notification) {
-        coordinator?.refreshEffectiveVisibility()
+        self.coordinator?.refreshEffectiveVisibility()
     }
 
     func windowDidChangeOcclusionState(_: Notification) {
-        coordinator?.refreshEffectiveVisibility()
+        self.coordinator?.refreshEffectiveVisibility()
+    }
+
+    func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
+        NSSize(
+            width: min(max(frameSize.width, sender.contentMinSize.width), sender.contentMaxSize.width),
+            height: min(max(frameSize.height, sender.contentMinSize.height), sender.contentMaxSize.height)
+        )
+    }
+
+    /// Only an expanded detached Playlist resizes, in both axes (spec Revision 9).
+    private func updateResizeConstraints(contentSize: CGSize) {
+        guard let window else { return }
+        let canResizePlaylist = self.moduleID == .playlist && self.coordinator?.state.collapsed.contains(.playlist) == false
+        window.contentMinSize = NSSize(
+            width: canResizePlaylist ? AmpXMetrics.minimumPlaylistWidth : contentSize.width,
+            height: canResizePlaylist
+                ? AmpXMetrics.headerHeight + AmpXMetrics.playlistNonRowChrome + AmpXMetrics.minimumPlaylistViewportHeight
+                : contentSize.height
+        )
+        window.contentMaxSize = NSSize(
+            width: canResizePlaylist ? .greatestFiniteMagnitude : contentSize.width,
+            height: canResizePlaylist ? .greatestFiniteMagnitude : contentSize.height
+        )
     }
 
     private func resizeToInheritedWidth(_ inheritedWidth: CGFloat) {
@@ -100,11 +133,11 @@ final class AmpXDetachedModuleWindowController: NSWindowController, NSWindowDele
         window.setFrame(frame, display: false)
     }
 
-    private func resizeWindow(toContentHeight contentHeight: CGFloat) {
+    private func resizeWindow(toContentSize contentSize: CGSize) {
         guard let window else { return }
 
         let topY = window.frame.maxY
-        window.setContentSize(NSSize(width: window.frame.width, height: contentHeight))
+        window.setContentSize(NSSize(width: contentSize.width, height: contentSize.height))
         var frame = window.frame
         frame.origin.y = topY - frame.height
         window.setFrame(frame, display: false)

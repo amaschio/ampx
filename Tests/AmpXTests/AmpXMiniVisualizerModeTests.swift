@@ -5,41 +5,93 @@ import XCTest
 /// double-clicking opens the visualizer instead. Peak marks belong to the analyzer mode only.
 @MainActor
 final class AmpXMiniVisualizerModeTests: XCTestCase {
-    func testPeakMarksBelongToAnalyzerModeOnly() {
-        XCTAssertFalse(SpectrumWellView.drawsPeakMarks(in: .bars))
-        XCTAssertTrue(SpectrumWellView.drawsPeakMarks(in: .analyzer))
-        XCTAssertFalse(SpectrumWellView.drawsPeakMarks(in: .oscilloscope))
+    /// Each mode owns a distinct drawing: segmented columns with an afterglow, a waveform line, or
+    /// thin per-band bars with floating caps.
+    func testEachModeDrawsItsOwnLook() {
+        XCTAssertTrue(SpectrumWellView.drawsTrail(in: .bars))
+        XCTAssertFalse(SpectrumWellView.drawsAnalyzerBars(in: .bars))
+        XCTAssertFalse(SpectrumWellView.drawsScopeLine(in: .bars))
+
+        XCTAssertTrue(SpectrumWellView.drawsScopeLine(in: .oscilloscope))
+        XCTAssertFalse(SpectrumWellView.drawsTrail(in: .oscilloscope))
+        XCTAssertFalse(SpectrumWellView.drawsAnalyzerBars(in: .oscilloscope))
+
+        XCTAssertTrue(SpectrumWellView.drawsAnalyzerBars(in: .analyzer))
+        XCTAssertFalse(SpectrumWellView.drawsTrail(in: .analyzer))
+        XCTAssertFalse(SpectrumWellView.drawsScopeLine(in: .analyzer))
     }
 
-    func testClickCyclesToTheNextModeAndReportsIt() {
+    /// The mode must change on the click itself. Deferring it until AppKit can no longer make a
+    /// double-click out of it made every cycle wait a full `doubleClickInterval`, which reads as
+    /// "clicking does nothing".
+    func testClickCyclesToTheNextModeImmediately() {
         let well = SpectrumWellView(skin: ClassicModernSkin())
-        well.mode = .bars
-        var reported: [VisualizationMode] = []
-        well.onModeChanged = { reported.append($0) }
+        well.settings.style = .classicSpectrum
+        var reported: [AmpXMiniVisualizerStyle] = []
+        well.onSettingsChanged = { reported.append($0.style) }
 
         well.mouseDown(with: self.click(count: 1))
-        self.waitForMainQueue(after: NSEvent.doubleClickInterval + 0.05)
 
-        XCTAssertEqual(well.mode, .oscilloscope)
-        XCTAssertEqual(reported, [.oscilloscope])
+        XCTAssertEqual(well.settings.style, .smoothSpectrum)
+        XCTAssertEqual(reported, [.smoothSpectrum])
     }
 
-    func testDoubleClickOpensVisualizerAndNeverCyclesTheMode() {
+    func testEverySingleClickAdvancesOneMode() {
         let well = SpectrumWellView(skin: ClassicModernSkin())
-        well.mode = .bars
+        well.settings.style = .classicSpectrum
+
+        well.mouseDown(with: self.click(count: 1))
+        XCTAssertEqual(well.settings.style, .smoothSpectrum)
+
+        well.mouseDown(with: self.click(count: 1))
+        XCTAssertEqual(well.settings.style, .dotSpectrum)
+
+        well.mouseDown(with: self.click(count: 1))
+        XCTAssertEqual(well.settings.style, .mirroredSpectrum)
+    }
+
+    /// The first click of a double-click already advanced the mode, so the second click undoes it —
+    /// opening the visualizer still never leaves the mode changed.
+    func testDoubleClickOpensVisualizerAndLeavesTheModeUnchanged() {
+        let well = SpectrumWellView(skin: ClassicModernSkin())
+        well.settings.style = .waterfall
         var opened = 0
-        var reported: [VisualizationMode] = []
+        var reported: [AmpXMiniVisualizerStyle] = []
         well.onDoubleClick = { opened += 1 }
-        well.onModeChanged = { reported.append($0) }
+        well.onSettingsChanged = { reported.append($0.style) }
 
         // AppKit delivers the first click of a double-click as clickCount 1.
         well.mouseDown(with: self.click(count: 1))
         well.mouseDown(with: self.click(count: 2))
-        self.waitForMainQueue(after: NSEvent.doubleClickInterval + 0.05)
 
         XCTAssertEqual(opened, 1)
-        XCTAssertEqual(well.mode, .bars)
-        XCTAssertEqual(reported, [])
+        XCTAssertEqual(well.settings.style, .waterfall)
+        XCTAssertEqual(reported.last, .waterfall, "the revert must be persisted too")
+    }
+
+    /// A parked well gets no ticks, so a mode the user just picked would draw stale or empty state.
+    func testCyclingTheModeWakesAParkedWell() {
+        let well = SpectrumWellView(skin: ClassicModernSkin())
+        well.setEffectivelyVisible(true)
+        well.setContinuousRenderingPaused(true)
+
+        well.mouseDown(with: self.click(count: 1))
+
+        XCTAssertFalse(well.isContinuousRenderingPaused)
+    }
+
+    /// Waking must also drop the stale frame time: without it the first frame after a park spans the
+    /// whole parked interval, and that delta runs the smoothing and falloff to their extremes.
+    func testWakingClearsTheStaleFrameTimestamp() {
+        let well = SpectrumWellView(skin: ClassicModernSkin())
+        well.audioSource = { _ in AmpXMiniAudioSnapshot() }
+        well.tick(at: 100)
+
+        XCTAssertEqual(well.lastTimestamp, 100)
+
+        well.wakeRendering()
+
+        XCTAssertNil(well.lastTimestamp)
     }
 
     func testModeStoreDefaultsToBarsAndRoundTrips() throws {

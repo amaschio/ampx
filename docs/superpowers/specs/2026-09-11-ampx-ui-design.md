@@ -2,7 +2,11 @@
 
 **Date:** 2026-09-11
 
-**Status:** Revision 6 — stack sizing amended 2026-09-13 (no stack scrolling; only the Playlist resizes vertically). Revision 5 — visual fidelity and acceptance amended 2026-09-12
+**Status:** Revision 9 — horizontally resizable Playlist, decided by user 2026-09-16. Revision 8 (Playlist resize affordance, value-colored volume/balance tracks, 2026-09-14) and Revision 7 (fixed module dimensions and right-side visualizer, 2026-09-13) remain in effect except where this revision changes them.
+
+**Revision 9 origin.** User request: the Playlist must also resize horizontally, with a minimum equal to the fixed Equalizer width and no maximum. This relaxes Revision 7's "every module is 490 pt wide and host width changes only with the ENTHEA column". Decisions (user, 2026-09-16): horizontal resize applies to the docked **and** detached Playlist, and a wider Playlist **stretches** its content (same type size, more visible title text) instead of scaling up.
+
+**Revision 8 origin.** Two defects shipped because behavior-bearing appearance was left to the static PNG. (1) The spec defined *what* resizes (only Playlist, vertically) but not *where* or *how it is discovered*; it assumed a native titled window edge while hosts were built borderless, and the Classic Playlist resize grip was not listed for preservation. (2) "Colored slider tracks" was satisfied with one color sampled per slider from a single frame, although Classic tinted volume by value and balance by distance from center. Live pointer checks that would have caught both were deferred.
 
 **Review history:** [Design review](./2026-09-11-ampx-ui-design-review.md)
 
@@ -23,7 +27,7 @@ This replaces the UI layer only. Audio, playlist persistence, visualization, ENT
 
 ## Visual contract
 
-Modules fill a **490 pt-wide** window at scale 1.0. The PNG's 499 × 788 pt canvas includes background padding that is excluded from the window; macOS supplies its shadow.
+Each module is **490 pt wide** at its fixed reference size; from Revision 9 the Playlist's width is variable (minimum 490 pt, no maximum) while every other module stays fixed. Player/EQ/Playlist occupy the left column; docked ENTHEA occupies a second column on the right. The PNG's 499 × 788 pt canvas includes background padding that is excluded from the window; macOS supplies its shadow.
 
 | Metric | Starting value at scale 1.0 |
 |---|---|
@@ -40,7 +44,8 @@ The panel measurements and button classes are starting values, not permission to
 
 - Preserve centered Player branding, uppercase EQ/Playlist titles, the reference's left glyph treatment, paired decorative lines, and header-button order. The grip interaction uses the existing left decoration; it does not introduce a generic menu icon.
 - Match layered steel-blue frame edges, raised button faces, recessed black wells, and metallic slider thumbs. A single outline or flat fill is not an equivalent bevel treatment.
-- Preserve slender colored slider tracks within their control areas, individual transport widths and spacing, indicator placement, and the separation of the EQ curve, toggles, preamp, and bands.
+- Preserve slender colored slider tracks within their control areas, individual transport widths and spacing, indicator placement, and the separation of the EQ curve, toggles, preamp, and bands. Track color is value-driven, not a constant sampled from the PNG (see Player controls).
+- The PNG is one frame. Any appearance that depends on a value, state, or pointer position must be specified in this document; a single sampled color or shape never satisfies such a requirement.
 - Match text size, weight, baseline, and alignment. Keep metadata labels on one line without collisions or clipping. Timer digits retain consistent reference proportions and spacing as values change; shorter times must not stretch digits to fill the well.
 
 **Theme.** Keep `AmpXSkin` small: palette, metrics, font family, and drawing primitives (`bevel`, `inset`, `accentLine`, `displayWell`). `ClassicModernSkin` is its only implementation. Components resolve colors and dimensions through it; this scope does not include a general skin engine.
@@ -92,7 +97,7 @@ Reuse `AudioPlayer`, `PlaylistManager`, `Track`, `AudioFeatureBus`, parsers, DSP
 
 ## Modules and window behavior
 
-Player is the anchor: it always remains in the stack's `order`, cannot detach, and never enters the module `closed` set. Equalizer, Playlist, and ENTHEA may collapse, close, detach, and re-dock. Every module may reorder.
+Player is the anchor: it always remains in the stack's `order`, cannot detach, and never enters the module `closed` set. Equalizer, Playlist, and ENTHEA may collapse, close, detach, and re-dock. Player, Equalizer, and Playlist may reorder within the left column. Docked ENTHEA always occupies the right column; re-docking it restores that placement.
 
 | Header button | Player | Other modules |
 |---|---|---|
@@ -110,25 +115,36 @@ The left grip reorders or tears off a module; the rest of the header moves its h
 
 Reorder and re-dock share the pure `dropIndex(stackGeometry:point:) -> Int?` calculation and a yellow 2 pt insertion marker. Dragging a detachable module more than 40 pt outside the stack tears it off, keeping it under the cursor. Dropping a detached module outside the stack leaves it detached at the release position. Collapsing a module during its content drag cancels the drag without changing order.
 
-`AmpXLayoutStore` persists module state, stack/detached frames, and playlist viewport height as versioned JSON in UserDefaults. Missing, corrupt, or unknown-version payloads use defaults without throwing. Unknown module IDs are ignored while retaining recognized entries.
+`AmpXLayoutStore` persists module state, stack/detached frames, playlist viewport height, and (Revision 9) playlist width as versioned JSON in UserDefaults. A payload without a stored width uses the 490 pt default, and a stored width below the minimum is raised to it. Missing, corrupt, or unknown-version payloads use defaults without throwing. Unknown module IDs are ignored while retaining recognized entries.
 
 ### Sizing and overflow
 
-Normal hosts use hidden titles, transparent title bars, full-size content views, and titled/closable/miniaturizable/resizable window configuration. AmpX draws the chrome. Detached windows have no snapping or attraction.
+Normal hosts are borderless, resizable, and miniaturizable windows; AmpX draws all chrome. (Earlier revisions named a titled window with a hidden, transparent title bar; the implementation uses borderless hosts and this revision records that.) Native window-edge resizing is not a discoverable affordance on borderless hosts and must not be the only way to resize. Detached windows have no snapping or attraction.
 
 ```
-scale = clamp(width / 490, 0.85, 1.35)
-hostHeight = (sum(moduleHeight) + moduleGap * (visibleCount - 1)) * scale
+normalUIScale = 1
+playlistWidth = max(490, savedPlaylistWidth)          // Revision 9: no maximum
+leftWidth = max(490, dockedPlaylistOpen ? playlistWidth : 490)
+hostWidth = leftWidth + (dockedVisualizerOpen ? 6 + 490 : 0)
+hostHeight = max(leftColumnHeight, dockedVisualizerHeight)
 ```
 
-Here the composition contains open modules in that host; collapsed modules contribute header height. All modules within a stack share scale.
+Only open, docked modules contribute to this composition. Collapsed modules contribute header height.
 
-- Horizontal resize changes scale and recomputes content height. Minimum width is `490 * 0.85`; beyond `490 * 1.35`, the window grows while the composition remains centered at scale 1.35.
-- The Playlist is the only module that resizes vertically. Vertical resize adjusts the expanded Playlist's viewport, changing visible row count rather than zoom. Otherwise the window height always equals the composition height. Persist viewport height independently of scale; respect scaled header-height minimums.
-- Collapse, expansion, close, and reopen change height, not scale. Detached Playlist also supports viewport resizing; other detached modules use their scaled height.
-- The stack never scrolls and has no stack scrollbar. Available height is the screen's visible frame, not the window's current height. When the composition is taller than that, the expanded Playlist viewport shrinks by exactly the excess, down to its three-row minimum; every other module keeps its height. The saved window position keeps its top edge and is kept inside the visible frame. Never automatically collapse, close, or detach modules.
-- *Pending user decision:* behavior when the composition is still taller than the visible frame with the Playlist at three rows (or with no expanded Playlist in the stack).
-- Tear-off inherits source scale. Re-dock adopts destination stack scale; transfer frames adjust accordingly. Hosts can otherwise be resized independently.
+- Player and EQ retain their current reference width and height when the host is resized; horizontal resizing never scales the UI. Backing-scale changes still redraw crisply at the same logical dimensions.
+- **Playlist width (Revision 9).** The Playlist is the only module with a variable width: minimum 490 pt (the fixed Equalizer width), no maximum. It applies docked and detached, is persisted like the viewport height, and survives collapse, close/reopen, detach and re-dock. Player, EQ and ENTHEA keep their 490 pt width at every Playlist width.
+- **Host width (Revision 9).** The docked left column is as wide as its widest visible module, so the stack window width is `leftWidth + ENTHEA column`. Growing the Playlist keeps the window's left edge fixed and extends it to the right. Player and EQ stay 490 pt and left-aligned; the docked ENTHEA column shifts right to stay `moduleGap` clear of the left column, so a wide Playlist never overlaps it. When the Playlist is closed, detached or collapsed, host width returns to the fixed composition.
+- Docked ENTHEA is top-aligned with the left column at `leftWidth + 6` pt (x=496 pt at the reference Playlist width), with its existing 490 × 290 pt normal dimensions. Opening it increases host width, not the left column's height. Closing or detaching it removes that column. Theater remains the explicit display-filling exception.
+- Playlist is the only module with a variable normal height. Vertical resize adjusts its expanded viewport, changing row count. Detached Playlist supports the same vertical resizing at fixed width; other detached modules retain fixed normal dimensions. Preserve the preferred Playlist viewport independently of temporary screen constraints.
+- **Playlist resize handle.** The expanded Playlist owns its resize affordance, in both docked and detached hosts and regardless of its position in the stack order:
+  - A 6 pt strip along the Playlist module's bottom edge and a 6 pt strip along its right edge, plus a drawn grip (diagonal ridges, `borderHighlight`/`borderDark`) in the bottom-right corner below LIST OPTS. None may overlap a footer control's hit area.
+  - Pointer over a strip or the grip shows the matching system resize cursor — `NSCursor.frameResize(position:directions:)` with `.bottom`, `.right`, and `.bottomRight` respectively; everywhere else keeps the normal cursor.
+  - Dragging changes the preferred size by the pointer delta in screen coordinates: the bottom strip changes height only, the right strip width only, and the grip both. Height clamps to three rows and to the screen fit rule below; width clamps to the 490 pt minimum with no maximum. The module's top and left edges stay fixed. Save once when the drag ends, not per event.
+  - A collapsed or closed Playlist exposes no handle and no resize cursor. Other modules never show a resize cursor.
+- When the left column exceeds the screen's visible height, shrink only the expanded Playlist viewport by the excess, down to three rows. Never scale Player/EQ, scroll the stack, or automatically close/collapse/detach another module. Without an expanded docked Playlist, host height follows the fixed composition.
+- The fixed Player+EQ column needs about 455 pt before Playlist chrome; screens smaller than the fixed minimum composition cannot show all of it. Keep its top edge reachable rather than violating fixed dimensions; this physical minimum is not a reason to reintroduce UI scaling.
+- Closing a module must hide its view as well as exclude its frame from layout. Reopening restores the same view and recomputes all occupied frames. Resizing after a close must not leave stale module pixels covering another panel.
+- Grip dragging must preserve the pointer's position within the module header across detachment and re-docking. Use source-window-to-screen conversion for each event; never interpret one window's event coordinates as another window's local coordinates. Detached modules remain visible during stack relayout.
 
 ### Theater
 
@@ -167,9 +183,13 @@ These rules apply to collapse, close, and window hide/miniaturize/occlusion.
 
 **Player:** Left approximately 37% holds a dotted black display well, play-state glyph, segment timer, and L/R spectrum. Right approximately 63% holds track text, bitrate/sample-rate/channel metadata (inactive channel label in `textDim`), two horizontal sliders, and EQ/PL toggles with green indicators. A full-width position bar sits above transport: previous, play, pause, stop, next, eject, shuffle, repeat, and orange menu button.
 
+**Volume and balance tracks:** Winamp's original value coloring. A pure ramp maps an intensity `t` in 0…1 to color by linear RGB interpolation through green `rgb(14, 236, 2)` at 0, yellow `rgb(247, 210, 3)` at 0.5, and red `rgb(240, 32, 8)` at 1. Volume uses `t = value`; balance uses `t = |value − center| / halfRange`, so centered balance is green and either extreme is red. The ramp color fills the **entire track length, end to end, independent of thumb position**, as Winamp's full-width volume/balance bars do; only the color changes with the value, immediately (including reference presentation). There is no progress-style fill ending at the thumb and no unfilled remainder. This supersedes the PNG's fill-to-thumb appearance and Step 2 deviation 2 (fixed tint run past the thumb); approved by user 2026-09-14. (The first Revision 8 text specified the ramp's color but kept the PNG's fill extent, because the extent was never compared against Classic's full-width sprites.) Keep the ramp testable independently of drawing. At the reference values (volume 0.762, balance centered) volume renders orange-red rather than the PNG's orange; this is an approved deviation (user, 2026-09-14).
+
 **Spectrum:** Discrete segmented columns; level determines lit-segment count, while vertical segment position determines color from green through yellow-green/yellow to orange. Floating peak-hold marks decay. Keep segment geometry, color-band mapping, and peak behavior testable independently of drawing; sample segment metrics/boundaries from the PNG in Phase 1.
 
 **Equalizer:** ON/AUTO indicators, curve using `CatmullRomSpline`, PRESETS menu, preamp, and ten bands at 60 / 170 / 310 / 600 / 1K / 3K / 6K / 12K / 14K / 16K. Vertical tracks use rectangular metallic thumbs and a +12 / 0 / −12 dB scale. Bind existing EQ values, preamp, enabled, and auto-enabled state.
+
+**Playlist stretching (Revision 9).** Beyond 490 pt the Playlist stretches; it never scales. Type size, row height, header height, footer control sizes and the scrollbar width stay at their reference values, and the extra width becomes visible content: the row area and its well grow, so longer titles show. The scrollbar stays at the right edge; row durations stay right-aligned in their 42 pt column; the footer's left buttons (ADD/REM/SEL/MISC) keep their left anchor while its right group (counter well, mini transport, remaining readout, LIST OPTS) keeps its right anchor. The Playlist header stretches the same way: the brand/title group stays centered, its gold rules fill the space, and the header buttons stay right-anchored. This is the one module whose content coordinates are not the 490 pt reference space.
 
 **Playlist:** Custom rows, 22 pt high; index and Artist – Title left, duration right in a 42 pt column. Green text on black; the playing track's text is white (`text`) whether or not it is selected, and selection only draws a flat fill behind the row without changing text color (Winamp PLEDIT behavior, decided by user 2026-09-15). When the playing track changes and its row is not fully visible, the rows scroll to center it. Amber scrollbar arrows, gold thumb. Footer contains ADD/REM/SEL/MISC, mini transport, combined time counter, remaining-time readout, and LIST OPTS.
 
@@ -205,6 +225,7 @@ Keep the existing models and non-UI regression suites intact. Before deleting Cl
 - Move `PlaylistChromeActions` verbatim from `Views/Classic/PlaylistListInteractions.swift` to `Sources/Playlist/PlaylistChromeActions.swift`; retain `PlaylistChromeActionsTests` unmodified.
 - Replace the SwiftUI-binding-based `PlaylistKeyboardNavigation` with an AppKit `AmpXPlaylistKeyboard.Handling` adapter preserving selection, navigation, playback, removal, cropping, and reorder. Reimplement `PlaylistTrackReorderModifier` with AppKit mouse tracking.
 - Rename legacy `Sources/Utilities/AmpXMetrics.swift` to `LegacyPanelMetrics` so the new theme can own `AmpXMetrics`.
+- Inventory Classic's dynamic visual and pointer behaviors before deletion and map each to a spec requirement or an explicit user-approved removal. Known items: value-tinted volume track and center-distance-tinted balance track (`AmpXSkinSprites.Volume/Balance.background(forNormalized:)`); gain-tinted EQ bands; the Playlist bottom-right resize grip. (Added in Revision 8 after the first two were lost at cutover.)
 
 | Phase | Deliverable |
 |---|---|
@@ -236,12 +257,14 @@ Then compare EQ and Playlist individually and as a complete expanded stack with 
 
 | Area | Required evidence |
 |---|---|
-| Visual fidelity | Approved Player checkpoint and reference/result comparisons for all three panels through static, interactive, and wired states; only documented approved deviations. Check crisp geometry at 1×/2×/3× backing scales and UI scales 0.85–1.35; font registration and fallback. Identify offscreen checks separately from physical-display captures |
-| Layout and scale | Full, collapsed, Player-only, ENTHEA-expanded, and detached layouts at scale bounds and 1.0; gaps, viewport row counts, and scale transfer |
+| Visual fidelity | Approved Player checkpoint and reference/result comparisons for all three panels through static, interactive, and wired states; only documented approved deviations. Check crisp geometry at 1×/2×/3× backing scales with fixed normal module dimensions; font registration and fallback. Identify offscreen checks separately from physical-display captures |
+| Layout and scale | Full, collapsed, Player-only, right-side ENTHEA, and detached layouts; Player/EQ/ENTHEA keep 490 pt at every Playlist width; only Playlist responds to vertical and horizontal resizing |
+| Playlist width | Minimum 490 pt with no maximum, docked and detached; host width follows the widest left module with the ENTHEA column shifted clear; stretched rows/scrollbar/footer anchors and header at a wide width; width persisted, restored, and defaulted when missing or too small |
 | Module state and persistence | Reorder/collapse/detach/re-dock/close/reopen, anchor enforcement, idempotence, insertion targets; JSON round-trip and missing/corrupt/unknown-version/unknown-ID handling |
-| Stack height | Window height equals the composition at every scale; no stack scrollbar. All four modules at scale 1.35 on a short screen shrink only the Playlist viewport, down to three rows; every module and drop target remains reachable |
-| Drawing models | Pixel/stroke snapping, segment count/color boundaries/peak decay, playlist row geometry, duration column, and visible ranges |
-| Input and accessibility | Playlist-adapter parity, focus-routing precedence, keyboard-only operation, and VoiceOver actions/values/focus in both hosts |
+| Stack height | Window height follows the two-column composition; no stack scrollbar. On a short screen, shrink only Playlist toward three rows while Player/EQ and the right-side visualizer keep their normal dimensions |
+| Drawing models | Pixel/stroke snapping, segment count/color boundaries/peak decay, volume/balance ramp colors at 0, center, and extremes (balance symmetric), playlist row geometry, duration column, and visible ranges |
+| Input and accessibility | Playlist-adapter parity, focus-routing precedence, keyboard-only operation, and VoiceOver actions/values/focus in both hosts. Playlist resize handle: hit-test at the bottom strip and grip resolves to the handle (not a footer control), handle cursor is vertical resize, dragging resizes docked and detached Playlist with fixed top edge, collapsed Playlist has no handle |
+| Live pointer acceptance | Resize cursor appearance, handle dragging, and slider color change observed in the running app. These are required checks; when automation permissions are unavailable, they stay open and block acceptance rather than being substituted by unit tests |
 | Visibility and lifecycle | Each gate independently suspends work; viewport intersection cannot override other gates; ENTHEA stops while collapsed or hidden; close releases its host |
 | Theater | Display-filling content, restored host/scale/frame/presentation options, identical view instance across transitions, and continued window-visibility gating |
 | Regression and cutover | Existing audio/playlist/ENTHEA/visualization/parsing suites stay green; playlist action tests unchanged; retired UI, assets, panel family, and flag removed |

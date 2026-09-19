@@ -13,7 +13,7 @@ final class AmpXLayoutStoreTests: XCTestCase {
     }
 
     func testCorruptJSONFallsBackToDefaults() {
-        let (defaults, name) = isolatedDefaults()
+        let (defaults, name) = self.isolatedDefaults()
         defer { cleanup(name) }
 
         defaults.set(Data("not-json".utf8), forKey: "AmpXModuleLayoutV1")
@@ -22,8 +22,8 @@ final class AmpXLayoutStoreTests: XCTestCase {
         XCTAssertFalse(loaded.state.closed.contains(.player))
     }
 
-    func testUnknownModuleIDIsIgnoredWhileRetainingKnownEntries() throws {
-        let (defaults, name) = isolatedDefaults()
+    func testUnknownModuleIDIsIgnoredWhileRetainingKnownEntries() {
+        let (defaults, name) = self.isolatedDefaults()
         defer { cleanup(name) }
 
         let json = """
@@ -41,8 +41,8 @@ final class AmpXLayoutStoreTests: XCTestCase {
         XCTAssertEqual(loaded.state.order, [.player, .playlist, .equalizer, .enthea])
     }
 
-    func testDuplicateIDsAreNormalized() throws {
-        let (defaults, name) = isolatedDefaults()
+    func testDuplicateIDsAreNormalized() {
+        let (defaults, name) = self.isolatedDefaults()
         defer { cleanup(name) }
 
         let json = """
@@ -62,8 +62,8 @@ final class AmpXLayoutStoreTests: XCTestCase {
         XCTAssertEqual(loaded.state.closed, [.enthea])
     }
 
-    func testMissingPlayerIsRestoredAndProtected() throws {
-        let (defaults, name) = isolatedDefaults()
+    func testMissingPlayerIsRestoredAndProtected() {
+        let (defaults, name) = self.isolatedDefaults()
         defer { cleanup(name) }
 
         let json = """
@@ -83,8 +83,8 @@ final class AmpXLayoutStoreTests: XCTestCase {
         XCTAssertFalse(loaded.state.detached.contains(.player))
     }
 
-    func testNonFiniteGeometryFallsBackToScreenDefaults() throws {
-        let (defaults, name) = isolatedDefaults()
+    func testNonFiniteGeometryFallsBackToScreenDefaults() {
+        let (defaults, name) = self.isolatedDefaults()
         defer { cleanup(name) }
 
         let json = """
@@ -112,8 +112,8 @@ final class AmpXLayoutStoreTests: XCTestCase {
         XCTAssertEqual(loaded.playlistViewportHeight, AmpXMetrics.defaultPlaylistViewportHeight)
     }
 
-    func testDetachedStateRoundTrips() throws {
-        let (defaults, name) = isolatedDefaults()
+    func testDetachedStateRoundTrips() {
+        let (defaults, name) = self.isolatedDefaults()
         defer { cleanup(name) }
 
         var state = AmpXModuleOrder()
@@ -138,7 +138,7 @@ final class AmpXLayoutStoreTests: XCTestCase {
     }
 
     func testSaveAndLoadRoundTrip() {
-        let (defaults, name) = isolatedDefaults()
+        let (defaults, name) = self.isolatedDefaults()
         defer { cleanup(name) }
 
         var state = AmpXModuleOrder()

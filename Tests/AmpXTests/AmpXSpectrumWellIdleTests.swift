@@ -21,8 +21,8 @@ final class AmpXSpectrumWellIdleTests: XCTestCase {
         self.tick(well, seconds: 2)
         XCTAssertTrue(well.isContinuousRenderingPaused)
 
-        well.spectrumSource = { _ in
-            (targets: Array(repeating: 0.8, count: AudioFeatures.spectrumBandCount), isPlaying: true)
+        well.audioSource = { _ in
+            AmpXMiniAudioSnapshot(spectrum: Array(repeating: 0.8, count: 32), isPlaying: true)
         }
         well.wakeRendering()
         self.tick(well, seconds: 0.5)
@@ -32,9 +32,7 @@ final class AmpXSpectrumWellIdleTests: XCTestCase {
 
     private func makeSilentWell() -> SpectrumWellView {
         let well = SpectrumWellView(skin: ClassicModernSkin())
-        well.spectrumSource = { _ in
-            (targets: Array(repeating: 0, count: AudioFeatures.spectrumBandCount), isPlaying: false)
-        }
+        well.audioSource = { _ in AmpXMiniAudioSnapshot() }
         well.setEffectivelyVisible(true)
         return well
     }

@@ -16,6 +16,9 @@ enum AmpXMetrics {
     static let playlistRowHeight: CGFloat = 22
     static let minimumPlaylistViewportHeight: CGFloat = playlistRowHeight * 3
     static let defaultPlaylistViewportHeight: CGFloat = playlistHeight - headerHeight - playlistNonRowChrome
+    /// Spec Revision 9: the Playlist may be wider than the reference, never narrower than the fixed EQ width.
+    static let minimumPlaylistWidth: CGFloat = compositionWidth
+    static let defaultPlaylistWidth: CGFloat = compositionWidth
 
     static let primaryButtonSize = CGSize(width: 44, height: 40)
     static let secondaryButtonSize = CGSize(width: 64, height: 32)
@@ -175,6 +178,10 @@ enum AmpXMetrics {
     /// Footer frame starts this far below the row area and follows the viewport.
     static let playlistFooterGap: CGFloat = 2
     static let playlistFooterHeight: CGFloat = 68.5
+    /// Resize strip along the Playlist content's bottom edge, below every footer control.
+    static let playlistResizeStripHeight: CGFloat = 6
+    /// Resize grip offset from the Playlist content's bottom-right corner, clear of LIST OPTS.
+    static let playlistResizeGrip = CGRect(x: -20, y: -12, width: 14, height: 10.5)
     static let playlistDurationColumnWidth: CGFloat = 42
     /// Row text in row coordinates: number advance ends at 27, titles start at 38, durations end 12.75 pt
     /// before the row's trailing edge (reference ink: number 27 pt, title 53.5 pt, duration 442 pt in content).
@@ -191,6 +198,8 @@ enum AmpXMetrics {
         ("MISC", CGRect(x: 151, y: 8.5, width: 45.5, height: 44)),
         ("LIST\nOPTS", CGRect(x: 419, y: 7, width: 58, height: 48.5)),
     ]
+    /// Footer controls at or beyond this reference x keep their right anchor when the Playlist is wider.
+    static let playlistFooterRightGroupMinX: CGFloat = 204.5
     static let playlistFooterCounterWell = CGRect(x: 204.5, y: 6.5, width: 205, height: 21)
     /// Counter text ink left edge and baseline, relative to the counter well.
     static let playlistFooterCounterInk = CGPoint(x: 64.5, y: 15.5)

@@ -54,8 +54,23 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
 
     // MARK: - Geometry (reference coordinates scaled with the module width)
 
+    /// Playlist headers stretch: reference geometry at scale 1, title centered, buttons right-anchored.
+    var stretchesHorizontally = false {
+        didSet { needsDisplay = true }
+    }
+
     private var scale: CGFloat {
-        bounds.width / AmpXMetrics.compositionWidth
+        self.stretchesHorizontally ? 1 : bounds.width / AmpXMetrics.compositionWidth
+    }
+
+    /// Extra width beyond the reference, added to right-anchored elements.
+    private var rightAnchorOffset: CGFloat {
+        self.stretchesHorizontally ? bounds.width - AmpXMetrics.compositionWidth : 0
+    }
+
+    /// Half the extra width, added to the centered brand/title group.
+    private var centerOffset: CGFloat {
+        self.rightAnchorOffset / 2
     }
 
     private func scaled(_ rect: CGRect) -> CGRect {
@@ -74,7 +89,9 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
         }
         layout.append((.collapse, self.scaled(AmpXMetrics.headerCollapseButton)))
         layout.append((.close, self.scaled(AmpXMetrics.headerCloseButton)))
-        return layout
+        let offset = self.rightAnchorOffset
+        guard offset != 0 else { return layout }
+        return layout.map { ($0.button, $0.frame.offsetBy(dx: offset, dy: 0)) }
     }
 
     private var brandLabel: AmpXLabel {
@@ -126,7 +143,7 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
         let titleWidth = self.moduleTitleLabel.map { $0.measuredSize(skin: skin).width + 20 * self.scale } ?? 0
         let width = brandWidth + titleWidth
         return CGRect(
-            x: AmpXMetrics.headerTitleCenterX * self.scale - width / 2,
+            x: AmpXMetrics.headerTitleCenterX * self.scale + self.centerOffset - width / 2,
             y: AmpXMetrics.headerBrandInkTop * self.scale,
             width: width,
             height: 18 * self.scale
@@ -188,8 +205,9 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
         let brandInk = brand.inkBounds(skin: skin)
         let title = self.moduleTitleLabel
         let titleInk = title?.inkBounds(skin: skin) ?? .zero
-        let titleInkX = placement.titleInkX * self.scale
-        let brandInkX = placement.brandInkX.map { $0 * self.scale } ?? (titleInkX - 20 * self.scale - brandInk.width)
+        let titleInkX = placement.titleInkX * self.scale + self.centerOffset
+        let brandInkX = placement.brandInkX.map { $0 * self.scale + self.centerOffset }
+            ?? (titleInkX - 20 * self.scale - brandInk.width)
         let brandX = brandInkX - brandInk.minX
         let titleX = titleInkX - titleInk.minX
         let baseline = placement.baseline * self.scale
@@ -200,13 +218,14 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
         let leftMaxX = brandInkX - placement.ruleGapBefore * self.scale
         let inkMaxX = title == nil ? brandX + brandInk.maxX : titleX + titleInk.maxX
         let rightMinX = inkMaxX + placement.ruleGapAfter * self.scale
+        let ruleMaxX = AmpXMetrics.headerRuleMaxX * self.scale + self.rightAnchorOffset
         skin.headerRule(
             CGRect(x: leftMinX, y: ruleY, width: leftMaxX - leftMinX, height: ruleHeight),
             in: context,
             backingScale: backingScale
         )
         skin.headerRule(
-            CGRect(x: rightMinX, y: ruleY, width: AmpXMetrics.headerRuleMaxX * self.scale - rightMinX, height: ruleHeight),
+            CGRect(x: rightMinX, y: ruleY, width: ruleMaxX - rightMinX, height: ruleHeight),
             in: context,
             backingScale: backingScale
         )

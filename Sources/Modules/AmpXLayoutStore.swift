@@ -7,6 +7,7 @@ struct AmpXSavedLayout: Equatable {
     var stackFrame: CGRect
     var detachedFrames: [AmpXModuleID: CGRect]
     var playlistViewportHeight: CGFloat
+    var playlistWidth: CGFloat = AmpXMetrics.defaultPlaylistWidth
 }
 
 @MainActor
@@ -50,7 +51,8 @@ final class AmpXLayoutStore {
             state: AmpXModuleOrder(),
             stackFrame: self.defaultStackFrame(for: screen),
             detachedFrames: [:],
-            playlistViewportHeight: AmpXMetrics.defaultPlaylistViewportHeight
+            playlistViewportHeight: AmpXMetrics.defaultPlaylistViewportHeight,
+            playlistWidth: AmpXMetrics.defaultPlaylistWidth
         )
     }
 
@@ -89,7 +91,8 @@ final class AmpXLayoutStore {
             state: state,
             stackFrame: stackFrame,
             detachedFrames: detachedFrames,
-            playlistViewportHeight: playlistViewportHeight
+            playlistViewportHeight: playlistViewportHeight,
+            playlistWidth: self.validatedPlaylistWidth(dto.playlistWidth)
         )
     }
 
@@ -162,6 +165,14 @@ final class AmpXLayoutStore {
         return max(rawValue, AmpXMetrics.minimumPlaylistViewportHeight)
     }
 
+    /// Missing or too-small stored widths fall back to the minimum (spec Revision 9).
+    private static func validatedPlaylistWidth(_ rawValue: Double?) -> CGFloat {
+        guard let rawValue, rawValue.isFinite else {
+            return AmpXMetrics.defaultPlaylistWidth
+        }
+        return max(rawValue, AmpXMetrics.minimumPlaylistWidth)
+    }
+
     static func isValidFrame(_ frame: CGRect) -> Bool {
         frame.origin.x.isFinite
             && frame.origin.y.isFinite
@@ -208,6 +219,7 @@ private struct AmpXLayoutV1DTO: Codable {
     let stackFrame: AmpXFrameDTO?
     let detachedFrames: [String: AmpXFrameDTO]?
     let playlistViewportHeight: Double?
+    let playlistWidth: Double?
 
     init(layout: AmpXSavedLayout) {
         self.version = 1
@@ -220,6 +232,7 @@ private struct AmpXLayoutV1DTO: Codable {
             uniqueKeysWithValues: layout.detachedFrames.map { ($0.key.rawValue, AmpXFrameDTO($0.value)) }
         )
         self.playlistViewportHeight = Double(layout.playlistViewportHeight)
+        self.playlistWidth = Double(layout.playlistWidth)
     }
 }
 

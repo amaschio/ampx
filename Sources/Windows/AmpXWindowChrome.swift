@@ -9,7 +9,7 @@ enum AmpXWindowChrome {
         window.collectionBehavior = []
         window.toolbar = nil
 
-        hideNativeButtons(in: window)
+        self.hideNativeButtons(in: window)
 
         window.isOpaque = true
         window.hasShadow = true

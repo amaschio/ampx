@@ -3,6 +3,8 @@ import AppKit
 @MainActor
 final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     private(set) var state: AmpXModuleOrder
+    let isEntheaEnabled: Bool
+    private let suspendedEntheaWasClosed: Bool?
     private let skin: any AmpXSkin
     private let layoutStore: AmpXLayoutStore
     private let screen: NSScreen
@@ -15,6 +17,8 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     private var stackFrame: CGRect
     private var detachedFrames: [AmpXModuleID: CGRect]
     private var playlistViewportHeight: CGFloat
+    private var playlistWidth: CGFloat
+    private var playlistResizeStart: (width: CGFloat, height: CGFloat)?
 
     private(set) var dragController = AmpXModuleDragSession()
     private(set) var focusedModuleID: AmpXModuleID = .player
@@ -41,10 +45,16 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         layoutStore: AmpXLayoutStore? = nil,
         screen: NSScreen? = nil,
         audioPlayer: AudioPlayer = .shared,
-        playlistManager: PlaylistManager = .shared
+        playlistManager: PlaylistManager = .shared,
+        entheaEnabled: Bool = AmpXFeatures.entheaEnabled
     ) {
         let resolvedScreen = screen ?? NSScreen.main ?? NSScreen.screens.first!
         self.state = state
+        self.isEntheaEnabled = entheaEnabled
+        self.suspendedEntheaWasClosed = entheaEnabled ? nil : state.closed.contains(.enthea)
+        if !entheaEnabled {
+            self.state.closed.insert(.enthea)
+        }
         self.skin = skin
         self.screen = resolvedScreen
         self.audioPlayer = audioPlayer
@@ -55,6 +65,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         self.stackFrame = saved.stackFrame
         self.detachedFrames = saved.detachedFrames
         self.playlistViewportHeight = saved.playlistViewportHeight
+        self.playlistWidth = saved.playlistWidth
 
         self.createModuleViews()
         self.dragController.bind(coordinator: self)
@@ -67,7 +78,8 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
                 coordinator: self,
                 skin: self.skin,
                 moduleViews: self.visibleStackModuleViews(),
-                playlistViewportHeight: self.playlistViewportHeight
+                playlistViewportHeight: self.playlistViewportHeight,
+                playlistWidth: self.playlistWidth
             )
             self.dragController.bind(viewport: self.stackWindowController!.stackViewport)
         }
@@ -109,7 +121,13 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     func reopenModule(_ id: AmpXModuleID) {
+        guard id != .enthea || self.isEntheaEnabled else { return }
         self.state.reopen(id)
+        if self.state.detached.contains(id) {
+            self.restoreDetachedModule(id)
+        } else if let view = moduleViews[id] {
+            self.transferModuleView(view, to: self.stackWindowController?.stackViewport.stackView)
+        }
         if id == .enthea {
             (self.moduleViews[id]?.content as? EntheaModuleContent)?.reopenHost()
         }
@@ -139,8 +157,9 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
 
         self.state.detach(id)
 
-        let frame = self.detachedFrames[id]
-            ?? self.defaultDetachedFrame(for: id, at: screenPoint, inheritedWidth: inheritedWidth)
+        var frame = self.detachedFrames[id]
+            ?? self.defaultDetachedFrame(for: id, at: screenPoint, inheritedWidth: self.detachedModuleWidth(for: id))
+        frame.size = CGSize(width: self.detachedModuleWidth(for: id), height: self.detachedModuleHeight(for: id, scale: 1))
 
         let controller = self.detachedWindowControllers[id]
             ?? AmpXDetachedModuleWindowController(
@@ -211,10 +230,29 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     func updateDetachedFrame(_ id: AmpXModuleID, frame: CGRect) {
         guard !self.theaterController.isActive || id != .enthea else { return }
         guard AmpXLayoutStore.isValidFrame(frame) else { return }
-        let clamped = AmpXLayoutStore.clampedToVisibleFrame(frame, screen: self.screen)
+        var normalized = frame
+        normalized.size.width = self.detachedModuleWidth(for: id)
+        normalized.size.height = self.detachedModuleHeight(for: id, scale: 1)
+        let clamped = AmpXLayoutStore.clampedToVisibleFrame(normalized, screen: self.screen)
         self.detachedFrames[id] = clamped
         self.detachedWindowControllers[id]?.applyFrame(clamped)
         self.persistLayout()
+    }
+
+    func handleDetachedResize(_ id: AmpXModuleID, frame: CGRect) {
+        if id == .playlist, !self.state.collapsed.contains(id) {
+            self.playlistViewportHeight = max(
+                AmpXMetrics.minimumPlaylistViewportHeight,
+                frame.height - AmpXMetrics.headerHeight - AmpXMetrics.playlistNonRowChrome
+            )
+            self.playlistWidth = max(AmpXMetrics.minimumPlaylistWidth, frame.width)
+            self.stackWindowController?.setPreferredPlaylistViewportHeight(self.playlistViewportHeight)
+            self.stackWindowController?.setPreferredPlaylistWidth(self.playlistWidth)
+            if let controller = detachedWindowControllers[id] {
+                self.relayoutDetachedModule(controller)
+            }
+        }
+        self.updateDetachedFrame(id, frame: frame)
     }
 
     func detachedWindowFrame(for id: AmpXModuleID) -> CGRect? {
@@ -230,16 +268,17 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
             return AmpXDropGeometry(bounds: .zero, orderedFrames: [])
         }
 
-        let width = self.stackWindow?.frame.width ?? AmpXMetrics.compositionWidth
+        let width = max(AmpXMetrics.compositionWidth, self.playlistWidth)
         let layout = AmpXLayout.calculate(
             state: self.state,
             width: width,
             playlistViewportHeight: self.playlistViewportHeight,
-            availableHeight: AmpXStackWindowController.availableHeight(for: self.stackWindow)
+            availableHeight: AmpXStackWindowController.availableHeight(for: self.stackWindow),
+            playlistWidth: self.playlistWidth
         )
 
         let orderedFrames = self.state.order.compactMap { moduleID -> (AmpXModuleID, CGRect)? in
-            guard moduleID != draggedID,
+            guard moduleID != .enthea, moduleID != draggedID,
                   !self.state.closed.contains(moduleID),
                   !self.state.detached.contains(moduleID),
                   let frame = layout.frames[moduleID]
@@ -277,7 +316,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     func adjustPlaylistViewport(byHeightDelta delta: CGFloat, width: CGFloat) {
-        let scale = AmpXLayout.scale(width: width)
+        let scale: CGFloat = 1
         let adjusted = AmpXLayout.adjustedPlaylistViewportHeight(
             preferred: self.playlistViewportHeight,
             heightDelta: delta,
@@ -293,6 +332,79 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         self.stackWindowController?.setPreferredPlaylistViewportHeight(self.playlistViewportHeight)
         self.stackWindowController?.updateLayout()
         self.persistLayout()
+    }
+
+    /// Playlist resize-handle drags, in docked and detached hosts; saves once when the drag ends.
+    func handlePlaylistResize(_ phase: PlaylistResizeHandleView.Phase) {
+        switch phase {
+        case .began:
+            self.playlistResizeStart = (self.playlistWidth, self.playlistViewportHeight)
+        case let .changed(delta):
+            guard let start = playlistResizeStart else { return }
+            self.applyPlaylistSize(width: start.width + delta.width, viewportHeight: start.height + delta.height)
+        case .ended:
+            guard self.playlistResizeStart != nil else { return }
+            self.playlistResizeStart = nil
+            if self.state.detached.contains(.playlist),
+               let window = detachedWindowControllers[.playlist]?.window
+            {
+                self.updateDetachedFrame(.playlist, frame: window.frame)
+            } else {
+                self.persistLayout()
+            }
+        }
+    }
+
+    /// Sets the preferred Playlist width (spec Revision 9) and saves it.
+    func setPlaylistWidth(_ width: CGFloat) {
+        self.applyPlaylistSize(width: width, viewportHeight: self.playlistViewportHeight)
+        self.persistLayout()
+    }
+
+    /// Horizontal live resize of the stack host: the Playlist absorbs the width left by the visualizer column.
+    func setPlaylistWidth(fromHostWidth hostWidth: CGFloat) {
+        self.resizePlaylist(toHostWidth: hostWidth, heightDelta: 0)
+    }
+
+    /// Live resize of the stack host. Both axes are applied in one pass so a diagonal drag does not
+    /// leave one of them to be snapped back by the next layout.
+    func resizePlaylist(toHostWidth hostWidth: CGFloat, heightDelta: CGFloat) {
+        let hasDockedVisualizer = self.state.order.contains(.enthea)
+            && !self.state.closed.contains(.enthea)
+            && !self.state.detached.contains(.enthea)
+        let visualizerColumn = hasDockedVisualizer ? AmpXMetrics.compositionWidth + AmpXMetrics.moduleGap : 0
+        self.applyPlaylistSize(
+            width: hostWidth - visualizerColumn,
+            viewportHeight: AmpXLayout.adjustedPlaylistViewportHeight(
+                preferred: self.playlistViewportHeight,
+                heightDelta: heightDelta,
+                scale: 1
+            )
+        )
+    }
+
+    private func applyPlaylistSize(width: CGFloat, viewportHeight: CGFloat) {
+        self.playlistWidth = max(AmpXMetrics.minimumPlaylistWidth, width)
+        self.stackWindowController?.setPreferredPlaylistWidth(self.playlistWidth)
+        let height = max(AmpXMetrics.minimumPlaylistViewportHeight, viewportHeight)
+        if self.state.detached.contains(.playlist) {
+            self.playlistViewportHeight = height
+            self.stackWindowController?.setPreferredPlaylistViewportHeight(height)
+            if let controller = detachedWindowControllers[.playlist] {
+                self.relayoutDetachedModule(controller)
+            }
+        } else {
+            // A preference taller than the screen allows would only be shrunk back; keep the height that fits.
+            self.playlistViewportHeight = AmpXLayout.calculate(
+                state: self.state,
+                width: AmpXMetrics.compositionWidth,
+                playlistViewportHeight: height,
+                availableHeight: AmpXStackWindowController.availableHeight(for: self.stackWindow),
+                playlistWidth: self.playlistWidth
+            ).playlistViewportHeight
+            self.stackWindowController?.setPreferredPlaylistViewportHeight(self.playlistViewportHeight)
+            self.stackWindowController?.updateLayout()
+        }
     }
 
     func performModuleCommand(_ command: AmpXModuleCommand) {
@@ -313,6 +425,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     func toggleTheater() {
+        guard self.isEntheaEnabled else { return }
         if self.theaterController.isActive {
             self.theaterController.exit()
         } else {
@@ -321,11 +434,12 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     func exitTheater() {
+        guard self.isEntheaEnabled else { return }
         self.theaterController.exit()
     }
 
     var isInTheater: Bool {
-        self.theaterController.isActive
+        self.isEntheaEnabled && self.theaterController.isActive
     }
 
     private func moveFocusedModule(by offset: Int) {
@@ -356,7 +470,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
             self.detach(
                 self.focusedModuleID,
                 at: CGPoint(x: screenPoint.x, y: screenPoint.y),
-                inheritedWidth: stackWindow.frame.width
+                inheritedWidth: AmpXMetrics.compositionWidth
             )
         }
     }
@@ -389,9 +503,10 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     private func createModuleViews() {
-        for moduleID in AmpXModuleID.allCases {
+        for moduleID in AmpXModuleID.allCases where moduleID != .enthea || self.isEntheaEnabled {
             let content = self.makeModuleContent(for: moduleID)
             let view = AmpXModuleView(moduleID: moduleID, content: content, skin: skin)
+            view.setContentCollapsed(self.state.collapsed.contains(moduleID))
             self.wireHeader(for: view)
             self.moduleViews[moduleID] = view
         }
@@ -414,11 +529,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         case .equalizer:
             EqualizerModuleContent(skin: self.skin, audioPlayer: self.audioPlayer)
         case .playlist:
-            PlaylistModuleContent(
-                skin: self.skin,
-                manager: self.playlistManager,
-                audioPlayer: self.audioPlayer
-            )
+            self.makePlaylistContent()
         case .enthea:
             EntheaModuleContent(
                 skin: self.skin,
@@ -429,6 +540,18 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         default:
             AmpXModuleContent.make(moduleID: moduleID, skin: self.skin)
         }
+    }
+
+    private func makePlaylistContent() -> PlaylistModuleContent {
+        let content = PlaylistModuleContent(
+            skin: self.skin,
+            manager: self.playlistManager,
+            audioPlayer: self.audioPlayer
+        )
+        content.onResizeViewport = { [weak self] phase in
+            self?.handlePlaylistResize(phase)
+        }
+        return content
     }
 
     private func toggleModuleVisibility(_ id: AmpXModuleID) {
@@ -480,45 +603,58 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     private func restoreDetachedModules() {
-        for moduleID in self.state.detached where moduleID != .player {
-            guard let view = moduleViews[moduleID] else { continue }
-
-            let frame = detachedFrames[moduleID]
-                ?? defaultDetachedFrame(
-                    for: moduleID,
-                    at: CGPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.midY),
-                    inheritedWidth: AmpXMetrics.compositionWidth
-                )
-
-            let controller = AmpXDetachedModuleWindowController(
-                moduleID: moduleID,
-                coordinator: self,
-                skin: skin,
-                inheritedWidth: frame.width,
-                frame: frame
-            )
-            detachedWindowControllers[moduleID] = controller
-            transferModuleView(view, to: controller)
-            controller.showWindow(nil)
+        for moduleID in self.state.detached where !self.state.closed.contains(moduleID) {
+            self.restoreDetachedModule(moduleID)
         }
+    }
+
+    private func restoreDetachedModule(_ moduleID: AmpXModuleID) {
+        guard moduleID != .player, let view = moduleViews[moduleID] else { return }
+        if let existing = detachedWindowControllers[moduleID] {
+            existing.showWindow(nil)
+            return
+        }
+        var frame = self.detachedFrames[moduleID]
+            ?? self.defaultDetachedFrame(
+                for: moduleID,
+                at: CGPoint(x: self.screen.visibleFrame.midX, y: self.screen.visibleFrame.midY),
+                inheritedWidth: self.detachedModuleWidth(for: moduleID)
+            )
+        frame.size = CGSize(
+            width: self.detachedModuleWidth(for: moduleID),
+            height: self.detachedModuleHeight(for: moduleID, scale: 1)
+        )
+        let controller = AmpXDetachedModuleWindowController(
+            moduleID: moduleID, coordinator: self, skin: skin,
+            inheritedWidth: frame.width, frame: frame
+        )
+        self.detachedWindowControllers[moduleID] = controller
+        self.transferModuleView(view, to: controller)
+        controller.showWindow(nil)
     }
 
     private func defaultDetachedFrame(
         for id: AmpXModuleID,
         at screenPoint: CGPoint,
-        inheritedWidth: CGFloat
+        inheritedWidth _: CGFloat
     ) -> CGRect {
-        let scale = AmpXLayout.scale(width: inheritedWidth)
+        let scale: CGFloat = 1
         let height = self.detachedModuleHeight(for: id, scale: scale)
+        let width = self.detachedModuleWidth(for: id)
         return AmpXLayoutStore.clampedToVisibleFrame(
             CGRect(
-                x: screenPoint.x - inheritedWidth / 2,
-                y: screenPoint.y - AmpXMetrics.headerHeight * scale,
-                width: inheritedWidth,
+                x: screenPoint.x - width / 2,
+                y: screenPoint.y + AmpXMetrics.headerHeight / 2 - height,
+                width: width,
                 height: height
             ),
             screen: self.screen
         )
+    }
+
+    /// Only the Playlist has a variable detached width (spec Revision 9).
+    private func detachedModuleWidth(for id: AmpXModuleID) -> CGFloat {
+        AmpXLayout.moduleWidth(id, playlistWidth: self.playlistWidth)
     }
 
     private func detachedModuleHeight(for id: AmpXModuleID, scale: CGFloat) -> CGFloat {
@@ -528,7 +664,8 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
             state: moduleState,
             width: AmpXMetrics.compositionWidth * scale,
             playlistViewportHeight: self.playlistViewportHeight,
-            availableHeight: 10000
+            availableHeight: 10000,
+            playlistWidth: self.playlistWidth
         )
         return layout.frames[id]?.height ?? AmpXMetrics.headerHeight * scale
     }
@@ -541,6 +678,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
 
     private func transferModuleView(_ view: AmpXModuleView, to stackView: AmpXModuleStackView?) {
         view.removeFromSuperview()
+        view.isHidden = false
         stackView?.addModuleView(view)
     }
 
@@ -552,7 +690,8 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
             state: moduleState,
             width: width,
             playlistViewportHeight: self.playlistViewportHeight,
-            availableHeight: 10000
+            availableHeight: 10000,
+            playlistWidth: self.playlistWidth
         )
         controller.attachModuleView(view, layout: layout)
     }
@@ -563,17 +702,30 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     private func tearDownDetachedWindow(for id: AmpXModuleID) {
-        self.detachedWindowControllers[id]?.window?.orderOut(nil)
+        if let window = detachedWindowControllers[id]?.window {
+            self.detachedFrames[id] = window.frame
+            window.orderOut(nil)
+        }
         self.detachedWindowControllers.removeValue(forKey: id)
-        self.detachedFrames.removeValue(forKey: id)
+        // Retain the detached placement so reopening restores the same host position.
     }
 
     private func persistLayout() {
+        var persistedState = self.state
+        // Runtime availability must not erase the placement/open state needed when ENTHEA returns.
+        if let wasClosed = self.suspendedEntheaWasClosed {
+            if wasClosed {
+                persistedState.closed.insert(.enthea)
+            } else {
+                persistedState.closed.remove(.enthea)
+            }
+        }
         let layout = AmpXSavedLayout(
-            state: state,
+            state: persistedState,
             stackFrame: stackFrame,
             detachedFrames: detachedFrames,
-            playlistViewportHeight: playlistViewportHeight
+            playlistViewportHeight: playlistViewportHeight,
+            playlistWidth: playlistWidth
         )
         self.layoutStore.save(layout)
     }
@@ -683,11 +835,15 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     func moduleScale(for moduleID: AmpXModuleID) -> CGFloat {
+        // The Playlist stretches instead of scaling, at any width.
+        if AmpXModuleView.stretchesHorizontally(moduleID) {
+            return 1
+        }
         if self.state.detached.contains(moduleID) {
             let width = self.detachedWindowControllers[moduleID]?.window?.frame.width ?? AmpXMetrics.compositionWidth
             return AmpXLayout.scale(width: width)
         }
-        let width = self.stackWindow?.frame.width ?? AmpXMetrics.compositionWidth
+        let width = AmpXMetrics.compositionWidth
         return AmpXLayout.scale(width: width)
     }
 

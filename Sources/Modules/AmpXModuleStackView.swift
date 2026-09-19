@@ -4,46 +4,48 @@ final class AmpXModuleStackView: NSView {
     private var moduleViews: [AmpXModuleID: AmpXModuleView] = [:]
     private var insertionMarkerView: NSView?
 
-    override var isFlipped: Bool { true }
+    override var isFlipped: Bool {
+        true
+    }
 
     func setModuleViews(_ views: [AmpXModuleID: AmpXModuleView]) {
-        for view in moduleViews.values where !views.values.contains(view) {
+        for view in self.moduleViews.values where !views.values.contains(view) {
             view.removeFromSuperview()
         }
 
-        moduleViews = views
+        self.moduleViews = views
         for view in views.values where view.superview !== self {
             addSubview(view)
         }
     }
 
     func addModuleView(_ view: AmpXModuleView) {
-        moduleViews[view.moduleID] = view
+        self.moduleViews[view.moduleID] = view
         if view.superview !== self {
             addSubview(view)
         }
     }
 
     func moduleView(for moduleID: AmpXModuleID) -> AmpXModuleView? {
-        moduleViews[moduleID]
+        self.moduleViews[moduleID]
     }
 
     func setInsertionMarker(at contentY: CGFloat?, width: CGFloat) {
         guard let contentY else {
-            insertionMarkerView?.isHidden = true
+            self.insertionMarkerView?.isHidden = true
             return
         }
 
-        if insertionMarkerView == nil {
+        if self.insertionMarkerView == nil {
             let marker = NSView(frame: .zero)
             marker.wantsLayer = true
             marker.layer?.backgroundColor = NSColor.systemYellow.cgColor
             addSubview(marker)
-            insertionMarkerView = marker
+            self.insertionMarkerView = marker
         }
 
-        insertionMarkerView?.isHidden = false
-        insertionMarkerView?.frame = CGRect(
+        self.insertionMarkerView?.isHidden = false
+        self.insertionMarkerView?.frame = CGRect(
             x: 0,
             y: contentY - AmpXModuleDragController.insertionMarkerHeight / 2,
             width: width,
@@ -60,9 +62,13 @@ final class AmpXModuleStackView: NSView {
             !state.closed.contains(moduleID) && !state.detached.contains(moduleID)
         }
 
+        for (moduleID, view) in self.moduleViews where view.superview === self {
+            view.isHidden = !visibleModules.contains(moduleID)
+        }
+
         for moduleID in visibleModules {
             guard let frame = result.frames[moduleID],
-                  let moduleView = moduleViews[moduleID]
+                  let moduleView = moduleViews[moduleID], moduleView.superview === self
             else { continue }
             moduleView.applyLayout(frame: frame)
 

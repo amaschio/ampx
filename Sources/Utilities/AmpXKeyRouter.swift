@@ -33,7 +33,7 @@ enum AmpXKeyRouter {
     private static let volumeStep: Float = 0.05
 
     static func route(event: NSEvent, context: AmpXFocusContext) -> AmpXKeyRoute {
-        if moduleCommand(for: event) != nil {
+        if self.moduleCommand(for: event) != nil {
             return .unhandled
         }
 
@@ -44,18 +44,18 @@ enum AmpXKeyRouter {
             return .control
         }
 
-        if context.module == .playlist, matchesPlaylistKey(event, flags: flags) {
+        if context.module == .playlist, self.matchesPlaylistKey(event, flags: flags) {
             return .playlist
         }
 
-        if context.module == .enthea, matchesEntheaKey(event, flags: flags) {
+        if context.module == .enthea, self.matchesEntheaKey(event, flags: flags) {
             return .enthea
         }
 
-        if context.textResponderActive, isTypingGlobalKey(key, flags: flags) {
+        if context.textResponderActive, self.isTypingGlobalKey(key, flags: flags) {
             return .unhandled
         }
-        if matchesGlobalKey(event, flags: flags, playlistFocused: context.module == .playlist) {
+        if self.matchesGlobalKey(event, flags: flags, playlistFocused: context.module == .playlist) {
             return .global
         }
 
@@ -89,7 +89,7 @@ enum AmpXKeyRouter {
         entheaHandler: () -> Void,
         globalHandler: () -> Void
     ) -> Bool {
-        switch route(event: event, context: context) {
+        switch self.route(event: event, context: context) {
         case .control:
             controlHandler()
             return true
@@ -116,29 +116,29 @@ enum AmpXKeyRouter {
         playlistManager: PlaylistManager?,
         entheaTheater: AmpXEntheaTheaterHandling?
     ) -> Bool {
-        switch route(event: event, context: context) {
+        switch self.route(event: event, context: context) {
         case .control:
-            return dispatchControl(event, window: window)
+            self.dispatchControl(event, window: window)
         case .playlist:
-            return dispatchPlaylist(event, playlistManager: playlistManager)
+            self.dispatchPlaylist(event, playlistManager: playlistManager)
         case .enthea:
-            return dispatchEnthea(event, entheaTheater: entheaTheater)
+            self.dispatchEnthea(event, entheaTheater: entheaTheater)
         case .global:
-            return dispatchGlobal(
+            self.dispatchGlobal(
                 event,
                 audioPlayer: audioPlayer,
                 playlistManager: playlistManager,
                 playlistFocused: context.module == .playlist
             )
         case .unhandled:
-            return false
+            false
         }
     }
 
     static func focusContext(from window: NSWindow?) -> AmpXFocusContext {
         guard let window else { return AmpXFocusContext() }
 
-        let textResponderActive = isTextResponder(window.firstResponder)
+        let textResponderActive = self.isTextResponder(window.firstResponder)
 
         guard let responder = window.firstResponder as? NSView else {
             return AmpXFocusContext(textResponderActive: textResponderActive)
@@ -199,8 +199,8 @@ enum AmpXKeyRouter {
             return nil
         }
 
-        let context = focusContext(from: window)
-        let handled = dispatch(
+        let context = self.focusContext(from: window)
+        let handled = self.dispatch(
             event,
             context: context,
             window: window,
@@ -214,9 +214,9 @@ enum AmpXKeyRouter {
     private static func matchesControlKey(_ key: UInt16, control: AmpXControlFocus) -> Bool {
         switch control {
         case .button:
-            return key == 36 || key == 76 || key == 53
+            key == 36 || key == 76 || key == 53
         case .slider:
-            return key == 123 || key == 124 || key == 125 || key == 126 || key == 53
+            key == 123 || key == 124 || key == 125 || key == 126 || key == 53
         }
     }
 
@@ -227,7 +227,9 @@ enum AmpXKeyRouter {
         let option = flags.contains(.option)
         let control = flags.contains(.control)
 
-        if control, !command { return false }
+        if control, !command {
+            return false
+        }
 
         if !command, !option, !control {
             switch key {
@@ -267,7 +269,9 @@ enum AmpXKeyRouter {
         let noMods = flags.isEmpty
         let key = event.keyCode
 
-        if noMods, key == 49 { return true }
+        if noMods, key == 49 {
+            return true
+        }
 
         if noMods {
             switch key {
@@ -278,7 +282,9 @@ enum AmpXKeyRouter {
             }
         }
 
-        if flags == [.shift], key == 37 { return true }
+        if flags == [.shift], key == 37 {
+            return true
+        }
 
         if noMods, !playlistFocused {
             switch key {
@@ -342,7 +348,9 @@ enum AmpXKeyRouter {
         let option = flags.contains(.option)
         let control = flags.contains(.control)
 
-        if control, !command { return false }
+        if control, !command {
+            return false
+        }
 
         if !command, !option, !control {
             switch key {
@@ -500,16 +508,16 @@ enum AmpXKeyRouter {
         if noMods, !playlistFocused {
             switch key {
             case 123:
-                seek(audioPlayer, by: -seekStep)
+                self.seek(audioPlayer, by: -self.seekStep)
                 return true
             case 124:
-                seek(audioPlayer, by: seekStep)
+                self.seek(audioPlayer, by: self.seekStep)
                 return true
             case 126:
-                adjustVolume(audioPlayer, by: volumeStep)
+                self.adjustVolume(audioPlayer, by: self.volumeStep)
                 return true
             case 125:
-                adjustVolume(audioPlayer, by: -volumeStep)
+                self.adjustVolume(audioPlayer, by: -self.volumeStep)
                 return true
             default:
                 break

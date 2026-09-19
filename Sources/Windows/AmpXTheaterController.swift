@@ -40,79 +40,79 @@ final class AmpXTheaterController: NSObject, NSWindowDelegate {
     }
 
     var window: NSWindow? {
-        theaterWindow
+        self.theaterWindow
     }
 
     func enter() {
-        guard !isActive else { return }
+        guard !self.isActive else { return }
         guard let hosts, let view = hosts.moduleView(for: .enthea) else { return }
         guard !hosts.state.closed.contains(.enthea) else { return }
 
         let geometry = hosts.captureTheaterSnapshot(for: .enthea)
-        snapshot = AmpXTheaterSnapshot(
+        self.snapshot = AmpXTheaterSnapshot(
             originalHostID: geometry.originalHostID,
             modulePosition: geometry.modulePosition,
             frame: geometry.frame,
             scale: geometry.scale,
-            presentationOptions: getPresentation()
+            presentationOptions: self.getPresentation()
         )
-        isActive = true
+        self.isActive = true
 
         hosts.extractModuleViewForTheater(.enthea)
 
-        let frame = screenFrame()
-        ensureTheaterWindow(frame: frame)
-        containerView.frame = containerView.superview?.bounds ?? frame
+        let frame = self.screenFrame()
+        self.ensureTheaterWindow(frame: frame)
+        self.containerView.frame = self.containerView.superview?.bounds ?? frame
         view.enterTheaterPresentation(containerSize: frame.size)
-        containerView.addSubview(view)
-        theaterWindow?.setFrame(frame, display: true)
-        theaterWindow?.orderFrontRegardless()
-        theaterWindow?.makeKey()
+        self.containerView.addSubview(view)
+        self.theaterWindow?.setFrame(frame, display: true)
+        self.theaterWindow?.orderFrontRegardless()
+        self.theaterWindow?.makeKey()
 
-        var presentation = getPresentation()
+        var presentation = self.getPresentation()
         presentation.insert([.autoHideMenuBar, .autoHideDock])
-        setPresentation(presentation)
+        self.setPresentation(presentation)
 
         (view.content as? EntheaModuleContent)?.refreshTheaterPresentation()
         hosts.refreshEffectiveVisibility()
     }
 
     func exit() {
-        guard isActive, let snapshot else { return }
+        guard self.isActive, let snapshot else { return }
 
-        setPresentation(snapshot.presentationOptions)
-        hosts?.reinstallModuleViewFromTheater(.enthea, snapshot: snapshot)
+        self.setPresentation(snapshot.presentationOptions)
+        self.hosts?.reinstallModuleViewFromTheater(.enthea, snapshot: snapshot)
 
-        theaterWindow?.orderOut(nil)
-        theaterWindow = nil
+        self.theaterWindow?.orderOut(nil)
+        self.theaterWindow = nil
         self.snapshot = nil
-        isActive = false
+        self.isActive = false
     }
 
     func handleApplicationTermination() {
-        if isActive {
-            exit()
+        if self.isActive {
+            self.exit()
         }
     }
 
     func windowWillClose(_: Notification) {
-        exit()
+        self.exit()
     }
 
     func windowDidMiniaturize(_: Notification) {
-        hosts?.refreshEffectiveVisibility()
+        self.hosts?.refreshEffectiveVisibility()
     }
 
     func windowDidDeminiaturize(_: Notification) {
-        hosts?.refreshEffectiveVisibility()
+        self.hosts?.refreshEffectiveVisibility()
     }
 
     func windowDidChangeOcclusionState(_: Notification) {
-        hosts?.refreshEffectiveVisibility()
+        self.hosts?.refreshEffectiveVisibility()
     }
 
     private func ensureTheaterWindow(frame: CGRect) {
-        guard theaterWindow == nil else { return }
+        guard self.theaterWindow == nil else { return }
 
         let window = AmpXHostWindow(
             contentRect: frame,
@@ -120,14 +120,14 @@ final class AmpXTheaterController: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.contentView = containerView
+        window.contentView = self.containerView
         window.backgroundColor = .black
         window.isOpaque = true
         window.hasShadow = false
         window.isReleasedWhenClosed = false
         window.delegate = self
-        containerView.wantsLayer = true
-        containerView.layer?.backgroundColor = NSColor.black.cgColor
-        theaterWindow = window
+        self.containerView.wantsLayer = true
+        self.containerView.layer?.backgroundColor = NSColor.black.cgColor
+        self.theaterWindow = window
     }
 }
