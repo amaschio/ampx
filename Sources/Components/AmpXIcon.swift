@@ -14,7 +14,7 @@ enum AmpXIcon {
     case collapse
     case minimize
     case close
-    case grip
+    case brand
     case dropdown
 
     func draw(in rect: CGRect, context: CGContext, skin: any AmpXSkin, color: NSColor? = nil) {
@@ -69,9 +69,7 @@ enum AmpXIcon {
                 context.fill(CGRect(x: rect.minX, y: y, width: rect.width, height: barHeight))
             }
         case .collapse:
-            let line = max(1, rect.width * 0.14)
-            context.setLineWidth(line)
-            context.stroke(rect.insetBy(dx: line / 2, dy: line / 2))
+            self.drawFoldedShade(in: rect, context: context)
         case .minimize:
             context.fill(rect)
             context.setFillColor(NSColor.white.withAlphaComponent(0.45).cgColor)
@@ -83,8 +81,8 @@ enum AmpXIcon {
                 CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.maxY),
                 CGPoint(x: rect.maxX, y: rect.minY), CGPoint(x: rect.minX, y: rect.maxY),
             ])
-        case .grip:
-            self.drawPulse(in: rect, context: context, tint: tint)
+        case .brand:
+            self.drawSpectrum(in: rect, context: context, tint: tint)
         case .dropdown:
             self.fillPolygon([
                 CGPoint(x: rect.minX, y: rect.minY),
@@ -136,43 +134,43 @@ enum AmpXIcon {
         ], context: context)
     }
 
-    /// Pulse waveform traced pixel-by-pixel from the reference header decoration (18 × 16 pt design box).
-    private func drawPulse(in rect: CGRect, context: CGContext, tint: NSColor) {
-        let strokes: [[CGPoint]] = [
-            [
-                CGPoint(x: 0.5, y: 7.25),
-                CGPoint(x: 3, y: 7.25),
-                CGPoint(x: 4.25, y: 4.25),
-                CGPoint(x: 4.75, y: 0.6),
-                CGPoint(x: 7.4, y: 0.6),
-                CGPoint(x: 7.4, y: 10.8),
-            ],
-            [
-                CGPoint(x: 7.4, y: 4.75),
-                CGPoint(x: 10.1, y: 4.75),
-                CGPoint(x: 10.1, y: 13.75),
-                CGPoint(x: 12.8, y: 13.75),
-                CGPoint(x: 12.8, y: 10),
-                CGPoint(x: 14.3, y: 7.4),
-                CGPoint(x: 17.7, y: 7.4),
-            ],
-            [CGPoint(x: 7.4, y: 9), CGPoint(x: 10.1, y: 9)],
-        ]
+    /// Five spectrum bars, tallest in the middle, in an 18 × 16 pt design box (flipped: y grows down).
+    private func drawSpectrum(in rect: CGRect, context: CGContext, tint: NSColor) {
+        let heights: [CGFloat] = [6, 10, 16, 12.5, 8]
+        let barWidth: CGFloat = 2.8
+        let pitch: CGFloat = 3.8
         let scaleX = rect.width / 18
         let scaleY = rect.height / 16
-        let path = CGMutablePath()
-        for stroke in strokes {
-            path.addLines(between: stroke.map { CGPoint(x: rect.minX + $0.x * scaleX, y: rect.minY + $0.y * scaleY) })
+        let bars = heights.enumerated().map { index, height in
+            CGRect(
+                x: rect.minX + CGFloat(index) * pitch * scaleX,
+                y: rect.maxY - height * scaleY,
+                width: barWidth * scaleX,
+                height: height * scaleY
+            )
         }
+        let outline = 0.5 * scaleX
+        context.setFillColor(NSColor(srgbRed: 0.05, green: 0.06, blue: 0.08, alpha: 0.85).cgColor)
+        context.fill(bars.map { $0.insetBy(dx: -outline, dy: -outline) })
+        context.setFillColor(tint.cgColor)
+        context.fill(bars)
+    }
+
+    /// Windowshade "folded" glyph: top bar, up chevron, inset bottom bar (flipped: y grows down).
+    private func drawFoldedShade(in rect: CGRect, context: CGContext) {
+        let line = max(1, rect.width * 0.15)
+        context.fill(CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: line))
+        context.fill(CGRect(x: rect.minX + rect.width * 0.08, y: rect.maxY - line, width: rect.width * 0.84, height: line))
+        context.setLineWidth(line)
+        context.setLineCap(.butt)
         context.setLineJoin(.miter)
-        context.setLineCap(.square)
-        context.addPath(path)
-        context.setLineWidth(2.4 * scaleX)
-        context.setStrokeColor(NSColor(srgbRed: 0.05, green: 0.06, blue: 0.08, alpha: 0.85).cgColor)
-        context.strokePath()
-        context.addPath(path)
-        context.setLineWidth(1.4 * scaleX)
-        context.setStrokeColor(tint.cgColor)
+        let chevron = CGMutablePath()
+        chevron.addLines(between: [
+            CGPoint(x: rect.midX - rect.width * 0.28, y: rect.minY + rect.height * 0.68),
+            CGPoint(x: rect.midX, y: rect.minY + rect.height * 0.40),
+            CGPoint(x: rect.midX + rect.width * 0.28, y: rect.minY + rect.height * 0.68),
+        ])
+        context.addPath(chevron)
         context.strokePath()
     }
 }

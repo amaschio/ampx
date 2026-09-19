@@ -77,7 +77,7 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
         CGRect(x: rect.minX * self.scale, y: rect.minY * self.scale, width: rect.width * self.scale, height: rect.height * self.scale)
     }
 
-    /// Drag handle around the left pulse decoration; stops short of the gold rules.
+    /// Drag handle around the left brand mark; stops short of the gold rules.
     var gripFrame: CGRect {
         self.scaled(CGRect(x: 4, y: 2, width: 29, height: 24.5))
     }
@@ -156,8 +156,8 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let backingScale = window?.backingScaleFactor ?? 1
 
-        AmpXIcon.grip.draw(
-            in: self.scaled(AmpXMetrics.headerGripGlyph),
+        AmpXIcon.brand.draw(
+            in: self.scaled(AmpXMetrics.headerBrandGlyph),
             context: context,
             skin: skin,
             color: NSColor(srgbRed: 1, green: 0.8, blue: 0.08, alpha: 1)
@@ -218,7 +218,9 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
         let leftMaxX = brandInkX - placement.ruleGapBefore * self.scale
         let inkMaxX = title == nil ? brandX + brandInk.maxX : titleX + titleInk.maxX
         let rightMinX = inkMaxX + placement.ruleGapAfter * self.scale
-        let ruleMaxX = AmpXMetrics.headerRuleMaxX * self.scale + self.rightAnchorOffset
+        // Run the rule up to the leftmost button: non-Player headers have no minimize button.
+        let buttonsMinX = self.headerButtonLayout().map(\.frame.minX).min() ?? bounds.maxX
+        let ruleMaxX = buttonsMinX - AmpXMetrics.headerRuleGapBeforeButtons * self.scale
         skin.headerRule(
             CGRect(x: leftMinX, y: ruleY, width: leftMaxX - leftMinX, height: ruleHeight),
             in: context,

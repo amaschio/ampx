@@ -28,9 +28,11 @@ enum AmpXMetrics {
 
     /// Recessed content frame: `content.frame` (7, 27.5, 476, 189.5) within the 490 × 223.5 Player.
     static let contentFrameInsets = (top: CGFloat(27.5), left: CGFloat(7), bottom: CGFloat(6.5), right: CGFloat(7))
-    static let headerGripGlyph = CGRect(x: 9.5, y: 7, width: 18, height: 16)
+    static let headerBrandGlyph = CGRect(x: 9.5, y: 7, width: 18, height: 16)
     static let headerRuleMinX: CGFloat = 37.5
     static let headerRuleMaxX: CGFloat = 405
+    /// Gap between the right rule and the leftmost header button (412 − 405 on the Player).
+    static let headerRuleGapBeforeButtons: CGFloat = 7
     static let headerRuleY: CGFloat = 9.5
     static let headerRuleHeight: CGFloat = 9.5
     static let headerRuleGapBeforeTitle: CGFloat = 19.5
