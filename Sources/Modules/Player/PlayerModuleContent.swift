@@ -33,7 +33,7 @@ final class PlayerModuleContent: AmpXModuleContent {
         didSet { self.applyReferencePresentation() }
     }
 
-    private let settingsStore: AmpXMiniVisualizerSettingsStore
+    let presentationState: AmpXPlayerPresentationState
 
     /// Internal so the host and tests can park or wake the display-rate spectrum rendering.
     let spectrumWell: SpectrumWellView
@@ -58,14 +58,16 @@ final class PlayerModuleContent: AmpXModuleContent {
         audioPlayer: AudioPlayer,
         playlistManager: PlaylistManager,
         onToggleModule: @escaping (AmpXModuleID) -> Void,
-        settingsStore: AmpXMiniVisualizerSettingsStore = AmpXMiniVisualizerSettingsStore()
+        settingsStore: AmpXMiniVisualizerSettingsStore = AmpXMiniVisualizerSettingsStore(),
+        presentationState: AmpXPlayerPresentationState? = nil
     ) {
         self.audioPlayer = audioPlayer
         self.playlistManager = playlistManager
         self.onToggleModule = onToggleModule
-        self.settingsStore = settingsStore
+        let presentationState = presentationState ?? AmpXPlayerPresentationState(store: settingsStore)
+        self.presentationState = presentationState
         self.spectrumWell = SpectrumWellView(skin: skin)
-        self.timeDisplay = TimeDisplayView(skin: skin)
+        self.timeDisplay = TimeDisplayView(skin: skin, presentationState: presentationState)
         self.volumeSlider = AmpXSlider(skin: skin)
         self.balanceSlider = AmpXSlider(skin: skin)
         self.positionBar = PositionBarView(skin: skin)
@@ -91,9 +93,12 @@ final class PlayerModuleContent: AmpXModuleContent {
         self.timeDisplay.audioPlayer = self.audioPlayer
         self.positionBar.audioPlayer = self.audioPlayer
 
-        self.spectrumWell.settings = self.settingsStore.load()
-        self.spectrumWell.onSettingsChanged = { [weak self] settings in
-            self?.settingsStore.save(settings)
+        self.presentationState.$visualizerSettings
+            .removeDuplicates()
+            .sink { [weak spectrumWell] settings in spectrumWell?.settings = settings }
+            .store(in: &self.cancellables)
+        self.spectrumWell.onSettingsChanged = { [weak presentationState] settings in
+            presentationState?.setVisualizerSettings(settings)
         }
         self.spectrumWell.onDoubleClick = { [weak self] in
             self?.onToggleModule(.enthea)
@@ -446,16 +451,8 @@ final class PlayerModuleContent: AmpXModuleContent {
 extension PlayerModuleContent {
     private func transportAction(for icon: AmpXIcon) -> (() -> Void)? {
         switch icon {
-        case .previous:
-            { [weak playlistManager] in playlistManager?.previous() }
-        case .play:
-            { [weak audioPlayer] in audioPlayer?.playOrResume() }
-        case .pause:
-            { [weak audioPlayer] in audioPlayer?.pause() }
-        case .stop:
-            { [weak audioPlayer] in audioPlayer?.stop() }
-        case .next:
-            { [weak playlistManager] in playlistManager?.next() }
+        case .previous, .play, .pause, .stop, .next:
+            AmpXTransportActions.make(for: icon, audioPlayer: self.audioPlayer, playlistManager: self.playlistManager)
         case .eject:
             { [weak playlistManager] in playlistManager?.showFilePicker() }
         case .repeat:

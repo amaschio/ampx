@@ -1,11 +1,13 @@
 import AppKit
+import Combine
 import CoreGraphics
 
 /// Segment timer that pulls `PlaybackClock.currentTime` on display-link ticks.
 final class TimeDisplayView: AmpXContinuousView {
     weak var audioPlayer: AudioPlayer?
-    var showRemainingTime = false {
-        didSet { needsDisplay = true }
+    var showRemainingTime: Bool {
+        get { self.presentationState.showRemainingTime }
+        set { self.presentationState.setRemainingTime(newValue) }
     }
 
     /// Display-only text for deterministic reference presentation; `nil` shows the playback clock.
@@ -14,12 +16,25 @@ final class TimeDisplayView: AmpXContinuousView {
     }
 
     private let segmentDigits: AmpXSegmentDigits
+    private let presentationState: AmpXPlayerPresentationState
+    private var modeSubscription: AnyCancellable?
     private var blinkOff = false
     private var lastBlinkToggle: TimeInterval = 0
 
-    override init(skin: any AmpXSkin) {
+    init(skin: any AmpXSkin, presentationState: AmpXPlayerPresentationState) {
+        self.presentationState = presentationState
         self.segmentDigits = AmpXSegmentDigits(skin: skin)
         super.init(skin: skin)
+        self.modeSubscription = presentationState.$showRemainingTime
+            .removeDuplicates()
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.setNeedsDisplay(self.bounds)
+            }
+    }
+
+    override convenience init(skin: any AmpXSkin) {
+        self.init(skin: skin, presentationState: AmpXPlayerPresentationState())
     }
 
     @available(*, unavailable)

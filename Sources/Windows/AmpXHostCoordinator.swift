@@ -10,6 +10,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     private let screen: NSScreen
     private let audioPlayer: AudioPlayer
     private let playlistManager: PlaylistManager
+    private let playerPresentationState = AmpXPlayerPresentationState()
 
     private(set) var stackWindowController: AmpXStackWindowController?
     private var moduleViews: [AmpXModuleID: AmpXModuleView] = [:]
@@ -524,7 +525,8 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
                 playlistManager: self.playlistManager,
                 onToggleModule: { [weak self] id in
                     self?.toggleModuleVisibility(id)
-                }
+                },
+                presentationState: self.playerPresentationState
             )
         case .equalizer:
             EqualizerModuleContent(skin: self.skin, audioPlayer: self.audioPlayer)
