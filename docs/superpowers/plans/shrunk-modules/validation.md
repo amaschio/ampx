@@ -1,6 +1,6 @@
 # Compact module validation
 
-Player checkpoint status: **pending user review**. EQ and Playlist compact bodies are not implemented yet.
+Player checkpoint status: **approved by the user on 2026-09-19**, including the shared bevel treatment. EQ and Playlist implementation is proceeding from this approved shell.
 
 Reference: `screenshots/shrinked_modules.png`, SHA-256 `d792a98ad96ae4d0792251256a644081c1f3fa08b4a5970e7d796e4f78781aed`.
 Source rectangles, colors, normalization, and uncertainty are recorded in [measurements](reference/measurements.json).
@@ -15,7 +15,7 @@ These captures combine actual AppKit chrome/digits with the production Metal off
 
 The selected comparison style is **dotSpectrum / classic**. Its 32 columns, dark grid, and palette gradient differ from the old mockup as allowed by the confirmed choice to share the expanded Player's settings. The frozen signal is not the mockup's audio data. The app uses the existing skin's bevel material, whose edge bands are heavier than the source at this small size. Brand and timer are vector/font drawing, not extracted bitmaps.
 
-The geometry, transport faces, separate control hit cells, branding placement, timer spacing, and square Expand glyph were inspected against the overlay. The running-host capture is now available; final visual approval remains pending.
+The geometry, transport faces, separate control hit cells, branding placement, timer spacing, and square Expand glyph were inspected against the overlay. The user approved the running-host Player and shared treatment on 2026-09-19.
 
 ## Running Player checkpoint
 
@@ -27,7 +27,15 @@ Build environment: Debug, arm64, macOS 26.6.2, based on `98c15a1` with the host-
 
 Verified in the app: collapse/expand, shared timer toggle, compact style change reflected in expanded Player, Stop/Play invocation, accessible chrome and transport controls, minimize, and restoration through Window → AmpX. Restored Waterfall/Amber and elapsed mode after inspecting temporary style/timer changes. The actual-window regression waits for AppKit's minimize/deminiaturize notifications before checking state.
 
-**Review requested:** approve or correct the Player's compact proportions/material treatment before implementing compact EQ and Playlist, per the spec's visual checkpoint. The existing skin bevel is heavier than the source; the shared production visualizer intentionally differs from the pictured legacy spectrum.
+**Review decision:** approved on 2026-09-19. The existing skin bevel is heavier than the source; the shared production visualizer intentionally differs from the pictured legacy spectrum.
+
+## Compact Equalizer
+
+[Comparison and overlay](equalizer/equalizer-comparison.png), [native 1×](equalizer/compact-equalizer-1x.png), [2×](equalizer/compact-equalizer-2x.png), [3×](equalizer/compact-equalizer-3x.png).
+
+Uses the approved shared shell. Volume has an orange/yellow fill; balance has green segments, both clipped to the thumb. The source's erroneous minimize slot is removed and the balance track extends into that space. Both comparison values are 70%; the longer corrected balance track consequently puts its thumb farther right. Source and corrected geometry are separately recorded in the measurements.
+
+Focused EQ, slider, accessibility, layout, interaction, and reference checks passed except for a detached-height regression caught in the same run. Detach placement reapplied a fractional frame after content sizing, making the native window one pixel too tall. Placement now retains the snapped compact view size. The final affected EQ/interaction run passed **19 tests**. Live docked/detached evidence is consolidated with the final three-module pass.
 
 ## Verification so far
 

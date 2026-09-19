@@ -36,6 +36,16 @@ PLAYER = {
     "expand": (1263, 294, 51, 51),
     "close": (1325, 294, 50, 51),
 }
+EQUALIZER = {
+    "volume_track": (285, 591, 422, 22),
+    "volume_thumb": (551, 581, 45, 42),
+    "middle_separator": (728, 582, 7, 38),
+    "balance_track": (757, 591, 399, 22),
+    "balance_thumb": (999, 581, 50, 42),
+    "balance_first_segment": (762, 597, 21, 12),
+    "balance_second_segment": (788, 597, 21, 12),
+    "corrected_balance_track": (757, 591, 465, 22),
+}
 
 
 def logical_rect(rect, crop):
@@ -60,6 +70,7 @@ def main():
         "uncertainty": "Manual edge measurements ±1–2 source px; outer crops exclude drop shadow. EQ/Playlist minimize is rejected artwork.",
         "crops": {},
         "player": {},
+        "equalizer": {},
         "sample_colors": {},
     }
     for name, crop in CROPS.items():
@@ -75,6 +86,12 @@ def main():
         draw.rectangle((x, y, x + w - 1, y + h - 1), outline="#ff4466", width=1)
         data["player"][name] = {"source_rect": rect, "logical_rect": logical_rect(rect, CROPS["player"])}
     annotated.crop((20, 270, 1400, 365)).save(args.output / "player-annotated.png")
+    for name, rect in EQUALIZER.items():
+        data["equalizer"][name] = {"source_rect": rect, "logical_rect": logical_rect(rect, CROPS["equalizer"])}
+        x, y, w, h = rect
+        draw.rectangle((x, y, x + w - 1, y + h - 1), outline="#ff4466", width=1)
+    data["equalizer"]["correction"] = "Omit minimize; extend balance track by 66 source px. Segment pitch 26 px, width 21 px. Thumb travel keeps its face inside the track."
+    annotated.crop((20, 550, 1400, 645)).save(args.output / "equalizer-annotated.png")
     for name, point in {"panel": (400, 287), "well": (600, 320), "bevel_highlight": (910, 294), "bevel_face": (900, 322),
                         "brand": (148, 320), "spectrum_green": (298, 336), "timer_green": (641, 320)}.items():
         data["sample_colors"][name] = {"source_point": point, "rgb": image.getpixel(point)}

@@ -56,7 +56,7 @@ final class AmpXLayoutTests: XCTestCase {
                     state.setCollapsed(.equalizer, true)
                     return state
                 }(),
-                223.5 + AmpXMetrics.headerHeight + 305,
+                223.5 + AmpXCompactMetrics.equalizerHeight + 305,
                 3
             ),
             (

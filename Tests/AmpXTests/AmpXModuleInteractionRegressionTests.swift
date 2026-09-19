@@ -227,9 +227,9 @@ final class AmpXModuleInteractionRegressionTests: XCTestCase {
             coordinator.setCollapsed(.equalizer, collapsed)
             coordinator.detach(.equalizer, at: CGPoint(x: 700, y: 500), inheritedWidth: 490)
             let eq = try XCTUnwrap(coordinator.moduleView(for: .equalizer))
-            let expected = collapsed ? AmpXMetrics.headerHeight : AmpXMetrics.equalizerHeight
+            let expected = collapsed ? AmpXCompactMetrics.equalizerHeight : AmpXMetrics.equalizerHeight
             XCTAssertEqual(eq.window?.frame.height ?? 0, expected, accuracy: 0.5)
-            XCTAssertEqual(eq.frame.height, expected)
+            XCTAssertEqual(eq.frame.height, AmpXPixelGrid.align(expected, backingScale: eq.window?.backingScaleFactor ?? 1))
             coordinator.redock(.equalizer, at: 1)
         }
     }

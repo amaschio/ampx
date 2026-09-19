@@ -506,10 +506,18 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     private func createModuleViews() {
         for moduleID in AmpXModuleID.allCases where moduleID != .enthea || self.isEntheaEnabled {
             let content = self.makeModuleContent(for: moduleID)
-            let compact: AmpXCompactModuleView? = moduleID == .player ? PlayerCompactContent(
-                skin: self.skin, audioPlayer: self.audioPlayer, playlistManager: self.playlistManager,
-                presentationState: self.playerPresentationState, onToggleModule: { [weak self] in self?.toggleModuleVisibility($0) }
-            ) : nil
+            let compact: AmpXCompactModuleView?
+            switch moduleID {
+            case .player:
+                compact = PlayerCompactContent(
+                    skin: self.skin, audioPlayer: self.audioPlayer, playlistManager: self.playlistManager,
+                    presentationState: self.playerPresentationState, onToggleModule: { [weak self] in self?.toggleModuleVisibility($0) }
+                )
+            case .equalizer:
+                compact = EqualizerCompactContent(skin: self.skin, audioPlayer: self.audioPlayer)
+            default:
+                compact = nil
+            }
             let view = AmpXModuleView(moduleID: moduleID, content: content, skin: skin, compactContent: compact)
             view.setContentCollapsed(self.state.collapsed.contains(moduleID))
             self.wireHeader(for: view)

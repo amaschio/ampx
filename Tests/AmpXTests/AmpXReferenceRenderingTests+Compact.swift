@@ -3,6 +3,19 @@ import AppKit
 import XCTest
 
 extension AmpXReferenceRenderingTests {
+    func testCompactEqualizerCapturesAtAllScales() throws {
+        let audio = AudioPlayer(installRemoteCommands: false)
+        let equalizer = EqualizerCompactContent(skin: ClassicModernSkin(), audioPlayer: audio)
+        equalizer.frame = CGRect(x: 0, y: 0, width: 490, height: AmpXCompactMetrics.equalizerHeight)
+        equalizer.volumeSlider.displayValueOverride = 0.7
+        equalizer.balanceSlider.displayValueOverride = 0.7
+        for scale: CGFloat in [1, 2, 3] {
+            let png = try AmpXCompactCaptureSupport.capture(equalizer, scale: scale)
+            XCTAssertEqual(png, try AmpXCompactCaptureSupport.capture(equalizer, scale: scale))
+            try self.export(png, named: "compact-equalizer-\(Int(scale))x.png", backingScale: scale)
+        }
+    }
+
     func testCompactPlayerProductionCapturesAreDeterministic() throws {
         let suite = "AmpXCompactCapture.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

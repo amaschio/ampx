@@ -11,6 +11,7 @@ final class AmpXSlider: AmpXControlView {
         case seek
         /// Vertical EQ slot tinted by the displayed value, with a steel level thumb.
         case level
+        case compact(AmpXTrackFill)
     }
 
     /// Thumb-center travel length centered on the track; `nil` keeps the thumb inside the track.
@@ -63,6 +64,9 @@ final class AmpXSlider: AmpXControlView {
     }
 
     var accessibilityTitle: String?
+    var accessibilityStep: Double?
+    var accessibilityRangeOverride: ClosedRange<Double>?
+    var accessibilityValueFormatter: ((Double) -> Any)?
 
     private var isDragging = false
 
@@ -194,6 +198,12 @@ final class AmpXSlider: AmpXControlView {
         case .level:
             skin.levelTrack(track, decibels: self.displayValueOverride ?? self.value, in: context, backingScale: backingScale)
             skin.metallicThumb(thumb, material: .steelLevel, in: context, backingScale: backingScale)
+        case let .compact(fill):
+            AmpXCompactSliderDrawing.draw(
+                track: track, thumb: thumb, fill: fill,
+                value: AmpXControlMath.fraction(value: self.displayValueOverride ?? self.value, range: self.range),
+                skin: self.skin, context: context, backingScale: backingScale
+            )
         }
 
         if !isEnabled {
@@ -233,27 +243,27 @@ final class AmpXSlider: AmpXControlView {
     }
 
     override func accessibilityValue() -> Any? {
-        self.value
+        self.accessibilityValueFormatter?(self.value) ?? self.value
     }
 
     override func accessibilityMinValue() -> Any? {
-        self.range.lowerBound
+        (self.accessibilityRangeOverride ?? self.range).lowerBound
     }
 
     override func accessibilityMaxValue() -> Any? {
-        self.range.upperBound
+        (self.accessibilityRangeOverride ?? self.range).upperBound
     }
 
     override func accessibilityPerformIncrement() -> Bool {
         guard isEnabled else { return false }
-        let increment = self.step > 0 ? self.step : 1
+        let increment = self.accessibilityStep ?? (self.step > 0 ? self.step : 1)
         self.setValue(self.value + increment, sendChange: true)
         return true
     }
 
     override func accessibilityPerformDecrement() -> Bool {
         guard isEnabled else { return false }
-        let increment = self.step > 0 ? self.step : 1
+        let increment = self.accessibilityStep ?? (self.step > 0 ? self.step : 1)
         self.setValue(self.value - increment, sendChange: true)
         return true
     }

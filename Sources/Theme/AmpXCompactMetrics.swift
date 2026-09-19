@@ -25,6 +25,32 @@ enum AmpXCompactMetrics {
         let transportGlyphs: [CGRect]
     }
 
+    struct EqualizerLayout {
+        let chrome: Chrome
+        let volume: CGRect
+        let balance: CGRect
+        let volumeTrack: CGRect
+        let balanceTrack: CGRect
+        let volumeThumbSize: CGSize
+        let balanceThumbSize: CGSize
+        let separator: CGRect
+    }
+
+    static func equalizerLayout() -> EqualizerLayout {
+        let volume = source(285, 591 - 281, 422, 22)
+        let balance = source(757, 591 - 281, 465, 22)
+        return EqualizerLayout(
+            chrome: chrome(moduleID: .equalizer),
+            volume: volume.insetBy(dx: 0, dy: -5),
+            balance: balance.insetBy(dx: 0, dy: -5),
+            volumeTrack: volume,
+            balanceTrack: balance,
+            volumeThumbSize: CGSize(width: 45 * factor, height: 42 * factor),
+            balanceThumbSize: CGSize(width: 50 * factor, height: 42 * factor),
+            separator: source(728, 582 - 281, 7, 38)
+        )
+    }
+
     static func source(_ x: CGFloat, _ y: CGFloat, _ width: CGFloat, _ height: CGFloat) -> CGRect {
         CGRect(x: (x - 28) * factor, y: (y - 276) * factor, width: width * factor, height: height * factor)
     }

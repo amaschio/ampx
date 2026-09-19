@@ -84,7 +84,7 @@ final class AmpXAccessibilityTests: XCTestCase {
         XCTAssertEqual(controls.last?.nextKeyView, controls.first)
     }
 
-    func testCollapseFallsBackToHeaderAndExpandRestoresContentFocus() throws {
+    func testCollapseFocusesCompactExpandAndExpansionRestoresContentFocus() throws {
         let coordinator = AmpXHostCoordinator(
             state: AmpXModuleOrder(),
             skin: ClassicModernSkin(),
@@ -98,7 +98,7 @@ final class AmpXAccessibilityTests: XCTestCase {
 
         coordinator.setCollapsed(.equalizer, true)
         XCTAssertTrue(module.content.isHidden)
-        XCTAssertEqual(coordinator.stackWindow?.firstResponder, module.header)
+        XCTAssertEqual(coordinator.stackWindow?.firstResponder, module.compactContent?.expandButton)
 
         coordinator.setCollapsed(.equalizer, false)
         XCTAssertFalse(module.content.isHidden)

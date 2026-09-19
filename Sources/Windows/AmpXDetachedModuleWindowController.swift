@@ -64,7 +64,14 @@ final class AmpXDetachedModuleWindowController: NSWindowController, NSWindowDele
 
     func applyFrame(_ frame: CGRect) {
         guard let window, AmpXLayoutStore.isValidFrame(frame) else { return }
-        window.setFrame(frame, display: true)
+        var target = frame
+        if let view = self.detachModuleView(), view.isContentCollapsed, view.compactContent != nil {
+            // Placement must not reapply an unsnapped saved height after attachModuleView sized
+            // the content. AppKit encloses fractional window origins, otherwise adding a row.
+            target.size = view.frame.size
+            target.origin = CGPoint(x: frame.minX.rounded(), y: frame.maxY.rounded() - target.height)
+        }
+        window.setFrame(target, display: true)
     }
 
     func windowDidMove(_: Notification) {
