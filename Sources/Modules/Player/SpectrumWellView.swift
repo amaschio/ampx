@@ -47,6 +47,10 @@ final class SpectrumWellView: AmpXContinuousView {
 
     var onSettingsChanged: ((AmpXMiniVisualizerSettings) -> Void)?
 
+    override var acceptsFirstResponder: Bool {
+        self.geometry == .compact && AmpXControlView.acceptsFocus(isEnabled: true, currentEventType: NSApp.currentEvent?.type)
+    }
+
     /// The small CPU fallback shares the existing three drawing families.
     private var mode: VisualizationMode {
         switch self.settings.style {

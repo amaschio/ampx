@@ -1,6 +1,8 @@
 import AppKit
 
 class AmpXControlView: AmpXDrawingView {
+    var confinesHitTestingToBounds = false
+    var focusRingInset: CGFloat = -2
     var isEnabled = true {
         didSet { needsDisplay = true }
     }
@@ -29,7 +31,7 @@ class AmpXControlView: AmpXDrawingView {
     override func hitTest(_ point: NSPoint) -> NSView? {
         guard self.isEnabled, !isHidden else { return nil }
         let localPoint = superview.map { convert(point, from: $0) } ?? point
-        let expanded = AmpXControlMath.expandedHitRect(for: bounds)
+        let expanded = self.confinesHitTestingToBounds ? bounds : AmpXControlMath.expandedHitRect(for: bounds)
         return expanded.contains(localPoint) ? self : nil
     }
 
@@ -76,7 +78,7 @@ class AmpXControlView: AmpXDrawingView {
 
     func drawFocusRing(in context: CGContext, backingScale: CGFloat) {
         guard self.showsFocusRing else { return }
-        let ring = bounds.insetBy(dx: -2, dy: -2)
+        let ring = bounds.insetBy(dx: self.focusRingInset, dy: self.focusRingInset)
         let aligned = AmpXPixelGrid.strokeRect(ring, lineWidth: 1, backingScale: backingScale)
         context.setStrokeColor(skin.green.cgColor)
         context.setLineWidth(1 / backingScale)

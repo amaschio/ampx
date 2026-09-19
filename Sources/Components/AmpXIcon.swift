@@ -12,6 +12,7 @@ enum AmpXIcon {
     case `repeat`
     case menu
     case collapse
+    case expand
     case minimize
     case close
     case brand
@@ -70,6 +71,9 @@ enum AmpXIcon {
             }
         case .collapse:
             self.drawFoldedShade(in: rect, context: context)
+        case .expand:
+            context.setLineWidth(max(0.8, rect.width * 0.13))
+            context.stroke(rect.insetBy(dx: 0.5, dy: 0.5))
         case .minimize:
             context.fill(rect)
             context.setFillColor(NSColor.white.withAlphaComponent(0.45).cgColor)
