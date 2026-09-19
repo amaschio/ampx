@@ -1,6 +1,7 @@
 import AppKit
 
 class AmpXControlView: AmpXDrawingView {
+    func cancelInteraction() {}
     var confinesHitTestingToBounds = false
     var focusRingInset: CGFloat = -2
     var isEnabled = true {

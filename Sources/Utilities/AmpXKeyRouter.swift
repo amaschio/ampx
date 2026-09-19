@@ -10,6 +10,7 @@ struct AmpXFocusContext: Equatable {
     var module: AmpXModuleID?
     var control: AmpXControlFocus?
     var textResponderActive = false
+    var playlistEditingEnabled = true
 }
 
 enum AmpXKeyRoute: Equatable {
@@ -44,7 +45,7 @@ enum AmpXKeyRouter {
             return .control
         }
 
-        if context.module == .playlist, self.matchesPlaylistKey(event, flags: flags) {
+        if context.module == .playlist, context.playlistEditingEnabled, self.matchesPlaylistKey(event, flags: flags) {
             return .playlist
         }
 
@@ -146,11 +147,12 @@ enum AmpXKeyRouter {
 
         var module: AmpXModuleID?
         var control: AmpXControlFocus?
+        var playlistEditingEnabled = false
 
         var view: NSView? = responder
         while let current = view {
             if control == nil {
-                if current is AmpXButton {
+                if current is AmpXButton || current is TimeDisplayView || current is SpectrumWellView {
                     control = .button
                 } else if current is AmpXSlider {
                     control = .slider
@@ -159,11 +161,11 @@ enum AmpXKeyRouter {
 
             if let moduleView = current as? AmpXModuleView {
                 module = moduleView.moduleID
+                playlistEditingEnabled = !moduleView.isContentCollapsed && !moduleView.content.isHiddenOrHasHiddenAncestor
                 break
             }
             if let header = current as? AmpXModuleHeaderView {
                 module = header.moduleID
-                break
             }
             view = current.superview
         }
@@ -171,7 +173,8 @@ enum AmpXKeyRouter {
         return AmpXFocusContext(
             module: module,
             control: control,
-            textResponderActive: textResponderActive
+            textResponderActive: textResponderActive,
+            playlistEditingEnabled: playlistEditingEnabled
         )
     }
 
@@ -321,6 +324,12 @@ enum AmpXKeyRouter {
         case 36, 76:
             if let button = responder as? AmpXButton {
                 return button.performKeyboardPress()
+            }
+            if let timer = responder as? TimeDisplayView {
+                return timer.performKeyboardPress()
+            }
+            if let spectrum = responder as? SpectrumWellView {
+                return spectrum.accessibilityPerformPress()
             }
         case 123, 124, 125, 126:
             if let slider = responder as? AmpXSlider {

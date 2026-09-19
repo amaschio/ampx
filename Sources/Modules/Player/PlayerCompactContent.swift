@@ -28,6 +28,7 @@ final class PlayerCompactContent: AmpXCompactModuleView {
         let names = ["Previous", "Play", "Pause", "Stop", "Next"]
         for index in self.transportButtons.indices {
             let button = self.transportButtons[index]
+            button.setAccessibilityElement(true)
             button.icon = icons[index]
             button.accessibilityTitle = names[index]
             button.confinesHitTestingToBounds = true

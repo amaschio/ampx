@@ -92,6 +92,7 @@ final class TimeDisplayView: AmpXContinuousView {
                     .draw(text, in: self.bounds, context: context)
             }
             context.restoreGState()
+            self.drawCompactFocusRing(in: context)
             return
         }
         if let referenceText {

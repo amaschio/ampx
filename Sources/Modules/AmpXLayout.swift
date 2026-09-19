@@ -120,7 +120,7 @@ enum AmpXLayout {
         playlistViewportHeight: CGFloat
     ) -> CGFloat {
         if state.collapsed.contains(moduleID) {
-            return AmpXMetrics.headerHeight
+            return moduleID == .player ? AmpXCompactMetrics.playerHeight : AmpXMetrics.headerHeight
         }
 
         switch moduleID {

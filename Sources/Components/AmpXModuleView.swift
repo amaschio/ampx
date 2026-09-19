@@ -4,6 +4,7 @@ final class AmpXModuleView: NSView {
     let moduleID: AmpXModuleID
     let content: AmpXModuleContent
     let header: AmpXModuleHeaderView
+    let compactContent: AmpXCompactModuleView?
 
     private(set) var presentation: AmpXHostPresentation = .normal
     private var savedNormalFrame: CGRect = .zero
@@ -11,18 +12,38 @@ final class AmpXModuleView: NSView {
     private let skin: any AmpXSkin
     private weak var rememberedContentResponder: NSView?
 
-    init(moduleID: AmpXModuleID, content: AmpXModuleContent, skin: any AmpXSkin) {
+    init(moduleID: AmpXModuleID, content: AmpXModuleContent, skin: any AmpXSkin, compactContent: AmpXCompactModuleView? = nil) {
         self.moduleID = moduleID
         self.content = content
+        self.compactContent = compactContent
         self.skin = skin
         self.header = AmpXModuleHeaderView(moduleID: moduleID, skin: skin)
         super.init(frame: .zero)
         wantsLayer = true
         addSubview(self.header)
         addSubview(content)
+        if let compactContent {
+            compactContent.isHidden = true
+            addSubview(compactContent)
+        }
         setAccessibilityRole(.group)
         setAccessibilityLabel(self.accessibilityModuleLabel(for: moduleID))
         self.wireFocusTraversal()
+    }
+
+    func applyPresentationVisibility(_ value: AmpXPresentationVisibility) {
+        if !value.expanded { self.content.setEffectivelyVisible(false) }
+        if !value.compact { self.compactContent?.setEffectivelyVisible(false) }
+        if value.expanded { self.content.setEffectivelyVisible(true) }
+        if value.compact { self.compactContent?.setEffectivelyVisible(true) }
+    }
+
+    static func snappedFrame(_ frame: CGRect, backingScale: CGFloat) -> CGRect {
+        let minX = AmpXPixelGrid.align(frame.minX, backingScale: backingScale)
+        let minY = AmpXPixelGrid.align(frame.minY, backingScale: backingScale)
+        let maxX = AmpXPixelGrid.align(frame.maxX, backingScale: backingScale)
+        let maxY = AmpXPixelGrid.align(frame.maxY, backingScale: backingScale)
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
     @available(*, unavailable)
@@ -63,7 +84,7 @@ final class AmpXModuleView: NSView {
     }
 
     override func draw(_: NSRect) {
-        guard self.presentation == .normal else { return }
+        guard self.presentation == .normal, !(self.isContentCollapsed && self.compactContent != nil) else { return }
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let backingScale = window?.backingScaleFactor ?? 1
         self.skin.panelFrame(
@@ -88,13 +109,13 @@ final class AmpXModuleView: NSView {
 
     private func applyNormalLayout(frame: CGRect) {
         let backingScale = window?.backingScaleFactor ?? 1
-        let snappedFrame = CGRect(
-            x: AmpXPixelGrid.align(frame.minX, backingScale: backingScale),
-            y: AmpXPixelGrid.align(frame.minY, backingScale: backingScale),
-            width: AmpXPixelGrid.align(frame.width, backingScale: backingScale),
-            height: AmpXPixelGrid.align(frame.height, backingScale: backingScale)
-        )
+        let snappedFrame = Self.snappedFrame(frame, backingScale: backingScale)
         self.frame = snappedFrame
+        self.compactContent?.frame = self.bounds
+        if self.isContentCollapsed, self.compactContent != nil {
+            self.compactContent?.layoutSubtreeIfNeeded()
+            return
+        }
 
         // The Playlist stretches instead of scaling (spec Revision 9); every other module scales with its width.
         let stretches = Self.stretchesHorizontally(self.moduleID)
@@ -126,25 +147,49 @@ final class AmpXModuleView: NSView {
     }
 
     func setContentCollapsed(_ collapsed: Bool) {
+        guard collapsed != self.isContentCollapsed else { return }
+        let responder = window?.firstResponder as? NSView
+        let ownedFocus = responder.map { $0 === self || $0.isDescendant(of: self) } ?? false
+        self.content.cancelInteractions()
+        self.compactContent?.cancelInteractions()
         if collapsed {
-            if let responder = window?.firstResponder as? NSView,
-               responder.isDescendant(of: content)
+            self.content.setEffectivelyVisible(false)
+            if let responder, responder.isDescendant(of: self.content)
             {
                 self.rememberedContentResponder = responder
             }
             self.content.isHidden = true
-            window?.makeFirstResponder(self.header)
+            self.header.isHidden = self.compactContent != nil
+            self.compactContent?.isHidden = false
         } else {
+            self.compactContent?.setEffectivelyVisible(false)
+            self.compactContent?.isHidden = true
             self.content.isHidden = false
-            if let rememberedContentResponder,
-               rememberedContentResponder.window === window
-            {
-                window?.makeFirstResponder(rememberedContentResponder)
+            self.header.isHidden = false
+        }
+        self.wireFocusTraversal()
+        if ownedFocus {
+            let restored = self.rememberedContentResponder
+            if !collapsed, let restored, restored.window === window, !restored.isHiddenOrHasHiddenAncestor, restored.acceptsFirstResponder {
+                window?.makeFirstResponder(restored)
+            } else {
+                window?.makeFirstResponder(self.preferredFocusView)
             }
         }
+        self.needsDisplay = true
+    }
+
+    var isContentCollapsed: Bool { self.content.isHidden }
+
+    var preferredFocusView: NSView {
+        if self.isContentCollapsed, let compactContent { return compactContent.expandButton }
+        return self.header
     }
 
     func focusableViews() -> [NSView] {
+        if self.isContentCollapsed {
+            return self.compactContent?.focusableControls() ?? [self.header]
+        }
         var views: [NSView] = [header]
         views.append(contentsOf: self.content.focusableControls())
         return views
@@ -159,7 +204,10 @@ final class AmpXModuleView: NSView {
     }
 
     override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
-        self.header.accessibilityCustomActions()
+        if self.isContentCollapsed, let compactContent {
+            return compactContent.accessibilityCustomActions()
+        }
+        return self.header.accessibilityCustomActions()
     }
 
     private func accessibilityModuleLabel(for moduleID: AmpXModuleID) -> String {

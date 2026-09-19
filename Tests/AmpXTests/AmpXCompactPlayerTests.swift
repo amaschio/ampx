@@ -24,6 +24,7 @@ final class AmpXCompactPlayerTests: XCTestCase {
         let layout = AmpXCompactMetrics.playerLayout()
         let buttons = player.transportButtons + [player.minimizeButton!, player.expandButton, player.closeButton]
         for button in buttons {
+            XCTAssertTrue(button.isAccessibilityElement(), "Compact transport must be discoverable by assistive tools")
             XCTAssertTrue(player.bounds.contains(button.frame))
             XCTAssertGreaterThan(button.frame.width, 0)
             XCTAssertTrue(button.bounds.contains(button.resolvedIconRect))

@@ -143,6 +143,13 @@ final class PlaylistResizeHandleView: NSView {
         self.onResize?(.began)
     }
 
+    func cancelInteraction() {
+        guard self.dragStart != nil else { return }
+        self.dragStart = nil
+        self.onResize?(.ended)
+        self.window?.invalidateCursorRects(for: self)
+    }
+
     override func mouseDragged(with event: NSEvent) {
         guard let start = dragStart else { return }
         Self.cursor(for: start.edge).set()

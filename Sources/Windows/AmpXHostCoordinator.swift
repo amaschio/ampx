@@ -484,8 +484,8 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     private func focusModule(_ id: AmpXModuleID) {
         self.focusedModuleID = id
         guard let view = moduleViews[id] else { return }
-        self.stackWindow?.makeFirstResponder(view.header)
-        self.detachedWindowControllers[id]?.window?.makeFirstResponder(view.header)
+        self.stackWindow?.makeFirstResponder(view.preferredFocusView)
+        self.detachedWindowControllers[id]?.window?.makeFirstResponder(view.preferredFocusView)
     }
 
     private func nextVisibleModule(after id: AmpXModuleID) -> AmpXModuleID {
@@ -506,7 +506,11 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     private func createModuleViews() {
         for moduleID in AmpXModuleID.allCases where moduleID != .enthea || self.isEntheaEnabled {
             let content = self.makeModuleContent(for: moduleID)
-            let view = AmpXModuleView(moduleID: moduleID, content: content, skin: skin)
+            let compact: AmpXCompactModuleView? = moduleID == .player ? PlayerCompactContent(
+                skin: self.skin, audioPlayer: self.audioPlayer, playlistManager: self.playlistManager,
+                presentationState: self.playerPresentationState, onToggleModule: { [weak self] in self?.toggleModuleVisibility($0) }
+            ) : nil
+            let view = AmpXModuleView(moduleID: moduleID, content: content, skin: skin, compactContent: compact)
             view.setContentCollapsed(self.state.collapsed.contains(moduleID))
             self.wireHeader(for: view)
             self.moduleViews[moduleID] = view
@@ -602,6 +606,12 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
             self.noteFocusedModule(moduleID)
             self.toggleDetachFocusedModule()
         }
+        view.compactContent?.onExpand = view.header.onCollapse
+        view.compactContent?.onClose = view.header.onClose
+        view.compactContent?.onMinimize = view.header.onMinimize
+        view.compactContent?.onGripMouseDown = view.header.onGripMouseDown
+        view.compactContent?.onGripMouseDragged = view.header.onGripMouseDragged
+        view.compactContent?.onGripMouseUp = view.header.onGripMouseUp
     }
 
     private func restoreDetachedModules() {
@@ -736,7 +746,7 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         for moduleID in AmpXModuleID.allCases {
             guard let moduleView = moduleViews[moduleID] else { continue }
             let inputs = self.visibilityInputs(for: moduleID)
-            moduleView.content.setEffectivelyVisible(inputs.isVisible)
+            moduleView.applyPresentationVisibility(inputs.presentationVisibility(hasCompactPresentation: moduleView.compactContent != nil))
         }
         if let playerContent = moduleViews[.player]?.content as? PlayerModuleContent {
             playerContent.updateModuleToggleStates(

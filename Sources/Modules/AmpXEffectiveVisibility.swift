@@ -1,5 +1,10 @@
 import AppKit
 
+struct AmpXPresentationVisibility: Equatable {
+    var expanded: Bool
+    var compact: Bool
+}
+
 struct AmpXVisibilityInputs {
     var collapsed: Bool
     var closed: Bool
@@ -8,8 +13,16 @@ struct AmpXVisibilityInputs {
     var occluded: Bool
     var intersectsViewport: Bool
 
+    func presentationVisibility(hasCompactPresentation: Bool) -> AmpXPresentationVisibility {
+        AmpXPresentationVisibility(expanded: self.isVisible, compact: self.hostVisible && self.collapsed && hasCompactPresentation)
+    }
+
+    var hostVisible: Bool {
+        !self.closed && self.windowVisible && !self.miniaturized && !self.occluded && self.intersectsViewport
+    }
+
     var isVisible: Bool {
-        !self.collapsed && !self.closed && self.windowVisible && !self.miniaturized && !self.occluded && self.intersectsViewport
+        self.hostVisible && !self.collapsed
     }
 }
 

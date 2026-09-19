@@ -127,6 +127,12 @@ final class PlaylistRowsView: AmpXControlView {
         self.draggedTrackIndex = nil
     }
 
+    override func cancelInteraction() {
+        self.pressedIndex = nil
+        self.draggedTrackIndex = nil
+        self.dragStartPoint = nil
+    }
+
     override func mouseDragged(with event: NSEvent) {
         guard isEnabled else { return }
         let point = convert(event.locationInWindow, from: nil)

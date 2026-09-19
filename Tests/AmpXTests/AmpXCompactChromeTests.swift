@@ -31,6 +31,7 @@ final class AmpXCompactChromeTests: XCTestCase {
             shell.onClose = { actions.append("close") }
             shell.onMinimize = { actions.append("minimize") }
             for button in [shell.expandButton, shell.closeButton] + [shell.minimizeButton].compactMap({ $0 }) {
+                XCTAssertTrue(button.isAccessibilityElement(), "Compact chrome must be discoverable by assistive tools")
                 XCTAssertTrue(shell.bounds.contains(button.frame))
                 let point = CGPoint(x: button.frame.midX, y: button.frame.midY)
                 XCTAssertIdentical(shell.hitTest(point), button)

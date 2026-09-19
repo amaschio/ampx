@@ -2,6 +2,15 @@ import AppKit
 
 /// Draws module body content within its bounds without host chrome or window coupling.
 class AmpXModuleContent: AmpXDrawingView {
+    func cancelInteractions() {
+        func cancel(_ view: NSView) {
+            (view as? AmpXControlView)?.cancelInteraction()
+            (view as? PlaylistResizeHandleView)?.cancelInteraction()
+            for child in view.subviews { cancel(child) }
+        }
+        for child in self.subviews { cancel(child) }
+    }
+
     func focusableControls() -> [NSView] {
         subviews
             .filter { view in

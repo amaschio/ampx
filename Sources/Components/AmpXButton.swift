@@ -239,9 +239,15 @@ final class AmpXButton: AmpXControlView {
         self.isPressed = true
     }
 
+    override func cancelInteraction() {
+        self.pressResetWorkItem?.cancel()
+        self.pressResetWorkItem = nil
+        self.isPressed = false
+    }
+
     override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        let shouldFire = isEnabled && bounds.contains(point)
+        let shouldFire = self.isPressed && isEnabled && bounds.contains(point)
         if shouldFire {
             self.action?()
             self.schedulePressReset()

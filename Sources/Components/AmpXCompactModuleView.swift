@@ -31,6 +31,7 @@ class AmpXCompactModuleView: AmpXModuleContent {
         self.setAccessibilityRole(.group)
         self.setAccessibilityLabel("\(moduleID.rawValue.capitalized) compact")
         for button in [self.expandButton, self.closeButton] + [self.minimizeButton].compactMap({ $0 }) {
+            button.setAccessibilityElement(true)
             button.confinesHitTestingToBounds = true
             button.focusRingInset = 1
             self.addSubview(button)
@@ -52,6 +53,26 @@ class AmpXCompactModuleView: AmpXModuleContent {
     required init?(coder _: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func cancelInteraction() { self.gripTracking = false }
+
+    override func cancelInteractions() {
+        super.cancelInteractions()
+        self.cancelInteraction()
+    }
+
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        var actions = [
+            NSAccessibilityCustomAction(name: "Expand", target: self, selector: #selector(self.accessibilityExpand)),
+            NSAccessibilityCustomAction(name: "Close", target: self, selector: #selector(self.accessibilityClose)),
+        ]
+        if self.minimizeButton != nil {
+            actions.append(NSAccessibilityCustomAction(name: "Minimize", target: self, selector: #selector(self.accessibilityMinimize)))
+        }
+        return actions
+    }
+
+    @objc private func accessibilityExpand() -> Bool { self.expandButton.accessibilityPerformPress() }
+    @objc private func accessibilityClose() -> Bool { self.closeButton.accessibilityPerformPress() }
+    @objc private func accessibilityMinimize() -> Bool { self.minimizeButton?.accessibilityPerformPress() ?? false }
 
     override func layout() {
         super.layout()

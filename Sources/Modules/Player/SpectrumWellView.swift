@@ -368,6 +368,12 @@ final class SpectrumWellView: AmpXContinuousView {
 
     override func draw(_: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
+        // The Metal child covers its parent drawing; keep the keyboard outline above its contents.
+        if self.geometry == .compact {
+            self.metalSurface?.layer?.borderColor = self.skin.green.cgColor
+            self.metalSurface?.layer?.borderWidth = self.window?.firstResponder === self
+                ? 1 / (self.window?.backingScaleFactor ?? 1) : 0
+        }
 
         // A reference presentation always draws the segmented columns: the deterministic captures
         // must not depend on whichever mode the user last left persisted.
@@ -386,7 +392,10 @@ final class SpectrumWellView: AmpXContinuousView {
             self.drawColumns(levels: self.columnLevels, alpha: 1, in: context)
         }
 
-        guard self.geometry == .expanded else { return }
+        guard self.geometry == .expanded else {
+            self.drawCompactFocusRing(in: context)
+            return
+        }
         let labelColor = NSColor(srgbRed: 133 / 255, green: 148 / 255, blue: 179 / 255, alpha: 1)
         let origin = AmpXMetrics.playerDisplayWell.origin
         for (text, ink) in [("L", AmpXMetrics.playerChannelLabelL), ("R", AmpXMetrics.playerChannelLabelR)] {

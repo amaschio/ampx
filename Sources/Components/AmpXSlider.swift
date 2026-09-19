@@ -66,6 +66,10 @@ final class AmpXSlider: AmpXControlView {
 
     private var isDragging = false
 
+    override func cancelInteraction() {
+        self.isDragging = false
+    }
+
     override init(skin: any AmpXSkin) {
         super.init(skin: skin)
         setAccessibilityRole(.slider)

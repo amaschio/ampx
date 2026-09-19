@@ -53,6 +53,38 @@ class AmpXContinuousView: AmpXDrawingView {
     private var activeDisplayLink: CADisplayLink?
     private var displayLinkForwarder: AmpXDisplayLinkForwarder?
 
+    override func becomeFirstResponder() -> Bool {
+        let became = super.becomeFirstResponder()
+        if became {
+            self.needsDisplay = true
+            var ancestor = self.superview
+            while let view = ancestor {
+                if let module = view as? AmpXModuleView {
+                    let coordinator = (self.window?.windowController as? AmpXStackWindowController)?.coordinator
+                        ?? (self.window?.windowController as? AmpXDetachedModuleWindowController)?.coordinator
+                    coordinator?.noteFocusedModule(module.moduleID)
+                    break
+                }
+                ancestor = view.superview
+            }
+        }
+        return became
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let resigned = super.resignFirstResponder()
+        if resigned { self.needsDisplay = true }
+        return resigned
+    }
+
+    func drawCompactFocusRing(in context: CGContext) {
+        guard self.window?.firstResponder === self else { return }
+        let scale = self.window?.backingScaleFactor ?? 1
+        context.setStrokeColor(self.skin.green.cgColor)
+        context.setLineWidth(1 / scale)
+        context.stroke(AmpXPixelGrid.strokeRect(self.bounds.insetBy(dx: 1, dy: 1), lineWidth: 1, backingScale: scale))
+    }
+
     /// True while an idle gate has parked the display link although the view is still visible.
     private(set) var isContinuousRenderingPaused = false
 
