@@ -91,3 +91,9 @@ Independent source review found five issues, reproduced by four new regression m
 SwiftFormat passed with 0/247 files requiring formatting. The lint script reported five pre-existing SwiftLint errors: AudioPlayer type length, AmpXKeyRouter complexity, two large tuples in existing tests, and an existing ENTHEA test identifier. Running against an archive of baseline `88684ef` reproduced the same five errors. These checks preceded the concurrent AGENTS update moving lint/static analysis to CI; no subsequent lint run is required by this task.
 
 The isolated worktree and branch are retained. Concurrent AGENTS, CI, and script-tooling edits belong to separate work and are excluded from the compact-module commits.
+
+## Title-bar double-click follow-up, 2026-09-19
+
+Double-clicking a module's title, brand/grip, or empty title-bar background now toggles compact/normal size through the existing coordinator action. Compact controls and readouts keep their own actions. The second click does not begin a drag, and the expanded header consumes the corresponding mouse-up after changing presentation.
+
+The five new regression methods reproduced the missing toggle before implementation. The affected title, compact chrome, host, interaction, and drag suites then passed **42 tests**, using `./scripts/run-tests.sh -parallel-testing-enabled NO` with those suites selected. Tests cover docked/detached modules, retained 800 pt Playlist width, unchanged host/content instances, single-click grip dragging, and protected controls. All three modules were also toggled in both directions by real title double-clicks in the running app. No lint/static analysis was run for this follow-up.

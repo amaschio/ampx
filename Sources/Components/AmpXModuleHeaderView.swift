@@ -15,6 +15,7 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
     var onGripMouseUp: ((NSEvent) -> Void)?
 
     private var gripTracking = false
+    private var suppressMouseUp = false
 
     init(moduleID: AmpXModuleID, skin: any AmpXSkin) {
         self.moduleID = moduleID
@@ -284,14 +285,23 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
+        self.suppressMouseUp = false
+        guard self.bounds.contains(point) else { return }
+
+        if self.headerButton(at: point) != nil {
+            return
+        }
+
+        if event.clickCount == 2 {
+            self.gripTracking = false
+            self.suppressMouseUp = true
+            self.onCollapse?()
+            return
+        }
 
         if self.gripFrame.contains(point) {
             self.gripTracking = true
             self.onGripMouseDown?(event)
-            return
-        }
-
-        if self.headerButton(at: point) != nil {
             return
         }
 
@@ -304,6 +314,10 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        if self.suppressMouseUp {
+            self.suppressMouseUp = false
+            return
+        }
         if self.gripTracking {
             self.gripTracking = false
             self.onGripMouseUp?(event)

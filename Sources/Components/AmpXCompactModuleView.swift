@@ -144,10 +144,16 @@ class AmpXCompactModuleView: AmpXModuleContent {
     override func mouseDown(with event: NSEvent) {
         let point = self.convert(event.locationInWindow, from: nil)
         guard self.bounds.contains(point) else { return }
+        guard !self.protectedRects.contains(where: { $0.contains(point) }) else { return }
+        if event.clickCount == 2 {
+            self.cancelInteraction()
+            self.onExpand?()
+            return
+        }
         if self.chromeLayout.grip.contains(point) {
             self.gripTracking = true
             self.onGripMouseDown?(event)
-        } else if !self.protectedRects.contains(where: { $0.contains(point) }) {
+        } else {
             self.window?.performDrag(with: event)
         }
     }

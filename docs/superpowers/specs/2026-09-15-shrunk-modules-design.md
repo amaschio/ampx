@@ -140,7 +140,7 @@ Keep the host's top-left anchor stable during collapse/expand; recompute all aff
 
 Use the same compact heights in stack and detached hosts. A collapsed Playlist keeps its chosen width and cannot resize either dimension. Preserve its preferred expanded viewport and reapply existing short-screen fitting on expansion. A wide compact Playlist still determines the docked left-column width and ENTHEA's horizontal placement. Closing or detaching it removes its contribution to stack width and height; closed views must remain hidden after relayout.
 
-Retain existing double-click behavior, if any; this scope introduces no new double-click shortcut. Cancel an active content drag on collapse, without changing order or partially applying a module operation.
+**User update, 2026-09-19:** double-clicking a module's title, brand/grip, or empty title-bar background toggles between compact and normal size in docked and detached hosts. Compact controls and readouts retain their own interactions; double-clicking them does not toggle module size. Single-click grip dragging remains available. Cancel an active drag when changing presentation, without changing order or partially applying a module operation.
 
 ## State, rendering, and lifecycle
 
