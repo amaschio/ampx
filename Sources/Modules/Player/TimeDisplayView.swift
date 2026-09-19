@@ -4,6 +4,29 @@ import CoreGraphics
 
 /// Segment timer that pulls `PlaybackClock.currentTime` on display-link ticks.
 final class TimeDisplayView: AmpXContinuousView {
+    enum Style { case expanded, compact }
+    var style: Style = .expanded {
+        didSet {
+            self.setAccessibilityElement(self.style == .compact)
+            self.setAccessibilityRole(.button)
+            self.setAccessibilityLabel("Playback time")
+            self.needsDisplay = true
+        }
+    }
+
+    @discardableResult
+    func performKeyboardPress() -> Bool {
+        self.presentationState.toggleTimeMode()
+        return true
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        self.performKeyboardPress()
+    }
+
+    override var acceptsFirstResponder: Bool {
+        self.style == .compact && AmpXControlView.acceptsFocus(isEnabled: true, currentEventType: NSApp.currentEvent?.type)
+    }
     weak var audioPlayer: AudioPlayer?
     var showRemainingTime: Bool {
         get { self.presentationState.showRemainingTime }
@@ -27,9 +50,10 @@ final class TimeDisplayView: AmpXContinuousView {
         super.init(skin: skin)
         self.modeSubscription = presentationState.$showRemainingTime
             .removeDuplicates()
-            .sink { [weak self] _ in
+            .sink { [weak self] remaining in
                 guard let self else { return }
                 self.setNeedsDisplay(self.bounds)
+                self.setAccessibilityValue(remaining ? "Remaining" : "Elapsed")
             }
     }
 
@@ -48,11 +72,28 @@ final class TimeDisplayView: AmpXContinuousView {
     }
 
     override func mouseDown(with _: NSEvent) {
-        self.showRemainingTime.toggle()
+        self.performKeyboardPress()
     }
 
     override func draw(_: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
+        if self.style == .compact {
+            let text = self.referenceText ?? AmpXCompactTimeLayout.text(
+                current: self.audioPlayer?.playbackClock.currentTime ?? 0,
+                duration: self.audioPlayer?.duration ?? 0,
+                remaining: self.showRemainingTime,
+                hasLoadedTrack: self.audioPlayer?.currentTrack != nil
+            )
+            // Malformed/extreme reference strings cannot escape the timer's reserved cell.
+            context.saveGState()
+            context.clip(to: self.bounds)
+            if self.referenceText != nil || !self.blinkOff {
+                AmpXSegmentDigits(skin: self.skin, metrics: AmpXCompactTimeLayout.metrics(for: text, in: self.bounds))
+                    .draw(text, in: self.bounds, context: context)
+            }
+            context.restoreGState()
+            return
+        }
         if let referenceText {
             self.segmentDigits.draw(referenceText, in: bounds, context: context)
             return

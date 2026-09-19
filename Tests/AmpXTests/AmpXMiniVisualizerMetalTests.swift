@@ -7,6 +7,23 @@ import XCTest
 
 @MainActor
 final class AmpXMiniVisualizerMetalTests: XCTestCase {
+    func testAllStylesAndPalettesRenderSignalAtCompactDimensions() throws {
+        let renderer = try self.makeRenderer()
+        for scale in [1, 2, 3] {
+            for style in AmpXMiniVisualizerStyle.allCases {
+                for palette in AmpXMiniVisualizerPalette.allCases {
+                    let active = try self.capture(renderer, frame: self.signal(), style: style, palette: palette,
+                                                  width: 110 * scale, height: 18 * scale)
+                    let silent = try self.capture(renderer, frame: AmpXMiniVisualizerFrame(), style: style, palette: palette,
+                                                  width: 110 * scale, height: 18 * scale)
+                    XCTAssertTrue(active.bytes.enumerated().allSatisfy { $0.offset % 4 != 3 || $0.element == 255 })
+                    XCTAssertGreaterThan(active.meanBrightness(), silent.meanBrightness(), "\(style), \(palette), \(scale)×")
+                    XCTAssertNotEqual(active.bytes, silent.bytes)
+                }
+            }
+        }
+    }
+
     func testMissingDeviceReturnsNilWithoutCrashing() {
         XCTAssertNil(AmpXMiniVisualizerRenderer(device: nil))
     }

@@ -6,6 +6,14 @@ import QuartzCore
 /// Player host for all mini effects. AppKit owns interaction and the frame driver;
 /// Metal receives only prepared audio data, style, palette, and drawable dimensions.
 final class SpectrumWellView: AmpXContinuousView {
+    enum Geometry { case expanded, compact }
+    var geometry: Geometry = .expanded {
+        didSet {
+            self.needsLayout = true
+            self.layoutMetalSurface()
+            self.redrawPreparedFrame()
+        }
+    }
     struct Reference: Equatable {
         /// Normalized 0…1 level per column.
         var levels: [Float]
@@ -325,11 +333,26 @@ final class SpectrumWellView: AmpXContinuousView {
 
     /// Spectrum area in this view's coordinates (the view is placed on the display well).
     var spectrumRect: CGRect {
-        AmpXMetrics.playerSpectrum.offsetBy(dx: -AmpXMetrics.playerDisplayWell.minX, dy: -AmpXMetrics.playerDisplayWell.minY)
+        switch self.geometry {
+        case .expanded:
+            AmpXMetrics.playerSpectrum.offsetBy(dx: -AmpXMetrics.playerDisplayWell.minX, dy: -AmpXMetrics.playerDisplayWell.minY)
+        case .compact:
+            self.bounds
+        }
     }
 
     func segmentRect(column: Int, segment: Int) -> CGRect {
         let area = self.spectrumRect
+        if self.geometry == .compact {
+            let pitchX = area.width / CGFloat(self.columnCount)
+            let pitchY = area.height / CGFloat(self.segmentCount)
+            return CGRect(
+                x: area.minX + CGFloat(column) * pitchX,
+                y: area.minY + CGFloat(self.segmentCount - 1 - segment) * pitchY,
+                width: pitchX * 0.65,
+                height: pitchY * 0.65
+            )
+        }
         let top = area.minY + CGFloat(self.segmentCount - 1 - segment) * AmpXMetrics.spectrumSegmentPitch
         return CGRect(
             x: area.minX + CGFloat(column) * AmpXMetrics.spectrumColumnPitch,
@@ -359,6 +382,7 @@ final class SpectrumWellView: AmpXContinuousView {
             self.drawColumns(levels: self.columnLevels, alpha: 1, in: context)
         }
 
+        guard self.geometry == .expanded else { return }
         let labelColor = NSColor(srgbRed: 133 / 255, green: 148 / 255, blue: 179 / 255, alpha: 1)
         let origin = AmpXMetrics.playerDisplayWell.origin
         for (text, ink) in [("L", AmpXMetrics.playerChannelLabelL), ("R", AmpXMetrics.playerChannelLabelR)] {
