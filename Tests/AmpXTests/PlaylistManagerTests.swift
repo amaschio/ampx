@@ -327,7 +327,7 @@ final class PlaylistManagerTests: XCTestCase {
             alertPresenter: SilentPlaylistAlertPresenter()
         )
 
-        waitForMainQueue()
+        waitForMainQueue(after: 0.5)
 
         XCTAssertEqual(manager.tracks.count, 1)
         XCTAssertEqual(manager.currentIndex, 0)
@@ -377,7 +377,9 @@ final class PlaylistManagerTests: XCTestCase {
             alertPresenter: SilentPlaylistAlertPresenter()
         )
 
-        waitForMainQueue()
+        // Bookmark resolution is async; wait until the restored track lands.
+        waitForMainQueue(after: 0.5)
+        XCTAssertFalse(manager.tracks.isEmpty)
         XCTAssertFalse(manager.shouldPlayStartupSoundOnLaunch)
     }
 

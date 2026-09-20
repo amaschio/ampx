@@ -37,10 +37,10 @@ final class AmpXPixelGridTests: XCTestCase {
             backingScale: 3
         )
         let half = 1.0 / 6.0
-        XCTAssertEqual(rect.minX, 1 + half)
-        XCTAssertEqual(rect.maxX, 10 - half)
-        XCTAssertEqual(rect.minY, 2 + half)
-        XCTAssertEqual(rect.maxY, 10 - half)
+        XCTAssertEqual(rect.minX, 1 + half, accuracy: 1e-9)
+        XCTAssertEqual(rect.maxX, 10 - half, accuracy: 1e-9)
+        XCTAssertEqual(rect.minY, 2 + half, accuracy: 1e-9)
+        XCTAssertEqual(rect.maxY, 10 - half, accuracy: 1e-9)
     }
 
     func testAlignAt1xAnd3x() {
