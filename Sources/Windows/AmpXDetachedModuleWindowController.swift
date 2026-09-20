@@ -91,6 +91,15 @@ final class AmpXDetachedModuleWindowController: NSWindowController, NSWindowDele
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
     }
 
+    /// Cancels a pending debounced save and writes the live frame immediately (quit path).
+    func flushPendingFramePersistence() {
+        self.moveSaveWorkItem?.cancel()
+        self.moveSaveWorkItem = nil
+        guard let window, !window.inLiveResize else { return }
+        guard self.coordinator?.isInTheater != true || self.moduleID != .enthea else { return }
+        self.coordinator?.updateDetachedFrame(self.moduleID, frame: window.frame)
+    }
+
     func windowDidResize(_: Notification) {
         guard let window, window.inLiveResize, moduleID == .playlist else { return }
         self.coordinator?.handleDetachedResize(self.moduleID, frame: window.frame)

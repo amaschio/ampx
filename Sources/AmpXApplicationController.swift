@@ -31,6 +31,7 @@ final class AmpXApplicationController: NSObject, NSMenuItemValidation {
     }
 
     func terminate() {
+        self.hosts.flushLayoutPersistence()
         self.hosts.theaterController.handleApplicationTermination()
     }
 

@@ -193,6 +193,14 @@ final class AmpXStackWindowController: NSWindowController, NSWindowDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
     }
 
+    /// Cancels a pending debounced save and writes the live frame immediately (quit path).
+    func flushPendingFramePersistence() {
+        self.moveSaveWorkItem?.cancel()
+        self.moveSaveWorkItem = nil
+        guard let window, !window.inLiveResize else { return }
+        self.coordinator?.handleStackFrameChanged(window.frame)
+    }
+
     func windowDidMiniaturize(_: Notification) {
         self.refreshEffectiveVisibility()
     }

@@ -4,7 +4,7 @@
 
 A native macOS music player with the Winamp workflow (compact player, equalizer, playlist, visualizer) for local music libraries.
 
-> AmpX is based on fork of [`mbrukman/winamp-macos`](https://github.com/mbrukman/winamp-macos) (by Matt Greenwood, MIT), a tribute to the original Winamp by Nullsoft.
+> AmpX is based on a fork of [`mbrukman/winamp-macos`](https://github.com/mbrukman/winamp-macos) (by Matt Greenwood, MIT), a tribute to the original Winamp by Nullsoft.
 > Development continues at [`ratovarius/ampx`](https://github.com/ratovarius/ampx).
 
 <img src="docs/images/ampx.png" alt="AmpX player, equalizer and playlist" width="490">

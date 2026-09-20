@@ -25,8 +25,9 @@ final class AmpXPixelGridTests: XCTestCase {
             lineWidth: 1,
             backingScale: 2
         )
-        XCTAssertEqual(rect.minX, 0.5)
-        XCTAssertEqual(rect.maxX, 9.5)
+        // 1 device pixel = 0.5 pt; half-width inset centers the stroke on a pixel boundary.
+        XCTAssertEqual(rect.minX, 0.25)
+        XCTAssertEqual(rect.maxX, 9.75)
     }
 
     func testStrokeRectEdgesAt3x() {
@@ -35,10 +36,11 @@ final class AmpXPixelGridTests: XCTestCase {
             lineWidth: 1,
             backingScale: 3
         )
-        XCTAssertEqual(rect.minX, 1.5)
-        XCTAssertEqual(rect.maxX, 9.5)
-        XCTAssertEqual(rect.minY, 2.5)
-        XCTAssertEqual(rect.maxY, 9.5)
+        let half = 1.0 / 6.0
+        XCTAssertEqual(rect.minX, 1 + half)
+        XCTAssertEqual(rect.maxX, 10 - half)
+        XCTAssertEqual(rect.minY, 2 + half)
+        XCTAssertEqual(rect.maxY, 10 - half)
     }
 
     func testAlignAt1xAnd3x() {

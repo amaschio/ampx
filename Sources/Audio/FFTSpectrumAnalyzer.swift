@@ -2,7 +2,6 @@ import Accelerate
 @preconcurrency import AVFoundation
 import Foundation
 import os
-import QuartzCore
 import Synchronization
 
 final class FFTSpectrumAnalyzer: @unchecked Sendable {
@@ -155,7 +154,7 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
         let batchDuration = sampleRate > 0 ? Double(copy.frameLength) / sampleRate : 0
         AudioFeatureBus.shared.miniTimeline.publish(
             pcm: copy, spectrumFrames: frames, hopOffsets: hopOffsets,
-            arrivalTime: CACurrentMediaTime(), generation: batch.generation,
+            arrivalTime: batch.arrivalTime, generation: batch.generation,
             discontinuity: batch.discontinuity
         )
         self.onSpectrumFrames?(frames, batchDuration)

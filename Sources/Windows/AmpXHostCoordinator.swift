@@ -297,6 +297,14 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
         self.persistLayout()
     }
 
+    /// Synchronously captures live stack/detached frames so a quit during the move debounce cannot lose layout.
+    func flushLayoutPersistence() {
+        self.stackWindowController?.flushPendingFramePersistence()
+        for controller in self.detachedWindowControllers.values {
+            controller.flushPendingFramePersistence()
+        }
+    }
+
     func handlePlayerHeaderClose() {
         self.closeStack()
     }

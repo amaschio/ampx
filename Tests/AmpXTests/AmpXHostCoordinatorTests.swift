@@ -153,6 +153,29 @@ final class AmpXHostCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.stackWindowFrame?.width, savedFrame.width)
     }
 
+    func testFlushLayoutPersistenceWritesLiveStackFrameBeforeDebounce() throws {
+        let store = self.makeIsolatedLayoutStore()
+        let coordinator = AmpXHostCoordinator(
+            state: AmpXModuleOrder(),
+            skin: ClassicModernSkin(),
+            layoutStore: store,
+            screen: self.testScreen()
+        )
+        coordinator.showStack()
+        let window = try XCTUnwrap(coordinator.stackWindow)
+        var frame = window.frame
+        frame.origin.x += 48
+        frame.origin.y += 36
+        window.setFrame(frame, display: false)
+
+        coordinator.flushLayoutPersistence()
+
+        let loaded = store.load(screen: self.testScreen())
+        XCTAssertEqual(loaded.stackFrame.minX, window.frame.minX, accuracy: 0.5)
+        XCTAssertEqual(loaded.stackFrame.minY, window.frame.minY, accuracy: 0.5)
+        XCTAssertEqual(loaded.stackFrame.width, window.frame.width, accuracy: 0.5)
+    }
+
     func testStackWindowFollowsCompositionHeightWithoutScrolling() throws {
         let (defaults, name) = self.isolatedDefaults()
         defer { cleanup(name) }
