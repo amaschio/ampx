@@ -1,7 +1,6 @@
-import AVFoundation
 @testable import AmpX
+import AVFoundation
 import XCTest
-
 
 @MainActor
 final class AudioPlayerTests: XCTestCase {
@@ -137,6 +136,28 @@ final class AudioPlayerTests: XCTestCase {
         self.player.testing_setPlaybackUIStateForTests(isPlaying: false, currentTime: 0.15)
         self.player.togglePlayPause()
         XCTAssertEqual(self.player.testing_lastTransportAction, .resume)
+    }
+
+    func testPlayOrRestartResumesWhenPausedAndStartsWhenStopped() {
+        let track = Track(title: "Short", artist: "Test", url: fixtureURL)
+        XCTAssertTrue(self.waitForLoad(track))
+
+        self.player.testing_setPlaybackUIStateForTests(isPlaying: false, currentTime: 0.15)
+        self.player.playOrRestart()
+        XCTAssertEqual(self.player.testing_lastTransportAction, .resume)
+
+        self.player.testing_setPlaybackUIStateForTests(isPlaying: false, currentTime: 0)
+        self.player.playOrRestart()
+        XCTAssertEqual(self.player.testing_lastTransportAction, .play)
+    }
+
+    func testPlayOrRestartSeeksToStartInsteadOfPausingWhilePlaying() {
+        let track = Track(title: "Short", artist: "Test", url: fixtureURL)
+        XCTAssertTrue(self.waitForLoad(track))
+        self.player.testing_setPlaybackUIStateForTests(isPlaying: true, currentTime: 0.15)
+
+        self.player.playOrRestart()
+        XCTAssertNotEqual(self.player.testing_lastTransportAction, .pause)
     }
 
     func testPlayAfterPauseRestartsFromBeginning() {
@@ -355,7 +376,7 @@ final class AudioPlayerTests: XCTestCase {
     private static func makeSilentWAVFixture(durationSeconds: Double) throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("winamp-seek-\(UUID().uuidString).wav")
-        let sampleRate = 44_100.0
+        let sampleRate = 44100.0
         let frameCount = AVAudioFrameCount(durationSeconds * sampleRate)
         let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1))
         let file = try AVAudioFile(forWriting: url, settings: format.settings)
