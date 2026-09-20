@@ -458,17 +458,25 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
 
     private func moveFocusedModule(by offset: Int) {
         guard self.focusedModuleID != .player else { return }
-        guard let currentIndex = visibleModuleOrder().firstIndex(of: focusedModuleID) else { return }
+
+        // Detached modules are absent from `visibleModuleOrder()`; re-dock them into the stack.
+        if self.state.detached.contains(self.focusedModuleID) {
+            let visible = self.visibleModuleOrder()
+            let dropIndex: Int = if offset < 0 {
+                visible.first == .player ? min(1, visible.count) : 0
+            } else {
+                visible.count
+            }
+            self.menuRedock(self.focusedModuleID, at: dropIndex)
+            return
+        }
+
+        guard let currentIndex = self.visibleModuleOrder().firstIndex(of: self.focusedModuleID) else { return }
         let targetIndex = currentIndex + offset
         guard targetIndex >= 0, targetIndex < self.visibleModuleOrder().count else { return }
         let targetID = self.visibleModuleOrder()[targetIndex]
         guard targetID != .player else { return }
-
-        if self.state.detached.contains(self.focusedModuleID) {
-            self.menuRedock(self.focusedModuleID, at: targetIndex)
-        } else {
-            self.reorder(self.focusedModuleID, toVisibleDropIndex: targetIndex)
-        }
+        self.reorder(self.focusedModuleID, toVisibleDropIndex: targetIndex)
     }
 
     private func toggleDetachFocusedModule() {
@@ -788,19 +796,21 @@ final class AmpXHostCoordinator: AmpXEntheaTheaterHandling {
     }
 
     private func visibilityInputs(for moduleID: AmpXModuleID) -> AmpXVisibilityInputs {
-        if self.state.detached.contains(moduleID) {
-            return AmpXEffectiveVisibility.detachedInputs(
-                collapsed: self.state.collapsed.contains(moduleID),
-                closed: self.state.closed.contains(moduleID),
-                window: self.detachedWindowControllers[moduleID]?.window
-            )
-        }
-
+        // Theater wins over detached: enter() orders the detached window out but leaves
+        // `state.detached` set while the theater window is active.
         if moduleID == .enthea, self.theaterController.isActive {
             return AmpXEffectiveVisibility.theaterInputs(
                 collapsed: self.state.collapsed.contains(moduleID),
                 closed: self.state.closed.contains(moduleID),
                 window: self.theaterController.window
+            )
+        }
+
+        if self.state.detached.contains(moduleID) {
+            return AmpXEffectiveVisibility.detachedInputs(
+                collapsed: self.state.collapsed.contains(moduleID),
+                closed: self.state.closed.contains(moduleID),
+                window: self.detachedWindowControllers[moduleID]?.window
             )
         }
 

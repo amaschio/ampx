@@ -30,6 +30,7 @@ final class AmpXMenuBuilderTests: XCTestCase {
     func testMainMenuHasSingleFileMenuWithCatalogItems() throws {
         let application = self.makeApplication()
         let menu = AmpXMenuBuilder.makeMainMenu(application: application)
+        XCTAssertEqual(menu.items.first?.title, ProcessInfo.processInfo.processName)
         XCTAssertEqual(menu.items.filter { $0.title == "File" }.count, 1)
 
         let file = try XCTUnwrap(menu.item(withTitle: "File")?.submenu)

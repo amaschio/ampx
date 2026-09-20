@@ -19,6 +19,9 @@ final class PlaylistListOptionsMenu: NSObject {
         ] {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
             item.target = self
+            if title == "Save List…" {
+                item.isEnabled = !self.manager.tracks.isEmpty
+            }
             menu.addItem(item)
         }
         return menu

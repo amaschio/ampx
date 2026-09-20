@@ -64,6 +64,7 @@ final class AmpXCompactPlaylistTests: XCTestCase {
         let owner = PlaylistListOptionsMenu(manager: manager, keyboardAdapter: adapter)
         let menu = owner.makeMenu()
         XCTAssertEqual(menu.items.map(\.title), ["New List", "Save List…", "Load List…"])
+        XCTAssertTrue(try XCTUnwrap(menu.item(withTitle: "Save List…")).isEnabled)
         guard menu.items.count == 3 else { return }
         for item in menu.items {
             XCTAssertIdentical(item.target as AnyObject?, owner)
@@ -74,6 +75,13 @@ final class AmpXCompactPlaylistTests: XCTestCase {
         XCTAssertEqual(selectionChanges, 1)
         XCTAssertEqual(manager.saveCalls, 1)
         XCTAssertEqual(manager.loadCalls, 1)
+    }
+
+    func testSaveListDisabledWhenPlaylistEmpty() {
+        let manager = self.makeManager()
+        let adapter = PlaylistKeyboardAdapter(manager: manager)
+        let menu = PlaylistListOptionsMenu(manager: manager, keyboardAdapter: adapter).makeMenu()
+        XCTAssertFalse(try XCTUnwrap(menu.item(withTitle: "Save List…")).isEnabled)
     }
 
     func testObservedSummaryFollowsLoadedTrackAndDoesNotReuseOldDecodedDuration() async {

@@ -155,6 +155,26 @@ final class AmpXModuleDragTests: XCTestCase {
     }
 
     @MainActor
+    func testMoveCommandsRedockDetachedModule() {
+        let coordinator = self.makeCoordinator()
+        coordinator.showStack()
+        coordinator.detach(.equalizer, at: CGPoint(x: 200, y: 400), inheritedWidth: 490)
+        coordinator.noteFocusedModule(.equalizer)
+        XCTAssertTrue(coordinator.state.detached.contains(.equalizer))
+
+        coordinator.performModuleCommand(.moveDown)
+        XCTAssertFalse(coordinator.state.detached.contains(.equalizer))
+        XCTAssertEqual(coordinator.state.order.last, .equalizer)
+
+        coordinator.detach(.playlist, at: CGPoint(x: 220, y: 420), inheritedWidth: 490)
+        coordinator.noteFocusedModule(.playlist)
+        coordinator.performModuleCommand(.moveUp)
+        XCTAssertFalse(coordinator.state.detached.contains(.playlist))
+        // After Player at index 0, move-up inserts at index 1.
+        XCTAssertEqual(coordinator.state.order.firstIndex(of: .playlist), 1)
+    }
+
+    @MainActor
     func testCollapseDuringDragCancelsWithoutChangingOrder() {
         let coordinator = self.makeCoordinator()
         coordinator.showStack()

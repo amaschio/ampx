@@ -72,4 +72,62 @@ final class AmpXTheaterTests: XCTestCase {
         XCTAssertEqual(restoredWindowFrame.height, clampedPrevious.height, accuracy: 1)
         XCTAssertEqual(presentation, [])
     }
+
+    func testTheaterExpandsCollapsedEntheaBeforeEntering() throws {
+        let hosts = AmpXHostCoordinator(
+            state: AmpXModuleOrder(),
+            skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore(),
+            entheaEnabled: true
+        )
+        hosts.reopenModule(.enthea)
+        hosts.setCollapsed(.enthea, true)
+        XCTAssertTrue(hosts.state.collapsed.contains(.enthea))
+
+        var presentation: NSApplication.PresentationOptions = []
+        let controller = AmpXTheaterController(
+            hosts: hosts,
+            screenFrame: { CGRect(x: 0, y: 0, width: 1200, height: 800) },
+            getPresentation: { presentation },
+            setPresentation: { presentation = $0 }
+        )
+        controller.enter()
+        defer { controller.exit() }
+
+        XCTAssertTrue(controller.isActive)
+        XCTAssertFalse(hosts.state.collapsed.contains(.enthea))
+        let view = try XCTUnwrap(hosts.moduleView(for: .enthea))
+        XCTAssertEqual(view.content.bounds.size, CGSize(width: 1200, height: 800))
+    }
+
+    func testTheaterExitRefreshesVisibilityAfterDeactivating() {
+        let hosts = AmpXHostCoordinator(
+            state: AmpXModuleOrder(),
+            skin: ClassicModernSkin(),
+            layoutStore: makeIsolatedLayoutStore(),
+            entheaEnabled: true
+        )
+        hosts.reopenModule(.enthea)
+        hosts.showStack()
+        hosts.detach(.enthea, at: CGPoint(x: 400, y: 500), inheritedWidth: 490)
+
+        var presentation: NSApplication.PresentationOptions = []
+        let controller = AmpXTheaterController(
+            hosts: hosts,
+            screenFrame: { CGRect(x: 0, y: 0, width: 1200, height: 800) },
+            getPresentation: { presentation },
+            setPresentation: { presentation = $0 }
+        )
+        controller.enter()
+        XCTAssertTrue(controller.isActive)
+
+        hosts.closeStack()
+        controller.exit()
+
+        XCTAssertFalse(controller.isActive)
+        XCTAssertTrue(hosts.state.detached.contains(.enthea))
+        // Detached ENTHEA should remain reachable after theater teardown.
+        XCTAssertNotNil(hosts.moduleView(for: .enthea))
+        XCTAssertNotNil(hosts.detachedWindowFrame(for: .enthea))
+    }
 }

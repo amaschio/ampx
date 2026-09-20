@@ -67,7 +67,7 @@ enum AmpXMenuBuilder {
             modifiers: .command
         )
 
-        let item = NSMenuItem()
+        let item = NSMenuItem(title: ProcessInfo.processInfo.processName, action: nil, keyEquivalent: "")
         item.submenu = appMenu
         return item
     }

@@ -40,7 +40,9 @@ final class AmpXLayoutStore {
         return Self.normalizedLayout(from: dto, screen: screen)
     }
 
-    /// Every launch starts with all modules docked; detached frames are kept so a re-detach reuses them.
+    /// Launch intentionally docks every module (product choice: cold start always stacked).
+    /// Detached *frames* are preserved so a later re-detach can reuse them; only the
+    /// detached membership set is cleared. In-session detach/redock still restores layout.
     func loadForLaunch() -> AmpXSavedLayout {
         var layout = self.load()
         layout.state.detached.removeAll()

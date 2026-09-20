@@ -48,6 +48,11 @@ final class AmpXTheaterController: NSObject, NSWindowDelegate {
         guard let hosts, let view = hosts.moduleView(for: .enthea) else { return }
         guard !hosts.state.closed.contains(.enthea) else { return }
 
+        // Theater presentation needs expanded content; expand before extracting the view.
+        if hosts.state.collapsed.contains(.enthea) {
+            hosts.setCollapsed(.enthea, false)
+        }
+
         let geometry = hosts.captureTheaterSnapshot(for: .enthea)
         self.snapshot = AmpXTheaterSnapshot(
             originalHostID: geometry.originalHostID,
@@ -87,6 +92,7 @@ final class AmpXTheaterController: NSObject, NSWindowDelegate {
         self.theaterWindow = nil
         self.snapshot = nil
         self.isActive = false
+        self.hosts?.refreshEffectiveVisibility()
     }
 
     func handleApplicationTermination() {
