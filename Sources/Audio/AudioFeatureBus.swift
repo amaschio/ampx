@@ -6,6 +6,9 @@ struct AudioFeatures {
     static let spectrumBandCount = 32
     static let fftSize = 1024
     static let fftHopSize = 256
+    /// Linear FFT bin count for the raw-bin channel (`fftSize / 2`, the real part of
+    /// a real-signal FFT). Distinct from `spectrumBandCount`'s 32 log-spaced bands.
+    static let rawBinCount = fftSize / 2
     static let waveformSampleCount = 256
     /// Time-domain samples fed into the scope (Webamp uses 576 of its 1024-point FFT window).
     static let scopeWaveformSampleCount = 2048
@@ -54,6 +57,7 @@ final class AudioFeatureBus: @unchecked Sendable {
     static let shared = AudioFeatureBus()
 
     let waveformRing = WaveformRingBuffer()
+    let miniTimeline = AmpXMiniAudioTimeline()
 
     private let lock = NSLock()
     /// Intra-buffer FFT hop-frames from the most recent audio tap buffer. The tap
@@ -65,6 +69,12 @@ final class AudioFeatureBus: @unchecked Sendable {
     private var spectrumBatchArrival: Double = 0
     private var spectrumBatchDuration: Double = 0
     private var isPlaying = false
+    /// Latest hop's linear FFT magnitude bytes (see `publishRawBins`). Unlike
+    /// `spectrumFrames`, only the newest hop is kept — consumers of this channel
+    /// (e.g. ENTHEA) do their own smoothing/onset detection and poll every frame,
+    /// so intra-buffer playout pacing isn't needed here.
+    private var rawBins: [UInt8] = Array(repeating: 0, count: AudioFeatures.rawBinCount)
+    private var rawBinSampleRate: Double = 44100
 
     private init() {}
 
@@ -94,10 +104,41 @@ final class AudioFeatureBus: @unchecked Sendable {
         self.publishSpectrumFrames([spectrum], arrivalTime: 0, batchDuration: 0, isPlaying: isPlaying)
     }
 
+    /// Publishes one hop's linear FFT magnitude bytes (`AnalyserNode.getByteFrequencyData`
+    /// shape) plus the real sample rate they were computed at, so consumers deriving
+    /// `binHz = sampleRate / 2 / bins.count` land on the correct frequency. No smoothing
+    /// is applied — this mirrors the raw analyser data a Web Audio consumer would see.
+    func publishRawBins(_ bins: [UInt8], sampleRate: Double) {
+        self.lock.lock()
+        self.rawBins = bins
+        self.rawBinSampleRate = sampleRate
+        self.lock.unlock()
+    }
+
+    /// Linear FFT magnitudes, 0...255, `bin[i]` centred at `i * sampleRate / 2 / count`.
+    /// Mirrors `AnalyserNode.getByteFrequencyData` so consumers built against that shape
+    /// need no changes.
+    func rawBinSnapshot(at _: Double = CACurrentMediaTime()) -> (bins: [UInt8], sampleRate: Double, isPlaying: Bool) {
+        self.lock.lock()
+        let bins = self.rawBins
+        let sampleRate = self.rawBinSampleRate
+        let playing = self.isPlaying
+        self.lock.unlock()
+        return (bins, sampleRate, playing)
+    }
+
     func setPlaying(_ isPlaying: Bool) {
         self.lock.lock()
         self.isPlaying = isPlaying
         self.lock.unlock()
+    }
+
+    func miniSnapshot(at time: Double = CACurrentMediaTime()) -> AmpXMiniAudioSnapshot {
+        var snapshot = self.miniTimeline.snapshot(at: time)
+        self.lock.lock()
+        snapshot.isPlaying = self.isPlaying
+        self.lock.unlock()
+        return snapshot
     }
 
     /// Returns the paced spectrum frame for the given display time plus the play state.

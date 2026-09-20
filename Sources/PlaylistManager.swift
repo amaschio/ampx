@@ -3,7 +3,7 @@ import Combine
 import Foundation
 import os
 
-private let playlistLogger = Logger(subsystem: "com.winamp.macos", category: "Playlist")
+private let playlistLogger = Logger(subsystem: "com.ampx.macos", category: "Playlist")
 
 @MainActor
 class PlaylistManager: ObservableObject {
@@ -144,7 +144,7 @@ class PlaylistManager: ObservableObject {
         guard self.bookmarkStore.ensureAccess(for: url) else {
             self.showFileActionError(
                 title: "Cannot Remove File",
-                message: "Winamp does not have permission to modify this file. Re-add it from its folder to grant access."
+                message: "AmpX does not have permission to modify this file. Re-add it from its folder to grant access."
             )
             return false
         }
@@ -180,12 +180,12 @@ class PlaylistManager: ObservableObject {
         self.alertPresenter.presentError(title: title, message: message)
     }
 
+    /// Empties the list but, like Winamp, lets the current track keep playing to its end.
     func clearPlaylist() {
         self.tracks.removeAll()
         self.currentIndex = -1
         self.shuffledIndices.removeAll()
         self.shuffleCurrentIndex = 0
-        self.audioPlayer.stop()
         self.persistState()
     }
 
@@ -245,27 +245,143 @@ class PlaylistManager: ObservableObject {
         self.persistState()
     }
 
-    func next() {
-        guard !self.tracks.isEmpty else { return }
+    /// Remove multiple rows (highest-index-first safe). Remaps `currentIndex` by track id.
+    func removeTracks(at indices: IndexSet) {
+        guard !indices.isEmpty else { return }
+        let currentID = self.currentTrack?.id
+        let removingCurrent = self.currentIndex >= 0 && indices.contains(self.currentIndex)
+        let fallbackIndex = indices.min() ?? 0
+
+        self.tracks = self.tracks.enumerated().compactMap { indices.contains($0.offset) ? nil : $0.element }
 
         if self.shuffleEnabled {
-            self.advanceShuffle(forward: true)
-        } else {
-            self.advanceSequential(forward: true)
+            self.generateShuffledIndices()
         }
+
+        if self.tracks.isEmpty {
+            self.currentIndex = -1
+            self.audioPlayer.stop()
+        } else if let currentID, let idx = self.tracks.firstIndex(where: { $0.id == currentID }) {
+            self.currentIndex = idx
+        } else if removingCurrent {
+            self.currentIndex = min(fallbackIndex, self.tracks.count - 1)
+            self.playTrack(at: self.currentIndex)
+            return
+        } else {
+            self.currentIndex = -1
+        }
+        self.persistState()
+    }
+
+    /// Keep only the given indices (AmpX crop).
+    func cropToTracks(at indices: IndexSet) {
+        guard !indices.isEmpty else { return }
+        let remove = IndexSet(integersIn: 0 ..< self.tracks.count).subtracting(indices)
+        self.removeTracks(at: remove)
+    }
+
+    /// Move all selected tracks as an ordered block by one row (`delta` = −1 or +1).
+    func moveSelectedTracks(indices: IndexSet, by delta: Int) {
+        guard delta == -1 || delta == 1, !indices.isEmpty else { return }
+        let sorted = indices.sorted()
+        let selectedTracks = sorted.map { self.tracks[$0] }
+        let currentID = self.currentTrack?.id
+
+        let remaining = self.tracks.enumerated().compactMap { indices.contains($0.offset) ? nil : $0.element }
+        let nonSelectedBefore = self.tracks[..<sorted[0]].indices.filter { !indices.contains($0) }.count
+        let insertAt = min(max(nonSelectedBefore + delta, 0), remaining.count)
+
+        var rebuilt = remaining
+        rebuilt.insert(contentsOf: selectedTracks, at: insertAt)
+        self.tracks = rebuilt
+
+        if let currentID {
+            self.currentIndex = self.tracks.firstIndex(where: { $0.id == currentID }) ?? -1
+        }
+        if self.shuffleEnabled {
+            self.generateShuffledIndices()
+        }
+        self.persistState()
+    }
+
+    enum TrackSortKey {
+        case title
+        case fileName
+        case path
+    }
+
+    func sortTracks(by key: TrackSortKey) {
+        let currentID = self.currentTrack?.id
+        self.tracks.sort { lhs, rhs in
+            let left: String
+            let right: String
+            switch key {
+            case .title:
+                left = "\(lhs.artist) - \(lhs.title)"
+                right = "\(rhs.artist) - \(rhs.title)"
+            case .fileName:
+                left = lhs.url?.lastPathComponent ?? lhs.title
+                right = rhs.url?.lastPathComponent ?? rhs.title
+            case .path:
+                left = lhs.url?.path ?? lhs.title
+                right = rhs.url?.path ?? rhs.title
+            }
+            return left.localizedCaseInsensitiveCompare(right) == .orderedAscending
+        }
+        self.remapCurrentIndex(preserving: currentID)
+    }
+
+    func reverseTracks() {
+        let currentID = self.currentTrack?.id
+        self.tracks.reverse()
+        self.remapCurrentIndex(preserving: currentID)
+    }
+
+    func randomizeTracks() {
+        let currentID = self.currentTrack?.id
+        self.tracks.shuffle()
+        self.remapCurrentIndex(preserving: currentID)
+    }
+
+    private func remapCurrentIndex(preserving currentID: UUID?) {
+        if let currentID, let idx = self.tracks.firstIndex(where: { $0.id == currentID }) {
+            self.currentIndex = idx
+        } else if self.tracks.isEmpty {
+            self.currentIndex = -1
+        }
+        if self.shuffleEnabled {
+            self.generateShuffledIndices()
+        }
+        self.persistState()
+    }
+
+    /// User-requested next track. Like Winamp, a manual skip past the end wraps to the
+    /// start (or a fresh shuffle order) instead of stopping; only auto-advance honors repeat.
+    func next() {
+        self.advance(forward: true, wrap: true)
     }
 
     func previous() {
+        self.advance(forward: false, wrap: self.repeatEnabled)
+    }
+
+    /// Auto-advance when the current track plays to the end; stops after the last track
+    /// unless repeat is on.
+    func advanceAfterTrackFinished() {
+        self.advance(forward: true, wrap: self.repeatEnabled)
+    }
+
+    private func advance(forward: Bool, wrap: Bool) {
         guard !self.tracks.isEmpty else { return }
 
         if self.shuffleEnabled {
-            self.advanceShuffle(forward: false)
+            self.advanceShuffle(forward: forward, wrap: wrap)
         } else {
-            self.advanceSequential(forward: false)
+            self.advanceSequential(forward: forward, wrap: wrap)
         }
     }
 
-    private func advanceShuffle(forward: Bool) {
+    private func advanceShuffle(forward: Bool, wrap: Bool) {
         if self.shuffledIndices.isEmpty {
             self.generateShuffledIndices()
             self.shuffleCurrentIndex = 0
@@ -275,7 +391,7 @@ class PlaylistManager: ObservableObject {
             self.shuffleCurrentIndex += 1
 
             if self.shuffleCurrentIndex >= self.shuffledIndices.count {
-                if self.repeatEnabled {
+                if wrap {
                     self.generateShuffledIndices()
                     self.shuffleCurrentIndex = 1
 
@@ -291,7 +407,7 @@ class PlaylistManager: ObservableObject {
             self.shuffleCurrentIndex -= 1
 
             if self.shuffleCurrentIndex < 0 {
-                if self.repeatEnabled {
+                if wrap {
                     self.shuffleCurrentIndex = self.shuffledIndices.count - 1
                 } else {
                     self.shuffleCurrentIndex = 0
@@ -304,12 +420,12 @@ class PlaylistManager: ObservableObject {
         self.playTrack(at: targetIndex)
     }
 
-    private func advanceSequential(forward: Bool) {
+    private func advanceSequential(forward: Bool, wrap: Bool) {
         if forward {
             let nextIndex = self.currentIndex + 1
 
             if nextIndex >= self.tracks.count {
-                if self.repeatEnabled {
+                if wrap {
                     self.playTrack(at: 0)
                 } else {
                     self.audioPlayer.stop()
@@ -318,7 +434,7 @@ class PlaylistManager: ObservableObject {
                 self.playTrack(at: nextIndex)
             }
         } else {
-            let prevIndex = self.currentIndex > 0 ? self.currentIndex - 1 : (self.repeatEnabled ? self.tracks.count - 1 : 0)
+            let prevIndex = self.currentIndex > 0 ? self.currentIndex - 1 : (wrap ? self.tracks.count - 1 : 0)
             self.playTrack(at: prevIndex)
         }
     }
@@ -598,6 +714,32 @@ class PlaylistManager: ObservableObject {
 
         if response == .OK, let url = panel.url {
             self.saveM3UPlaylist(to: url)
+        }
+    }
+
+    func showLoadM3UPicker() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.init(filenameExtension: "m3u")].compactMap { $0 }
+        panel.title = "Load Playlist"
+        panel.message = "Choose an M3U playlist to load"
+
+        panel.begin { [weak self] response in
+            guard let self, response == .OK, let url = panel.url else { return }
+            Task { @MainActor in
+                await self.replacePlaylist(fromM3U: url)
+            }
+        }
+    }
+
+    func replacePlaylist(fromM3U url: URL) async {
+        self.fileService.bookmarkM3UResources(for: url)
+        let loaded = await self.fileService.loadM3UPlaylist(from: url) ?? []
+        self.clearPlaylist()
+        if !loaded.isEmpty {
+            self.addTracks(loaded)
         }
     }
 

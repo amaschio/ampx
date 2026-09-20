@@ -16,9 +16,11 @@ final class AudioGraph: @unchecked Sendable {
     let source: AVAudioPlayerNode
     private(set) var effects: [AudioEffectUnit] = []
 
-    /// Node the analysis tap (FFT / visualizer) reads from — the graph's final mix.
+    /// Node the analysis tap (FFT / visualizer) reads from — last effect output (post-EQ),
+    /// or the source when the chain is empty. Intentionally not `mainMixerNode` so the
+    /// listening fader can live on the mixer without changing analysis.
     var tapPoint: AVAudioNode {
-        self.engine.mainMixerNode
+        self.effects.last?.outputNode ?? self.source
     }
 
     var isRunning: Bool {

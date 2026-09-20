@@ -1,209 +1,72 @@
-# Winamp macOS — Usage Guide
+# Using AmpX
 
-A native Classic Winamp 2.x–style player for macOS. The UI is the **Classic skin only** (275 px Webamp geometry): main player, shade mode, playlist, equalizer, and a managed MilkDrop Metal visualizer panel. There is no modern dual UI.
+AmpX opens as one window with three stacked modules: **Player**, **Equalizer** and **Playlist**.
 
-**Requires macOS 26.5 (Tahoe) or later.**
+## Add music
 
----
+- **File → Add Files…** (`L`) or **Add Folder…** (`⇧L`); folders are scanned recursively
+- Drag files or folders onto the playlist
+- The eject button on the player
+- **File → Load Playlist… / Save Playlist…** for M3U files
 
-## Getting started
+Supported formats: MP3, FLAC and WAV.
 
-### Open the app
+## Modules
 
-1. Open `Winamp.xcodeproj` in Xcode, select the **Winamp** scheme, and run (⌘R), **or**
-2. From the repo root: `./build.sh --run`
+- **Move:** drag a module by the logo at the left of its title bar. Drop it inside the stack to reorder it, or outside to detach it into its own window. Drag it back to re-dock it.
+- **Title bar buttons:** minimize (player only), collapse/expand, close.
+- **Show/hide:** the **EQ** and **PL** buttons on the player, or the **View** menu.
+- **Window menu:** move up/down (`⌥⌘↑` / `⌥⌘↓`), detach/re-dock (`⌥⌘D`), collapse (`⌥⌘C`).
 
-On launch you get the Classic main window (275×116). Playlist and equalizer panels open by default and dock under the main window. The MilkDrop visualizer starts closed.
+## Player
 
-### Requirements
+- Transport buttons, seek bar, volume and balance, **Shuffle** and **Repeat**
+- **Mini visualizer:** click to cycle through modes. Right-click to choose a mode or color palette.
 
-| | |
+## Equalizer
+
+- 10 bands (60 Hz to 16 kHz) plus preamp, ±12 dB
+- **ON** enables the EQ. **PRESETS** has built-in presets, **Load EQF…** and **Reset**.
+
+## Playlist
+
+- Double-click or `Return` plays a track. Click, `⇧`-click and `⌘`-click to select.
+- Footer menus: **ADD**, **REM** (remove/crop/clear), **SEL**, **MISC** (sort, reverse, randomize, file info), **LIST OPTS** (new/save/load).
+- Drag the bottom-right corner to resize.
+
+## Keyboard shortcuts
+
+| Key | Action |
 |---|---|
-| OS | macOS 26.5 (Tahoe)+ |
-| Xcode | 26+ (to build from source) |
-| Formats | WAV, MP3, FLAC (via AVFoundation) |
-
----
-
-## Adding music
-
-### File menu
-
-| Action | Shortcut |
-|--------|----------|
-| **File → Add Files…** | ⌘L |
-| **File → Add Folder…** | ⌘⇧L |
-
-Add Files accepts WAV, MP3, and FLAC. Add Folder walks the folder recursively for those extensions.
-
-### Eject button
-
-The Classic eject control on the main window also opens the add-files picker.
-
-### Drag and drop
-
-Drop audio files or folders onto the playlist panel.
-
-### M3U playlists
-
-Load and save M3U playlists from the playlist panel’s menus (same supported audio extensions).
-
----
-
-## Playback
-
-### Keyboard
-
-| Shortcut | Action |
-|----------|--------|
-| `X` | Play / Pause |
+| `Space` | Play / pause |
+| `X` | Play (restarts a playing track) |
+| `C` | Pause / unpause |
 | `V` | Stop |
-| `Z` | Previous track |
-| `B` | Next track |
-| `Space` | Play / Pause (when not typing in a text field) |
+| `Z` / `B` | Previous / next track |
+| `S` / `R` | Shuffle / repeat |
+| `←` / `→` | Seek −/+ 5 s (also with the playlist focused) |
+| `↑` / `↓` | Volume |
+| `L` / `⇧L` | Add files / add folder |
+| `⌘O` / `⌘S` | Load / save playlist |
+| `⌥3` | File info (selected track in the playlist, otherwise the current track) |
+| `⌘T` | Elapsed / remaining time |
 
-Playlist (when the playlist window is key): ↑ / ↓ move selection; Return plays the selected track.
+With the playlist focused:
 
-### On-skin controls
+| Key | Action |
+|---|---|
+| `↑` `↓` `Home` `End` `PgUp` `PgDn` | Move the selection (add `⇧` to extend it) |
+| `Return` | Play |
+| `Delete` | Remove selected |
+| `⌘⌫` / `⌘⇧⌫` | Crop to selection / clear playlist |
+| `⌥↑` / `⌥↓` | Move selected tracks |
+| `⌘A` / `⌘I` | Select all / invert |
+| `⌘⇧1` / `⌘⇧2` / `⌘⇧3` | Sort by title / file name / path |
+| `⌘R` / `⌘⇧R` | Reverse / randomize |
 
-- **Previous / Play / Pause / Stop / Next** — transport
-- **Seek bar** — scrub the current track
-- **Volume** and **balance** sliders
-- **Shuffle** and **Repeat** toggles (bottom of the main window)
-- **EQ** / **PL** toggles — show or hide the equalizer and playlist panels
-- Click the time display to switch elapsed vs remaining time
-
-Media keys and macOS Now Playing (Control Center / lock screen) are supported.
-
-### Shuffle and repeat
-
-Both modes are live:
-
-- **Shuffle** — next/previous follow a shuffled order of the playlist
-- **Repeat** — wraps at the end of the list (and of the shuffle cycle)
-
----
-
-## Classic windows
-
-All chrome follows Base 2.91 / Webamp layout. Panels snap and dock to each other (and to the main window); drag a title bar to move a panel or a connected stack. Double-click a title bar for **windowshade** (roll-up), not Dock minimize.
-
-### Main player
-
-Fixed **275×116** skin:
-
-1. Title bar — options menu (left), minimize / shade / close (right)
-2. Time digits, play-state LED, bitrate / sample-rate readouts
-3. **FFT spectrum / oscilloscope** (76×16) — real analysis from the audio engine, not simulated
-4. Scrolling marquee (artist – title)
-5. Volume, balance, EQ/PL toggles
-6. Seek bar and transport, plus shuffle / repeat
-
-### Shade mode
-
-Click the shade button in the title bar (or double-click the title) to collapse the main window to a thin strip with mini time, transport, and spectrum. Click shade again (or the strip) to restore.
-
-### Playlist
-
-Toggle with the **PL** button on the main window (or close from the playlist title bar).
-
-- Track list with selection, context menu (play / remove), and playlist actions (add, clear, M3U, etc.)
-- Resize from the bottom-right grip; width stays at least as wide as the main window when docked
-- Windowshade via title double-click or the panel’s shade control
-
-### Equalizer
-
-Toggle with the **EQ** button.
-
-- 10-band parametric EQ: 60, 170, 310, 600, 1k, 3k, 6k, 12k, 14k, 16k Hz (−12 dB … +12 dB)
-- Preamp, ON / AUTO, and built-in presets
-- **Load EQF…** — import Winamp `.eqf` / `.q1` preset files
-
-### MilkDrop visualizer panel
-
-A separate managed window (same docking system as EQ and playlist), not an inline widen of the main player.
-
-**Open it by:**
-
-1. **Double-click** the mini spectrum on the main window (or shade strip), or
-2. Title-bar **options** menu → **Show Visualizer**
-
-Close from the panel’s close control or the same menu (**Hide Visualizer**). The panel hosts the Metal MilkDrop-style visualizer (presets, resize, shade). Fullscreen is available from the visualizer UI when open.
-
-Mini spectrum on the main window remains a real-time FFT / scope preview while the MilkDrop panel is closed.
-
-### Zoom
-
-**Zoom** menu — scale the Classic UI (skin metrics and panels) without changing the 275 px logical layout.
-
----
-
-## Supported formats & metadata
-
-| Format | Support |
-|--------|---------|
-| **WAV** | Yes |
-| **MP3** | Yes |
-| **FLAC** | Yes |
-
-Displayed metadata includes title, artist, duration, bitrate, and sample rate (as available from the file).
-
----
-
-## Tips
-
-1. **Docking** — snap panels under or beside each other; connected stacks move together. Positions are the source of truth (geometry-primary docking).
-2. **Shade** — keep a thin strip on screen while listening; playlist and EQ can shade independently where supported.
-3. **Audio path** — AVAudioEngine with a 10-band `AVAudioUnitEQ` and an analysis tap feeding FFT features to the spectrum and MilkDrop views.
-4. **UI iteration for developers** — `./scripts/shoot.sh` builds/relaunches and screenshots each window to `/tmp/winamp_shot*.png`.
-
----
+Right-click a playlist row for Play, Get Info, Remove from Playlist and Remove from Disk.
 
 ## Troubleshooting
 
-### No playback
-
-- Confirm the file is WAV, MP3, or FLAC and not corrupt
-- Check the on-skin volume and system output device
-- Ensure duration appears after load
-
-### Files won’t open
-
-- Grant access when the open panel asks (user-selected file access)
-- Prefer Add Files / Add Folder over paths the sandbox cannot read
-
-### No spectrum / empty visualizer
-
-- Start playback — analysis follows the engine tap
-- Open the MilkDrop panel via double-click on the mini spectrum if you expect the full visualizer window
-
----
-
-## Technical overview
-
-| Layer | Role |
-|-------|------|
-| SwiftUI + AppKit | Classic skin views (`Views/Classic`), borderless panel windows |
-| AVFoundation / AVAudioEngine | Decode, playback, EQ, FFT feature bus |
-| Metal | Mini spectrum and MilkDrop panel (`Visualization/`, `Shaders/`) |
-
-**Audio pipeline (simplified):**
-
-```
-Audio file → player node → 10-band EQ → mixer → output
-                              ↘ analysis tap → FFT / features → spectrum + MilkDrop
-```
-
-Key sources: `WinampApp.swift`, `ContentView.swift`, `AudioPlayer.swift`, `PlaylistManager.swift`, `Views/Classic/*`, `WinampPanelWindowManager.swift`.
-
----
-
-## Credits
-
-Tribute to the original Winamp by Nullsoft.
-
-“It really whips the llama's ass!” — Justin Frankel
-
-## License
-
-MIT — see `LICENSE`.
+- **A file won't play:** make sure it is MP3, FLAC or WAV, and check the volume and system output device.
+- **A file can't be opened:** add it with Add Files or Add Folder so macOS grants access.

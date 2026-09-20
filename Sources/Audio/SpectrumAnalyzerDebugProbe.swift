@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let spectrumDebugLogger = Logger(subsystem: "com.winamp.macos", category: "SpectrumDebug")
+private let spectrumDebugLogger = Logger(subsystem: "com.ampx.macos", category: "SpectrumDebug")
 
 /// Throttled spectrum diagnostics for Console.app (`SpectrumDebug` category).
 enum SpectrumAnalyzerDebugProbe {

@@ -1,7 +1,7 @@
 import Metal
 import os
 
-private let visualizationLogger = Logger(subsystem: "com.winamp.macos", category: "Visualization")
+private let visualizationLogger = Logger(subsystem: "com.ampx.macos", category: "Visualization")
 
 /// Shared Metal device, command queue, and compiled pipeline states for all visualizers.
 final class MetalVisualizationEngine: @unchecked Sendable {

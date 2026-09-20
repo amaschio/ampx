@@ -1,3 +1,4 @@
+import CoreGraphics
 import SwiftUI
 
 /// Catmull-Rom spline (classic Winamp smooth EQ curve).
@@ -25,6 +26,29 @@ enum CatmullRomSpline {
             path.addCurve(to: p2, control1: control1, control2: control2)
         }
 
+        return path
+    }
+}
+
+extension Path {
+    var cgPath: CGPath {
+        let path = CGMutablePath()
+        forEach { element in
+            switch element {
+            case let .move(to: point):
+                path.move(to: point)
+            case let .line(to: point):
+                path.addLine(to: point)
+            case let .quadCurve(to: point, control: control):
+                path.addQuadCurve(to: point, control: control)
+            case let .curve(to: point, control1: control1, control2: control2):
+                path.addCurve(to: point, control1: control1, control2: control2)
+            case .closeSubpath:
+                path.closeSubpath()
+            @unknown default:
+                break
+            }
+        }
         return path
     }
 }

@@ -1,10 +1,10 @@
 #!/bin/bash
-# Winamp macOS Build Script
+# AmpX macOS Build Script
 
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_NAME="Winamp"
+PROJECT_NAME="AmpX"
 
 ARCH="$(uname -m)"
 case "$ARCH" in
@@ -16,7 +16,7 @@ case "$ARCH" in
 esac
 DESTINATION="platform=macOS,arch=${ARCH}"
 
-echo "🎵 Building Winamp macOS..."
+echo "🎵 Building AmpX macOS..."
 echo ""
 
 # Parse arguments
@@ -77,19 +77,43 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "✅ Build succeeded!"
     echo ""
-    
-    # Find the built app
-    APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData/${PROJECT_NAME}-*/Build/Products/${CONFIGURATION}/${PROJECT_NAME}.app -maxdepth 0 2>/dev/null | head -n 1)
-    
-    if [ -n "$APP_PATH" ]; then
+
+    # Resolve THIS project's product — never `find | head` across DerivedData
+    # (multiple AmpX-* folders exist; alphabetical order launches a stale checkout).
+    BUILT_PRODUCTS_DIR=$(xcodebuild -project "${PROJECT_DIR}/${PROJECT_NAME}.xcodeproj" \
+        -scheme "${PROJECT_NAME}" \
+        -configuration "${CONFIGURATION}" \
+        -destination "${DESTINATION}" \
+        ONLY_ACTIVE_ARCH=YES \
+        -showBuildSettings 2>/dev/null \
+        | sed -n 's/^ *BUILT_PRODUCTS_DIR = //p' | head -n 1)
+    if [ -z "$BUILT_PRODUCTS_DIR" ]; then
+        echo "⚠️  Could not resolve BUILT_PRODUCTS_DIR for this project — refusing to guess."
+        exit 1
+    fi
+    APP_PATH="${BUILT_PRODUCTS_DIR}/${PROJECT_NAME}.app"
+
+    if [ -d "$APP_PATH" ]; then
         echo "📦 Built application: $APP_PATH"
-        
-        # Run if requested
+        echo "   (project: ${PROJECT_DIR})"
+
         if [ "$RUN_AFTER_BUILD" = true ]; then
             echo ""
-            echo "🚀 Launching Winamp..."
-            open "$APP_PATH"
+            echo "🚀 Launching AmpX..."
+            # Same bundle ID can be registered from multiple DerivedData checkouts.
+            # `open` without -n reactivates a *running* instance (often the stale one).
+            osascript -e 'tell application "AmpX" to quit' >/dev/null 2>&1 || true
+            killall AmpX >/dev/null 2>&1 || true
+            pkill -x AmpX >/dev/null 2>&1 || true
+            sleep 0.5
+            # -n = new instance of *this* path; -W omitted so the script returns.
+            open -n "$APP_PATH"
+            echo "   binary: ${APP_PATH}/Contents/MacOS/AmpX"
+            ls -la "${APP_PATH}/Contents/MacOS/AmpX" 2>/dev/null || true
         fi
+    else
+        echo "⚠️  Build succeeded but app not found at: $APP_PATH"
+        exit 1
     fi
 else
     echo ""

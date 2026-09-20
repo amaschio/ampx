@@ -16,7 +16,7 @@ case "$ARCH" in
 esac
 
 xcodebuild test \
-    -project Winamp.xcodeproj \
-    -scheme Winamp \
+    -project AmpX.xcodeproj \
+    -scheme AmpX \
     -destination "platform=macOS,arch=${ARCH}" \
-    ONLY_ACTIVE_ARCH=YES
+    ONLY_ACTIVE_ARCH=YES "$@"

@@ -1,22 +1,20 @@
-v1.0.1
+# Releasing AmpX
 
-* Now pause/play buttons and next / back buttons work in the keyboard and show the currently playing song in the system
-* Search box at the top of the playlist
-* Next song now shows in playlist with blue background highlighting the currently playing song, scrolls to active song
+1. Bump the version (`patch`, `minor` or `major`):
+   ```bash
+   ./scripts/bump-version.sh patch
+   ```
+2. Run the tests:
+   ```bash
+   ./scripts/run-tests.sh
+   ```
+3. Build the DMG:
+   ```bash
+   ./scripts/create-dmg.sh
+   ```
+   This makes a release build and writes `release/AmpX-<version>.dmg`. To reuse an existing build, run `SKIP_BUILD=true BUILD_OUTPUT_DIR=/path/to/AmpX.app ./scripts/create-dmg.sh`.
+4. Commit, tag `v<version>`, push, and attach the DMG to a GitHub release.
 
-Bugfixes:
-* Play/pause no longer advances songs
-* 
+The DMG is ad-hoc signed and not notarized, so on first launch users must right-click the app and choose **Open**.
 
-next:
-
-* Train station, Dissolve and Scrolling text feature in currently playing artist/song title
-* Wave form or bar flavor elements
-
-
-Things to fix:
-
-* The milkdrop when clicked on currently does not maximize in multi-screen environments
-* The playlist when saved and re-opened doesn't play the files for some reason
-* there's a small block under the playlist when minimized that needs to be removed
-* fix the star wars text thingy
+Bundle ID: `com.ampx.macos`.

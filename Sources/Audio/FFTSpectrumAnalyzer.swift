@@ -1,6 +1,8 @@
 import Accelerate
 @preconcurrency import AVFoundation
 import Foundation
+import os
+import Synchronization
 
 final class FFTSpectrumAnalyzer: @unchecked Sendable {
     let bandCount: Int
@@ -18,8 +20,19 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
     private var windowedScratch: [Float]
     private var bandMappings: [(start: Int, end: Int)] = []
     private var lastSampleRate: Float = 0
-    private let processingQueue = DispatchQueue(label: "com.winamp.fft", qos: .userInteractive)
+    /// Squared-magnitude a full-scale, bin-aligned sinusoid produces after this analyzer's
+    /// window is applied (empirically `windowSum^2` for vDSP's real-packed FFT convention —
+    /// verified against a calibration tone). Dividing raw bins by this before taking dB
+    /// puts 0 dB at "full digital scale", matching `AnalyserNode`'s convention so its default
+    /// `minDecibels`/`maxDecibels` window (−100/−30) is meaningful for `quantizedByte`.
+    private let rawBinReferenceMagnitude: Float
+    private let processingQueue = DispatchQueue(label: "com.ampx.fft", qos: .userInteractive)
     private let tapStaging = TapPCMStaging()
+    private let processingSignal: DispatchSourceUserDataAdd
+    private let miniGeneration = Atomic<UInt64>(0)
+    private let miniResetLock = OSAllocatedUnfairLock()
+    private var streamGeneration: UInt64 = .max
+    private var streamRate: Double = 0
 
     private var windowRing = [Float](repeating: 0, count: AudioFeatures.fftSize)
     private var ringWriteIndex = 0
@@ -28,6 +41,12 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
     var onSpectrumUpdate: (@Sendable ([Float]) -> Void)?
     var onWaveformUpdate: (@Sendable ([Float], [Float]) -> Void)?
     var onAnalysisUpdate: (@Sendable (_ bands: [Float], _ left: [Float], _ right: [Float]) -> Void)?
+    /// The full linear FFT magnitude spectrum for one hop (`fftSize / 2` bins), quantized
+    /// to bytes with the same dB window `AnalyserNode.getByteFrequencyData` uses. Unlike
+    /// `spectrum`'s 32 log-spaced bands, bin `i` here sits at a fixed `i * sampleRate / 2 /
+    /// count` — required by consumers (e.g. ENTHEA) that index bins linearly or diff
+    /// adjacent bins for spectral flux. No smoothing is applied.
+    var onRawBins: (@Sendable (_ bins: [UInt8], _ sampleRate: Double) -> Void)?
     /// All FFT hop-frames computed from one audio buffer, plus how long that buffer
     /// spans in seconds, so the consumer can play the frames out across the buffer's
     /// duration instead of showing only the last hop (which steps at the tap rate).
@@ -53,10 +72,16 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
         self.windowedScratch = [Float](repeating: 0, count: fftSize)
         self.fftSetup = vDSP_create_fftsetup(self.log2n, FFTRadix(kFFTRadix2))
         vDSP_hann_window(&self.window, vDSP_Length(fftSize), Int32(vDSP_HANN_NORM))
+        self.rawBinReferenceMagnitude = pow(self.window.reduce(0, +), 2)
+        self.windowRing = [Float](repeating: 0, count: fftSize)
+        self.processingSignal = DispatchSource.makeUserDataAddSource(queue: self.processingQueue)
         self.prepareBandMappings(sampleRate: 44100)
+        self.processingSignal.setEventHandler { [weak self] in self?.processCapturedTap() }
+        self.processingSignal.resume()
     }
 
     deinit {
+        self.processingSignal.cancel()
         if let fftSetup {
             vDSP_destroy_fftsetup(fftSetup)
         }
@@ -65,14 +90,14 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
     func installTap(on node: AVAudioNode) {
         let format = node.outputFormat(forBus: 0)
         guard format.sampleRate > 0 else { return }
+        self.resetMiniAnalysis()
 
         node.installTap(onBus: 0, bufferSize: AVAudioFrameCount(self.hopSize), format: format) { [weak self] buffer, _ in
             guard let self else { return }
-            // Realtime path: copy samples into preallocated staging only (no heap).
-            AudioFeatureBus.shared.waveformRing.append(pcm: buffer)
-            self.tapStaging.capture(buffer)
-            self.processingQueue.async { [weak self] in
-                self?.processCapturedTap()
+            // Preallocated, nonblocking capture. The reusable dispatch source coalesces
+            // wakeups; no per-callback closure or unbounded queued analysis tasks.
+            if self.tapStaging.capture(buffer, generation: self.miniGeneration.load(ordering: .acquiring)) {
+                self.processingSignal.add(data: 1)
             }
         }
     }
@@ -81,27 +106,57 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
         node.removeTap(onBus: 0)
     }
 
+    func resetMiniAnalysis() {
+        // Resets may originate on the main actor or audio control queue. Serialize
+        // the pair so an older reset cannot store its epoch after a newer reset.
+        // The audio callback only performs the atomic load; it never takes this lock.
+        self.miniResetLock.lock()
+        defer { self.miniResetLock.unlock() }
+        let generation = AudioFeatureBus.shared.miniTimeline.reset()
+        self.miniGeneration.store(generation, ordering: .releasing)
+    }
+
     private func processCapturedTap() {
-        guard let copy = self.tapStaging.makePCMBuffer() else { return }
+        guard let batch = self.tapStaging.take(),
+              batch.generation == self.miniGeneration.load(ordering: .acquiring) else { return }
+        let copy = batch.pcm
+        if batch.discontinuity || self.streamGeneration != batch.generation
+            || self.streamRate != copy.format.sampleRate
+        {
+            self.windowRing = [Float](repeating: 0, count: self.fftSize)
+            self.ringWriteIndex = 0
+            self.samplesUntilFFT = 0
+            self.streamGeneration = batch.generation
+            self.streamRate = copy.format.sampleRate
+        }
+        AudioFeatureBus.shared.waveformRing.append(pcm: copy)
         // Per-buffer FFT analysis cost + cadence: visible in Instruments' os_signpost
         // track under the "Audio" category.
         let analysisSignpost = Instrumentation.audio.beginInterval("fftAnalyze")
         defer { Instrumentation.audio.endInterval("fftAnalyze", analysisSignpost) }
         let waveform = self.extractWaveformSamples(from: copy, sampleCount: self.waveformChunkSize)
         var frames: [[Float]] = []
+        var hopOffsets: [Int] = []
         let bands: [Float]
-        if let streamed = self.analyzeStreaming(copy, onHop: { hopBands in
+        if let streamed = self.analyzeStreaming(copy, onHop: { hopBands, offset in
             frames.append(hopBands)
+            hopOffsets.append(offset)
             self.onSpectrumUpdate?(hopBands)
         }) {
             bands = streamed
         } else {
             bands = self.analyze(copy)
             frames.append(bands)
+            hopOffsets.append(Int(copy.frameLength))
             self.onSpectrumUpdate?(bands)
         }
         let sampleRate = copy.format.sampleRate
         let batchDuration = sampleRate > 0 ? Double(copy.frameLength) / sampleRate : 0
+        AudioFeatureBus.shared.miniTimeline.publish(
+            pcm: copy, spectrumFrames: frames, hopOffsets: hopOffsets,
+            arrivalTime: batch.arrivalTime, generation: batch.generation,
+            discontinuity: batch.discontinuity
+        )
         self.onSpectrumFrames?(frames, batchDuration)
         self.onAnalysisUpdate?(bands, waveform.left, waveform.right)
         self.onWaveformUpdate?(waveform.left, waveform.right)
@@ -109,8 +164,7 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
 
     /// Exercises the tap processing path without installing an AVAudioNode tap.
     func processBufferForTests(_ buffer: AVAudioPCMBuffer) {
-        AudioFeatureBus.shared.waveformRing.append(pcm: buffer)
-        self.tapStaging.capture(buffer)
+        self.tapStaging.capture(buffer, generation: self.miniGeneration.load(ordering: .acquiring))
         let done = DispatchSemaphore(value: 0)
         self.processingQueue.async {
             self.processCapturedTap()
@@ -153,12 +207,12 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
 
     private func analyzeStreaming(
         _ buffer: AVAudioPCMBuffer,
-        onHop: (([Float]) -> Void)? = nil
+        onHop: (([Float], Int) -> Void)? = nil
     ) -> [Float]? {
         guard let mono = self.makeMonoSamples(from: buffer) else { return nil }
 
         var latestBands: [Float]?
-        for sample in mono {
+        for (index, sample) in mono.enumerated() {
             self.windowRing[self.ringWriteIndex] = sample
             self.ringWriteIndex = (self.ringWriteIndex + 1) % self.fftSize
             self.samplesUntilFFT += 1
@@ -170,7 +224,7 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
                     sampleRate: Float(buffer.format.sampleRate)
                 )
                 latestBands = bands
-                onHop?(bands)
+                onHop?(bands, index + 1)
             }
         }
         return latestBands
@@ -242,10 +296,11 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
         for (index, mapping) in self.bandMappings.enumerated() {
             let slice = self.magnitudes[mapping.start ..< mapping.end]
             let peak = slice.max() ?? 0
-            let meanSquare = slice.reduce(0) { $0 + $1 * $1 } / Float(max(slice.count, 1))
-            let rms = sqrt(meanSquare)
-            let combined = peak * 0.55 + rms * 0.45
-            bands[index] = self.normalizedMagnitude(combined)
+            bands[index] = self.normalizedMagnitude(peak)
+        }
+
+        if let onRawBins {
+            onRawBins(self.magnitudes.map(self.quantizedByte), Double(sampleRate))
         }
 
         return bands
@@ -333,11 +388,34 @@ final class FFTSpectrumAnalyzer: @unchecked Sendable {
 
     private func normalizedMagnitude(_ magnitude: Float) -> Float {
         guard magnitude > 0 else { return 0 }
-        let decibels = 10 * log10(magnitude)
-        let floor: Float = -60
-        // Headroom above the raw 0 dB reference so peak bins are not always clipped to 1.0.
-        let ceiling: Float = 18
+        let normalizedPower = magnitude / self.rawBinReferenceMagnitude
+        let decibels = 10 * log10(normalizedPower)
+        let floor: Float = -72
+        let ceiling: Float = 0
         let clamped = min(max(decibels, floor), ceiling)
         return (clamped - floor) / (ceiling - floor)
+    }
+
+    /// Quantizes a raw squared-magnitude FFT bin to a byte using the same dB window
+    /// (`minDecibels` −100, `maxDecibels` −30) that `AnalyserNode.getByteFrequencyData`
+    /// uses by default, so downstream consumers built against that Web Audio API shape
+    /// need no rescaling. `magnitude` is first normalized against
+    /// `rawBinReferenceMagnitude` so 0 dB lines up with full digital scale, the same
+    /// reference point `minDecibels`/`maxDecibels` assume.
+    private func quantizedByte(_ magnitude: Float) -> UInt8 {
+        guard magnitude > 0 else { return 0 }
+        let normalizedPower = magnitude / self.rawBinReferenceMagnitude
+        let decibels = 10 * log10(normalizedPower)
+        let minDecibels: Float = -100
+        let maxDecibels: Float = -30
+        let clamped = min(max(decibels, minDecibels), maxDecibels)
+        let normalized = (clamped - minDecibels) / (maxDecibels - minDecibels)
+        return UInt8((normalized * 255).rounded().clamped(to: 0 ... 255))
+    }
+}
+
+private extension Comparable {
+    func clamped(to range: ClosedRange<Self>) -> Self {
+        min(max(self, range.lowerBound), range.upperBound)
     }
 }

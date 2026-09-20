@@ -86,7 +86,7 @@ sites are unchanged, but the tick only invalidates the small readouts that obser
 clock — `PlayerTimeReadout`/`PlayerSeekBar` (`MainPlayerView`), `ShadeTimeReadout`
 (`ShadeView`), and `PlaylistElapsedTimeLabel` (`PlaylistView`) — instead of every view
 that observes the player. The clock is injected alongside the player in both window
-environments (`WinampApp`, `WinampPanelWindowManager`).
+environments (`AmpXApp`, `AmpXPanelWindowManager`).
 ℹ️ The structural fact (Metal draws on main) remains by design; keeping main‑thread
 work cheap is the ongoing rule.
 
@@ -104,7 +104,7 @@ during render; frame‑rate‑independent; identical look.
 80 `context.stroke` calls** (plus 160 Catmull‑Rom evals) on every redraw to color the
 response curve by height — janky while dragging EQ sliders.
 **Fix:** stroke the single Catmull‑Rom `curvePath` **once** with a vertical green→red
-`LinearGradient` (`heightColorStops`, sampled from `WinampColors.levelColor` at its
+`LinearGradient` (`heightColorStops`, sampled from `AmpXColors.levelColor` at its
 0.45 / 0.72 break points). A vertical gradient at screen‑`y` evaluates to `level = 1 −
 y/height`, reproducing the former per‑segment coloring pixel‑for‑pixel at 1 stroke
 instead of 80. The now‑orphaned `CatmullRomSpline.point(at:)` evaluator was removed.
@@ -191,7 +191,7 @@ autoleveler, ReplayGain, EQ parsing, docking/snap geometry, the
 | Extract a pure `VolumeModel` (`taper`, `taper × ReplayGain`) from `AudioPlayer` | ✅ Done — `VolumeModel` + tests |
 | Inject a `Clock` into `MetalVisualizationRenderer` (remove direct `CACurrentMediaTime()`) | ✅ Done — `VisualizationClock`/`RenderFrameClock` + tests |
 | `AudioRenderingEngine` protocol seam over `AVAudioEngine`/nodes (mock EQ wiring) | ⬜ Not done |
-| Extract `PanelDragGeometry` from `WinampPanelWindowManager` | ⬜ Not done |
+| Extract `PanelDragGeometry` from `AmpXPanelWindowManager` | ⬜ Not done |
 
 ---
 
@@ -206,6 +206,6 @@ autoleveler, ReplayGain, EQ parsing, docking/snap geometry, the
 
 ## Recommended next actions
 1. Remaining testability seams (lower value): `AudioRenderingEngine` protocol over
-   `AVAudioEngine`/nodes; extract `PanelDragGeometry` from `WinampPanelWindowManager`.
+   `AVAudioEngine`/nodes; extract `PanelDragGeometry` from `AmpXPanelWindowManager`.
 2. Optional polish: S2's per‑callback buffer pool, S3 taper tuning, S5 press feedback —
    only if profiling or feel calls for it.

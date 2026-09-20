@@ -322,7 +322,7 @@ enum OscilloscopeColumnSampler {
         return columns
     }
 
-    /// Maps a float PCM sample to NDC using Winamp's byte-grid quantization for crisp scope pixels.
+    /// Maps a float PCM sample to NDC using AmpX's byte-grid quantization for crisp scope pixels.
     private static func mapSampleToLineLevel(_ sample: Float) -> Float {
         let clamped = min(max(sample, -1), 1)
         let byte = (clamped * 0.5 + 0.5) * 255
@@ -401,7 +401,9 @@ final class MiniOscilloscopeMetalPlugin: MetalVisualizationPlugin {
 
     private static func resample(_ values: [Float], to count: Int) -> [Float] {
         guard count > 0, !values.isEmpty else { return Array(repeating: 0, count: max(count, 0)) }
-        if values.count == count { return values }
+        if values.count == count {
+            return values
+        }
 
         return (0 ..< count).map { index in
             let source = Float(index) / Float(max(count - 1, 1)) * Float(values.count - 1)
