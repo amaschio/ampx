@@ -19,6 +19,10 @@ struct ClassicModernSkin: AmpXSkin {
     let goldLight = NSColor(srgbRed: 1.0, green: 0.953, blue: 0.286, alpha: 1)
     let faceInk = NSColor(srgbRed: 0.063, green: 0.086, blue: 0.141, alpha: 1)
     let faceInkDim = NSColor(srgbRed: 0.361, green: 0.400, blue: 0.471, alpha: 1)
+    // At least 3:1 against the mid-gradient steel face.
+    let faceGreen = NSColor(srgbRed: 0, green: 80 / 255, blue: 18 / 255, alpha: 1)
+    let faceAmber = NSColor(srgbRed: 110 / 255, green: 64 / 255, blue: 0, alpha: 1)
+    let faceOrange = NSColor(srgbRed: 140 / 255, green: 50 / 255, blue: 0, alpha: 1)
 
     func font(size: CGFloat, weight: NSFont.Weight) -> NSFont {
         AmpXFonts.font(size: size, weight: weight)

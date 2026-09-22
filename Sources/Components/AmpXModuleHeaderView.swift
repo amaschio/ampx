@@ -243,11 +243,11 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
         let glyphRect: CGRect
         let color: NSColor
         switch button {
-        // Deep amber/orange and dark ink read on the steel face; the former light tints did not.
+        // Face accents and dark ink read on the steel face; the former light tints did not.
         case .minimize:
             icon = .minimize
             glyphRect = AmpXMetrics.headerMinimizeGlyph
-            color = NSColor(srgbRed: 0.62, green: 0.40, blue: 0.02, alpha: 1)
+            color = skin.faceAmber
         case .collapse:
             icon = .collapse
             glyphRect = AmpXMetrics.headerCollapseGlyph
@@ -255,7 +255,7 @@ final class AmpXModuleHeaderView: AmpXDrawingView {
         case .close:
             icon = .close
             glyphRect = AmpXMetrics.headerCloseGlyph
-            color = NSColor(srgbRed: 0.72, green: 0.30, blue: 0.02, alpha: 1)
+            color = skin.faceOrange
         }
         icon.draw(
             in: self.scaled(glyphRect).offsetBy(dx: frame.minX, dy: frame.minY),

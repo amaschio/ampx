@@ -21,8 +21,6 @@ final class AmpXScrollbar: AmpXControlView {
 
     var onScroll: ((CGFloat) -> Void)?
 
-    /// Sampled from the reference scrollbar arrows.
-    private static let arrowHighlight = NSColor(srgbRed: 1, green: 243 / 255, blue: 49 / 255, alpha: 1)
     private static let minimumThumbLength: CGFloat = 12
 
     private var isDraggingThumb = false
@@ -210,17 +208,5 @@ final class AmpXScrollbar: AmpXControlView {
         context.addPath(path)
         context.setFillColor(skin.faceInk.cgColor)
         context.fillPath()
-
-        context.setStrokeColor(Self.arrowHighlight.withAlphaComponent(0.8).cgColor)
-        context.setLineWidth(0.5)
-        if up {
-            context.strokeLineSegments(between: [
-                CGPoint(x: rect.midX, y: rect.minY + 0.5), CGPoint(x: rect.minX + 0.5, y: rect.maxY - 0.5),
-            ])
-        } else {
-            context.strokeLineSegments(between: [
-                CGPoint(x: rect.minX + 0.5, y: rect.minY + 0.25), CGPoint(x: rect.maxX - 0.5, y: rect.minY + 0.25),
-            ])
-        }
     }
 }

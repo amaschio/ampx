@@ -49,6 +49,11 @@ protocol AmpXSkin {
     var faceInk: NSColor { get }
     /// Disabled glyph and label ink on steel button faces.
     var faceInkDim: NSColor { get }
+    /// Accent glyph inks on light steel faces, where `green`/`yellow`/`orange` are too light
+    /// to read. The bright accents stay for dark surfaces and pressed faces.
+    var faceGreen: NSColor { get }
+    var faceAmber: NSColor { get }
+    var faceOrange: NSColor { get }
 
     func font(size: CGFloat, weight: NSFont.Weight) -> NSFont
 

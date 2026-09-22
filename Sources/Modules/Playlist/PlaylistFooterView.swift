@@ -78,7 +78,7 @@ final class PlaylistFooterView: AmpXDrawingView {
             button.accessibilityTitle = self.miniTransportLabel(for: icon)
             button.action = self.transportAction(for: icon)
             if icon == .play {
-                button.iconColor = skin.green
+                button.iconColor = skin.faceGreen
                 button.isActive = true
             }
             self.miniTransportButtons.append(button)

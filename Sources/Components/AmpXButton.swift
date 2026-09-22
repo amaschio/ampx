@@ -149,7 +149,9 @@ final class AmpXButton: AmpXControlView {
         }
 
         if let icon {
-            let tint = self.iconColor ?? (self.displaysActive ? skin.green : self.inkColor)
+            // Bright green reads on the darker pressed face; light steel needs the deep variant.
+            let activeTint = faceStyle == .pressed ? skin.green : skin.faceGreen
+            let tint = self.iconColor ?? (self.displaysActive ? activeTint : self.inkColor)
             icon.draw(in: self.resolvedIconRect, context: context, skin: skin, color: isEnabled ? tint : self.dimInkColor)
         }
 
