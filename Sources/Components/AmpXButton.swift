@@ -85,6 +85,15 @@ final class AmpXButton: AmpXControlView {
         self.displayActiveOverride ?? self.isActive
     }
 
+    /// Glyph and label ink: dark on steel faces, light on the orange menu face.
+    private var inkColor: NSColor {
+        self.style == .menu ? skin.text : skin.faceInk
+    }
+
+    private var dimInkColor: NSColor {
+        self.style == .menu ? skin.textDim : skin.faceInkDim
+    }
+
     private var labelLines: [String] {
         self.label?.components(separatedBy: "\n") ?? []
     }
@@ -140,8 +149,8 @@ final class AmpXButton: AmpXControlView {
         }
 
         if let icon {
-            let tint = self.iconColor ?? (self.displaysActive ? skin.green : skin.text)
-            icon.draw(in: self.resolvedIconRect, context: context, skin: skin, color: isEnabled ? tint : skin.textDim)
+            let tint = self.iconColor ?? (self.displaysActive ? skin.green : self.inkColor)
+            icon.draw(in: self.resolvedIconRect, context: context, skin: skin, color: isEnabled ? tint : self.dimInkColor)
         }
 
         if self.showsActiveIndicator {
@@ -153,7 +162,7 @@ final class AmpXButton: AmpXControlView {
 
     private func drawLabel(in context: CGContext) {
         let font = self.labelFont
-        let color = isEnabled ? skin.text : skin.textDim
+        let color = isEnabled ? self.inkColor : self.dimInkColor
         let rect = self.labelRect
         let lineHeight = font.ascender - font.descender
         for (index, line) in self.labelLines.enumerated() {

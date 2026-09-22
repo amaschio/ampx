@@ -22,7 +22,6 @@ final class AmpXScrollbar: AmpXControlView {
     var onScroll: ((CGFloat) -> Void)?
 
     /// Sampled from the reference scrollbar arrows.
-    private static let arrowColor = NSColor(srgbRed: 248 / 255, green: 178 / 255, blue: 10 / 255, alpha: 1)
     private static let arrowHighlight = NSColor(srgbRed: 1, green: 243 / 255, blue: 49 / 255, alpha: 1)
     private static let minimumThumbLength: CGFloat = 12
 
@@ -44,7 +43,7 @@ final class AmpXScrollbar: AmpXControlView {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let backingScale = window?.backingScaleFactor ?? 1
 
-        skin.raisedFace(self.trackRect(), style: .normal, in: context, backingScale: backingScale)
+        skin.raisedFace(self.trackRect(), style: .surface, in: context, backingScale: backingScale)
         skin.raisedFace(self.upArrowRect(), style: .normal, in: context, backingScale: backingScale)
         skin.raisedFace(self.downArrowRect(), style: .normal, in: context, backingScale: backingScale)
         self.drawArrow(up: true, in: self.glyphRect(AmpXMetrics.playlistScrollbarUpGlyph, in: self.upArrowRect()), context: context)
@@ -209,7 +208,7 @@ final class AmpXScrollbar: AmpXControlView {
         }
         path.closeSubpath()
         context.addPath(path)
-        context.setFillColor(Self.arrowColor.cgColor)
+        context.setFillColor(skin.faceInk.cgColor)
         context.fillPath()
 
         context.setStrokeColor(Self.arrowHighlight.withAlphaComponent(0.8).cgColor)

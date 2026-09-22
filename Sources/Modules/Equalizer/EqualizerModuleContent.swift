@@ -69,7 +69,7 @@ final class EqualizerModuleContent: AmpXModuleContent {
             "PRESETS", size: 12.5, inkX: AmpXMetrics.eqPresetsLabelInk.x, baseline: AmpXMetrics.eqPresetsLabelInk.y, skin: skin
         )
         self.presetsButton.icon = .dropdown
-        self.presetsButton.iconColor = skin.text
+        self.presetsButton.iconColor = skin.faceInk
         self.presetsButton.iconRect = AmpXMetrics.eqPresetsTriangle
         self.presetsButton.accessibilityTitle = "Equalizer presets"
         self.presetsButton.action = { [weak self] in

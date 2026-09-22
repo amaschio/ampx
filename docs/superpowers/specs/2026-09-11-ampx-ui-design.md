@@ -46,6 +46,7 @@ The panel measurements and button classes are starting values, not permission to
 
 - Preserve centered Player branding, uppercase EQ/Playlist titles, the reference's left glyph treatment, paired decorative lines, and header-button order. The grip interaction uses the existing left decoration; it does not introduce a generic menu icon.
 - Match layered steel-blue frame edges, raised button faces, recessed black wells, and metallic slider thumbs. A single outline or flat fill is not an equivalent bevel treatment.
+- Button faces are light steel with dark ink glyphs (revision 2026-09-22, after Winamp's grey buttons); pressed and active faces are darker steel with the bevel inverted. Only the orange menu button keeps light ink, and non-interactive raised surfaces such as the Playlist scrollbar track stay navy (`AmpXFaceStyle.surface`).
 - Preserve slender colored slider tracks within their control areas, individual transport widths and spacing, indicator placement, and the separation of the EQ curve, toggles, preamp, and bands. Track color is value-driven, not a constant sampled from the PNG (see Player controls).
 - The PNG is one frame. Any appearance that depends on a value, state, or pointer position must be specified in this document; a single sampled color or shape never satisfies such a requirement.
 - Match text size, weight, baseline, and alignment. Keep metadata labels on one line without collisions or clipping. Timer digits retain consistent reference proportions and spacing as values change; shorter times must not stretch digits to fill the well.

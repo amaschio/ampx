@@ -2,10 +2,14 @@ import AppKit
 import CoreGraphics
 
 enum AmpXFaceStyle {
+    /// Steel button face (Winamp's grey transport look); glyphs use `faceInk`.
     case normal
     case hovered
     case pressed
+    /// Orange menu button; glyphs stay light (`text`).
     case menu
+    /// Non-interactive raised navy surface (scrollbar track, legacy slider thumb).
+    case surface
 }
 
 enum AmpXThumbMaterial {
@@ -41,6 +45,10 @@ protocol AmpXSkin {
     var gold: NSColor { get }
     /// Sampled from PNG scrollbar thumb highlight (ReferenceMeasurementsV1).
     var goldLight: NSColor { get }
+    /// Glyph and label ink on steel button faces.
+    var faceInk: NSColor { get }
+    /// Disabled glyph and label ink on steel button faces.
+    var faceInkDim: NSColor { get }
 
     func font(size: CGFloat, weight: NSFont.Weight) -> NSFont
 

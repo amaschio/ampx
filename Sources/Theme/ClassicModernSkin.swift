@@ -17,13 +17,15 @@ struct ClassicModernSkin: AmpXSkin {
     let display = NSColor(hex: 0x000000)
     let gold = NSColor(srgbRed: 0.749, green: 0.627, blue: 0.322, alpha: 1)
     let goldLight = NSColor(srgbRed: 1.0, green: 0.953, blue: 0.286, alpha: 1)
+    let faceInk = NSColor(srgbRed: 0.063, green: 0.086, blue: 0.141, alpha: 1)
+    let faceInkDim = NSColor(srgbRed: 0.361, green: 0.400, blue: 0.471, alpha: 1)
 
     func font(size: CGFloat, weight: NSFont.Weight) -> NSFont {
         AmpXFonts.font(size: size, weight: weight)
     }
 
     func bevel(_ rect: CGRect, in context: CGContext, backingScale: CGFloat) {
-        self.raisedFace(rect, style: .normal, in: context, backingScale: backingScale)
+        self.raisedFace(rect, style: .surface, in: context, backingScale: backingScale)
     }
 
     func inset(_ rect: CGRect, in context: CGContext, backingScale: CGFloat) {
@@ -106,10 +108,36 @@ struct ClassicModernSkin: AmpXSkin {
 
         switch style {
         case .normal, .hovered:
+            // Light steel, the same material as the slider thumbs: Winamp's grey buttons.
             let lift: CGFloat = style == .hovered ? 8 : 0
             self.drawVerticalGradient(
                 in: face,
-                stops: [(0, rgb(39 + lift, 51 + lift, 76 + lift)), (1, rgb(31 + lift, 42 + lift, 64 + lift))],
+                stops: [(0, rgb(178 + lift, 188 + lift, 206 + lift)), (1, rgb(138 + lift, 149 + lift, 171 + lift))],
+                context: context
+            )
+            self.drawBands(in: face, unit: 0.5, context: context, edges: Edges(
+                top: [rgb(6, 9, 16), rgb(96, 106, 124), rgb(242, 246, 252), rgb(224, 231, 242), rgb(200, 209, 224)],
+                left: [rgb(6, 9, 16), rgb(150, 160, 178), rgb(236, 241, 249), rgb(206, 214, 228)],
+                bottom: [rgb(3, 5, 13), rgb(40, 47, 62), rgb(64, 73, 92), rgb(88, 98, 120), rgb(104, 114, 136), rgb(118, 129, 150)],
+                right: [rgb(3, 5, 12), rgb(58, 66, 84), rgb(92, 102, 124)]
+            ))
+        case .pressed:
+            // Darker steel with the bevel inverted (shadow on top, light along the bottom).
+            self.drawVerticalGradient(
+                in: face,
+                stops: [(0, rgb(118, 128, 148)), (1, rgb(104, 114, 134))],
+                context: context
+            )
+            self.drawBands(in: face, unit: 0.5, context: context, edges: Edges(
+                top: [rgb(4, 6, 12), rgb(44, 52, 70), rgb(70, 80, 100), rgb(90, 100, 120)],
+                left: [rgb(4, 6, 12), rgb(56, 64, 84), rgb(80, 90, 110)],
+                bottom: [rgb(3, 5, 13), rgb(150, 160, 178), rgb(170, 180, 196), rgb(140, 150, 170)],
+                right: [rgb(3, 5, 12), rgb(140, 150, 168), rgb(124, 134, 154)]
+            ))
+        case .surface:
+            self.drawVerticalGradient(
+                in: face,
+                stops: [(0, rgb(39, 51, 76)), (1, rgb(31, 42, 64))],
                 context: context
             )
             self.drawBands(in: face, unit: 0.5, context: context, edges: Edges(
@@ -117,18 +145,6 @@ struct ClassicModernSkin: AmpXSkin {
                 left: [rgb(6, 9, 16), rgb(60, 70, 90), rgb(98, 113, 139), rgb(58, 70, 94)],
                 bottom: [rgb(3, 5, 13), rgb(1, 2, 8), rgb(7, 14, 26), rgb(15, 25, 41), rgb(16, 23, 40), rgb(21, 28, 46)],
                 right: [rgb(3, 5, 12), rgb(14, 20, 34), rgb(26, 35, 52)]
-            ))
-        case .pressed:
-            self.drawVerticalGradient(
-                in: face,
-                stops: [(0, rgb(27, 37, 54)), (1, rgb(23, 32, 48))],
-                context: context
-            )
-            self.drawBands(in: face, unit: 0.5, context: context, edges: Edges(
-                top: [rgb(4, 6, 12), rgb(12, 16, 26), rgb(55, 66, 88), rgb(46, 56, 76)],
-                left: [rgb(4, 6, 12), rgb(40, 48, 64), rgb(36, 45, 62)],
-                bottom: [rgb(3, 5, 13), rgb(10, 16, 28), rgb(30, 40, 58), rgb(34, 45, 64)],
-                right: [rgb(3, 5, 12), rgb(12, 18, 30), rgb(22, 30, 46)]
             ))
         case .menu:
             self.drawVerticalGradient(
