@@ -143,7 +143,9 @@ final class EQCurveView: AmpXDrawingView {
 
     func animationTick(at time: TimeInterval) {
         guard let start = animationStartTime else { return }
-        let progress = min(1, (time - start) / Self.animationDuration)
+        // `CADisplayLink.timestamp` is the previous frame's time and can predate `start`; a
+        // negative progress would extrapolate away from the target (a raised band dipped first).
+        let progress = max(0, min(1, (time - start) / Self.animationDuration))
         self.displayedBandValues = zip(self.animationFromBands, self.targetBandValues).map { from, to in
             from + (to - from) * Float(progress)
         }

@@ -54,16 +54,18 @@ enum AmpXEQBands {
             midY - CGFloat(normalizedGain) * yScale
         }
 
-        let preampY = yForGain(preampValue)
-        var points: [CGPoint] = [CGPoint(x: 0, y: preampY)]
-
+        var bandPoints: [CGPoint] = []
         for index in 0 ..< min(bandValues.count, self.bandCount) {
             let x = self.bandCenterX(bandIndex: index, width: width)
             let combinedGain = max(-maxGainDB, min(maxGainDB, (bandValues[index] + preampValue) * maxGainDB)) / maxGainDB
-            points.append(CGPoint(x: x, y: yForGain(combinedGain)))
+            bandPoints.append(CGPoint(x: x, y: yForGain(combinedGain)))
         }
 
-        points.append(CGPoint(x: width, y: preampY))
-        return points
+        // Edge knots extend the outer bands flat to the view edges, so the curve's ends
+        // move with the first and last sliders.
+        let preampY = yForGain(preampValue)
+        let startY = bandPoints.first?.y ?? preampY
+        let endY = bandPoints.last?.y ?? preampY
+        return [CGPoint(x: 0, y: startY)] + bandPoints + [CGPoint(x: width, y: endY)]
     }
 }

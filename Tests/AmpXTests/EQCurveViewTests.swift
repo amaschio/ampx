@@ -32,6 +32,28 @@ final class EQCurveViewTests: XCTestCase {
         XCTAssertEqual(view.displayedBandValues[0], 0, accuracy: 0.001)
     }
 
+    func testTickBeforeAnimationStartDoesNotMoveCurveBackwards() {
+        let view = self.makeView()
+        view.setCurve(bandValues: Array(repeating: 0, count: AmpXEQBands.bandCount), preampValue: 0, animated: false)
+
+        view.setCurve(bandValues: Array(repeating: 1, count: AmpXEQBands.bandCount), preampValue: 0, animated: true)
+        // `CADisplayLink.timestamp` is the previous frame's time, so the first link tick can
+        // predate the start of the animation.
+        view.animationTick(at: CACurrentMediaTime() - EQCurveView.animationDuration)
+
+        XCTAssertGreaterThanOrEqual(view.displayedBandValues[0], 0, "Raising a band must never dip the curve first")
+    }
+
+    func testEdgeKnotsFollowFirstAndLastBands() {
+        var bands = Array(repeating: Float(0), count: AmpXEQBands.bandCount)
+        bands[0] = 1
+        bands[bands.count - 1] = -1
+        let points = EQCurveView.knotPoints(bandValues: bands, preampValue: 0, size: AmpXMetrics.eqCurveFrame.size)
+
+        XCTAssertEqual(points.first?.y ?? 0, points[1].y, accuracy: 0.001)
+        XCTAssertEqual(points.last?.y ?? 0, points[points.count - 2].y, accuracy: 0.001)
+    }
+
     func testImmediateSetCurveAppliesWithoutAnimation() {
         let view = self.makeView()
         let bands: [Float] = Array(repeating: -0.5, count: AmpXEQBands.bandCount)
