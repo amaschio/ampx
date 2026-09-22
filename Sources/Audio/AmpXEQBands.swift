@@ -39,33 +39,22 @@ enum AmpXEQBands {
         return (index + 0.5) / CGFloat(self.bandCount) * width
     }
 
-    /// Build curve sample points: left edge, each band center, right edge.
-    static func responseCurvePoints(
-        bandValues: [Float],
-        preampValue: Float,
-        width: CGFloat,
-        height: CGFloat,
-        maxGainDB: Float = 12
-    ) -> [CGPoint] {
+    /// Curve height for a normalized −1…1 gain in a graph of `height`, top-left origin: boost
+    /// above the center line, cut below, with a small margin at the extremes.
+    static func curveY(forNormalizedGain gain: Float, height: CGFloat) -> CGFloat {
         let midY = height / 2
-        let yScale = midY * 0.85
+        let clamped = CGFloat(max(-1, min(1, gain)))
+        return midY - clamped * midY * 0.85
+    }
 
-        func yForGain(_ normalizedGain: Float) -> CGFloat {
-            midY - CGFloat(normalizedGain) * yScale
+    /// One curve knot per band, at the band's slider value. Preamp is not folded in: the
+    /// graph draws it as its own line, so each knot mirrors exactly one slider.
+    static func responseCurvePoints(bandValues: [Float], width: CGFloat, height: CGFloat) -> [CGPoint] {
+        (0 ..< min(bandValues.count, self.bandCount)).map { index in
+            CGPoint(
+                x: self.bandCenterX(bandIndex: index, width: width),
+                y: self.curveY(forNormalizedGain: bandValues[index], height: height)
+            )
         }
-
-        var bandPoints: [CGPoint] = []
-        for index in 0 ..< min(bandValues.count, self.bandCount) {
-            let x = self.bandCenterX(bandIndex: index, width: width)
-            let combinedGain = max(-maxGainDB, min(maxGainDB, (bandValues[index] + preampValue) * maxGainDB)) / maxGainDB
-            bandPoints.append(CGPoint(x: x, y: yForGain(combinedGain)))
-        }
-
-        // Edge knots extend the outer bands flat to the view edges, so the curve's ends
-        // move with the first and last sliders.
-        let preampY = yForGain(preampValue)
-        let startY = bandPoints.first?.y ?? preampY
-        let endY = bandPoints.last?.y ?? preampY
-        return [CGPoint(x: 0, y: startY)] + bandPoints + [CGPoint(x: width, y: endY)]
     }
 }
