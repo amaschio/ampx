@@ -22,8 +22,9 @@ final class EQCurveView: AmpXDrawingView {
     private static let curveColor = NSColor(srgbRed: 246 / 255, green: 182 / 255, blue: 6 / 255, alpha: 1)
     private static let knotColor = NSColor(srgbRed: 1, green: 206 / 255, blue: 20 / 255, alpha: 1)
 
-    private var displayedBandValues = Array(repeating: Float(0), count: AmpXEQBands.bandCount)
-    private var displayedPreampValue: Float = 0
+    /// Values currently drawn; lag `target*` while an animation is in flight. Internal for tests.
+    private(set) var displayedBandValues = Array(repeating: Float(0), count: AmpXEQBands.bandCount)
+    private(set) var displayedPreampValue: Float = 0
     private var targetBandValues = Array(repeating: Float(0), count: AmpXEQBands.bandCount)
     private var targetPreampValue: Float = 0
 
@@ -122,7 +123,10 @@ final class EQCurveView: AmpXDrawingView {
     }
 
     private func startAnimation() {
-        self.stopAnimation()
+        // Only replace the display link here. `stopAnimation()` would also clear
+        // `animationStartTime`, which `setCurve` has just set; with it nil every tick
+        // returned early, so the curve never left its launch values and the link ran forever.
+        self.stopDisplayLink()
 
         let forwarder = EQCurveAnimationForwarder()
         forwarder.view = self
@@ -137,7 +141,7 @@ final class EQCurveView: AmpXDrawingView {
         self.animationTick(at: CACurrentMediaTime())
     }
 
-    fileprivate func animationTick(at time: TimeInterval) {
+    func animationTick(at time: TimeInterval) {
         guard let start = animationStartTime else { return }
         let progress = min(1, (time - start) / Self.animationDuration)
         self.displayedBandValues = zip(self.animationFromBands, self.targetBandValues).map { from, to in
@@ -159,10 +163,14 @@ final class EQCurveView: AmpXDrawingView {
     }
 
     private func stopAnimation() {
+        self.stopDisplayLink()
+        self.animationStartTime = nil
+    }
+
+    private func stopDisplayLink() {
         self.animationLink?.invalidate()
         self.animationLink = nil
         self.animationForwarder = nil
-        self.animationStartTime = nil
     }
 }
 
