@@ -458,7 +458,10 @@ class AudioPlayer: NSObject, ObservableObject {
             self.playbackSegmentStartTime = 0
             let generation = self.playbackGeneration
 
-            player.scheduleFile(file, at: nil) { [weak self] in
+            // `.dataPlayedBack` fires once the last frame has left the output device, so
+            // completion handling can stop the node without clipping the tail. The default
+            // `.dataConsumed` fires as soon as the file has been read into the render pipeline.
+            player.scheduleFile(file, at: nil, completionCallbackType: .dataPlayedBack) { [weak self] _ in
                 self?.runOnMainActor(weak: self) { player in
                     guard generation == player.playbackGeneration else { return }
                     player.handleTrackCompletion()
@@ -621,8 +624,9 @@ class AudioPlayer: NSObject, ObservableObject {
                 file,
                 startingFrame: startFrame,
                 frameCount: AVAudioFrameCount(file.length - startFrame),
-                at: nil
-            ) { [weak self] in
+                at: nil,
+                completionCallbackType: .dataPlayedBack
+            ) { [weak self] _ in
                 self?.runOnMainActor(weak: self) { player in
                     guard generation == player.playbackGeneration else { return }
                     player.handleTrackCompletion()
@@ -905,16 +909,25 @@ class AudioPlayer: NSObject, ObservableObject {
         AudioFeatureBus.shared.setPlaying(false)
     }
 
+    /// Runs when the scheduled audio has played back to its end. Leaves the player in the
+    /// same stopped state as `stop()` before notifying the delegate: a finished
+    /// `AVAudioPlayerNode` otherwise keeps its sample clock running with nothing scheduled,
+    /// so a later `resume()` would show wall-clock time, play silence and never finish.
     private func handleTrackCompletion() {
         self.audioQueue.async { [weak self] in
             guard let self else { return }
+            self.playerNode?.stop()
+            self.playbackSegmentStartTime = 0
+            self.spectrumAnalyzer?.resetMiniAnalysis()
             self.isPlayingInternal = false
             self.isPausedInternal = false
             let shouldAdvance = self.shouldAutoAdvance
 
             self.runOnMainActor(weak: self) { player in
                 player.isPlaying = false
+                player.currentTime = 0
                 player.stopTimer()
+                player.updateNowPlayingInfo()
                 if shouldAdvance {
                     player.onTrackFinished?()
                 }
