@@ -451,6 +451,9 @@ class AudioPlayer: NSObject, ObservableObject {
             }
             self.publishEngineRunningState(true, on: self)
 
+            // Stopping the node fires the completion of any segment still scheduled (e.g. by
+            // a seek while stopped); the new generation makes that completion a no-op.
+            self.playbackGeneration += 1
             player.stop()
             player.reset()
 
@@ -462,10 +465,7 @@ class AudioPlayer: NSObject, ObservableObject {
             // completion handling can stop the node without clipping the tail. The default
             // `.dataConsumed` fires as soon as the file has been read into the render pipeline.
             player.scheduleFile(file, at: nil, completionCallbackType: .dataPlayedBack) { [weak self] _ in
-                self?.runOnMainActor(weak: self) { player in
-                    guard generation == player.playbackGeneration else { return }
-                    player.handleTrackCompletion()
-                }
+                self?.handleTrackCompletion(generation: generation)
             }
 
             player.volume = playerGain
@@ -627,10 +627,7 @@ class AudioPlayer: NSObject, ObservableObject {
                 at: nil,
                 completionCallbackType: .dataPlayedBack
             ) { [weak self] _ in
-                self?.runOnMainActor(weak: self) { player in
-                    guard generation == player.playbackGeneration else { return }
-                    player.handleTrackCompletion()
-                }
+                self?.handleTrackCompletion(generation: generation)
             }
 
             if wasPlaying {
@@ -913,9 +910,16 @@ class AudioPlayer: NSObject, ObservableObject {
     /// same stopped state as `stop()` before notifying the delegate: a finished
     /// `AVAudioPlayerNode` otherwise keeps its sample clock running with nothing scheduled,
     /// so a later `resume()` would show wall-clock time, play silence and never finish.
-    private func handleTrackCompletion() {
+    ///
+    /// `generation` is checked on `audioQueue`, where `playbackGeneration` is written, so a
+    /// completion that races a newer play/seek/load/stop is dropped instead of stopping the
+    /// new playback. `nil` skips the check (test hook only).
+    private nonisolated func handleTrackCompletion(generation: Int?) {
         self.audioQueue.async { [weak self] in
             guard let self else { return }
+            if let generation, generation != self.playbackGeneration {
+                return
+            }
             self.playerNode?.stop()
             self.playbackSegmentStartTime = 0
             self.spectrumAnalyzer?.resetMiniAnalysis()
@@ -952,7 +956,7 @@ extension AudioPlayer {
     }
 
     func testing_simulateTrackCompletion() {
-        self.handleTrackCompletion()
+        self.handleTrackCompletion(generation: nil)
     }
 
     func testing_afterAudioQueueFlush(completion: @escaping @Sendable () -> Void) {

@@ -319,7 +319,7 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertTrue(self.waitForLoad(track))
 
         self.player.play()
-        XCTAssertTrue(self.waitForIsPlaying(true, timeout: 2.0), "Playback should start")
+        try self.requirePlaybackStarted()
         XCTAssertTrue(self.waitForIsPlaying(false, timeout: 5.0), "Playback should finish on its own")
         XCTAssertEqual(self.player.currentTime, 0)
 
@@ -338,6 +338,36 @@ final class AudioPlayerTests: XCTestCase {
             self.waitForIsPlaying(false, timeout: 5.0),
             "Replayed track should finish again instead of running forever"
         )
+    }
+
+    func testPlayAfterSeekWhileStoppedKeepsPlayingAndDoesNotAdvance() throws {
+        let url = try Self.makeSilentWAVFixture(durationSeconds: 2.0)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let track = Track(title: "Silence", artist: "Test", url: url)
+        XCTAssertTrue(self.waitForLoad(track))
+        let finishedCount = SendableBox(0)
+        self.player.onTrackFinished = { finishedCount.value += 1 }
+
+        // Schedules a segment without playing it; Play's node stop then fires its completion.
+        self.player.seek(to: 0)
+        self.player.playOrResume()
+        try self.requirePlaybackStarted()
+        self.waitBriefly(0.3)
+
+        XCTAssertTrue(self.player.isPlaying, "A stale seek completion must not stop the new playback")
+        XCTAssertEqual(finishedCount.value, 0, "A stale seek completion must not advance the playlist")
+    }
+
+    /// Waits for playback to start, skipping the test on machines without a usable output
+    /// device (the engine cannot start, so `.dataPlayedBack` completions never fire).
+    private func requirePlaybackStarted(timeout: TimeInterval = 2.0) throws {
+        if self.waitForIsPlaying(true, timeout: timeout) {
+            return
+        }
+        if !self.player.engineIsRunning {
+            throw XCTSkip("Audio engine could not start; no output device available")
+        }
+        XCTFail("Playback should start")
     }
 
     func testSetVolumeClampsToValidRange() {
